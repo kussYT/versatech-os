@@ -1,0 +1,539 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050814;
+  --sidebar: #080d1c;
+  --surface: #0b1224;
+  --surface-high: #101a30;
+  --border: #1c2944;
+  --foreground: #f4f7ff;
+  --muted: #9caac4;
+  --faint: #66738c;
+  --primary: #4c7dff;
+  --primary-hover: #6e9bff;
+  --primary-active: #365fe5;
+  --cyan: #52e5ff;
+  --purple: #9b7cff;
+  --pink: #f472b6;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --orange: #fb923c;
+  --danger: #fb7185;
+  --holographic-gradient: linear-gradient(
+    120deg,
+    #4c7dff 0%,
+    #52e5ff 32%,
+    #9b7cff 64%,
+    #f472b6 82%,
+    #4c7dff 100%
+  );
+  --vt-duration-hover: 220ms;
+  --vt-duration-button: 180ms;
+  --vt-duration-sidebar: 220ms;
+  --shadow-soft: 0 8px 24px rgb(5 8 20 / 0.28);
+  --highlight: rgb(244 247 255 / 0.07);
+  --foil-rest: 0.18;
+  --foil-hover: 0.72;
+  --foil-premium-rest: 0.48;
+  --foil-premium-hover: 0.85;
+  --foil-spot-hover: 1;
+  --foil-wash-hover: 0.3;
+  --foil-wash-premium: 0.22;
+  --foil-wash-premium-hover: 0.36;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-sidebar: var(--sidebar);
+  --color-surface: var(--surface);
+  --color-surface-high: var(--surface-high);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-cyan: var(--cyan);
+  --color-purple: var(--purple);
+  --color-pink: var(--pink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-orange: var(--orange);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-card: 0.875rem;
+  --text-h1: 2rem;
+  --text-h1--line-height: 1.15;
+  --text-h1--font-weight: 700;
+  --text-h1--letter-spacing: -0.03em;
+  --text-h2: 1.375rem;
+  --text-h2--line-height: 1.3;
+  --text-h2--font-weight: 650;
+  --text-h2--letter-spacing: -0.02em;
+  --text-kpi: 1.875rem;
+  --text-kpi--line-height: 1.1;
+  --text-kpi--font-weight: 650;
+  --text-kpi--letter-spacing: -0.035em;
+  --text-section: 1rem;
+  --text-section--line-height: 1.4;
+  --text-section--font-weight: 600;
+  --text-section--letter-spacing: -0.01em;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.45;
+  --text-badge: 0.6875rem;
+  --text-badge--line-height: 1;
+  --text-badge--font-weight: 600;
+  --text-badge--letter-spacing: 0.06em;
+  --duration-hover: var(--vt-duration-hover);
+  --duration-button: var(--vt-duration-button);
+  --duration-sidebar: var(--vt-duration-sidebar);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vt-duration-hover: 0ms;
+    --vt-duration-button: 0ms;
+    --vt-duration-sidebar: 0ms;
+  }
+}
+
+html {
+  color-scheme: dark;
+  height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--foreground);
+}
+
+a,
+button,
+input,
+summary,
+[role="button"] {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 0;
+  z-index: 80;
+  transform: translateY(-120%);
+  border-radius: var(--radius-sm);
+  background: var(--surface-high);
+  padding: 0.5rem 0.75rem;
+  color: var(--foreground);
+  transition: transform var(--vt-duration-hover) ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0.75rem);
+}
+
+.app-canvas {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      ellipse 85% 48% at 12% -18%,
+      color-mix(in srgb, var(--primary) 9%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 55% 38% at 100% 0%,
+      color-mix(in srgb, var(--purple) 7%, transparent),
+      transparent 54%
+    ),
+    radial-gradient(
+      ellipse 42% 28% at 78% 88%,
+      color-mix(in srgb, var(--cyan) 4%, transparent),
+      transparent 62%
+    );
+}
+
+.card-sheen {
+  box-shadow: inset 0 1px 0 var(--highlight);
+}
+
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.kpi-quiet {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-quiet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    13rem circle at 86% 0%,
+    color-mix(in srgb, var(--cyan) 14%, transparent),
+    color-mix(in srgb, var(--primary) 7%, transparent) 38%,
+    transparent 62%
+  );
+  transition: opacity var(--vt-duration-hover) ease;
+}
+
+.kpi-quiet:hover::after,
+.kpi-quiet:focus-within::after {
+  opacity: 1;
+}
+
+.kpi-quiet > * {
+  position: relative;
+  z-index: 1;
+}
+
+.foil,
+.foil-premium {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  --pointer-x: 72%;
+  --pointer-y: 22%;
+  --spot-x: var(--pointer-x);
+  --spot-y: var(--pointer-y);
+  --spot-angle: 125deg;
+}
+
+.foil::before,
+.foil-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--spot-angle) at var(--pointer-x) var(--pointer-y),
+    var(--primary),
+    var(--cyan),
+    var(--purple),
+    var(--pink),
+    var(--primary)
+  );
+  opacity: var(--foil-rest);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  transition: opacity var(--vt-duration-hover) ease;
+}
+
+.foil::after,
+.foil-premium::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(
+      18rem circle at var(--pointer-x) var(--pointer-y),
+      color-mix(in srgb, var(--cyan) 18%, transparent),
+      color-mix(in srgb, var(--primary) 9%, transparent) 30%,
+      transparent 58%
+    ),
+    radial-gradient(
+      12rem circle at calc(var(--pointer-x) + 14%) calc(var(--pointer-y) - 10%),
+      color-mix(in srgb, var(--pink) 11%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      11rem circle at calc(var(--pointer-x) - 16%) calc(var(--pointer-y) + 14%),
+      color-mix(in srgb, var(--purple) 13%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      7rem circle at var(--pointer-x) var(--pointer-y),
+      color-mix(in srgb, var(--foreground) 8%, transparent),
+      transparent 40%
+    );
+  transition: opacity var(--vt-duration-hover) ease;
+}
+
+.foil-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--spot-angle) at var(--pointer-x) var(--pointer-y),
+    color-mix(in srgb, var(--primary) 10%, transparent),
+    color-mix(in srgb, var(--cyan) 8%, transparent),
+    color-mix(in srgb, var(--purple) 9%, transparent),
+    color-mix(in srgb, var(--pink) 6%, transparent),
+    color-mix(in srgb, var(--primary) 10%, transparent)
+  );
+  mix-blend-mode: soft-light;
+  transition: opacity var(--vt-duration-hover) ease;
+}
+
+.foil:hover,
+.foil:focus-within,
+.foil-premium:hover,
+.foil-premium:focus-within {
+  --muted: var(--foreground);
+  --faint: var(--foreground);
+  --color-muted: var(--foreground);
+  --color-faint: var(--foreground);
+  color: var(--foreground);
+  text-shadow: 0 1px 10px rgb(5 8 20 / 0.7);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.foil:hover::before,
+.foil:focus-within::before {
+  opacity: var(--foil-hover);
+}
+
+.foil:hover::after,
+.foil:focus-within::after,
+.foil-premium:hover::after,
+.foil-premium:focus-within::after {
+  opacity: var(--foil-spot-hover);
+}
+
+.foil:hover .foil-wash,
+.foil:focus-within .foil-wash {
+  opacity: var(--foil-wash-hover);
+}
+
+.foil-premium::before {
+  opacity: var(--foil-premium-rest);
+}
+
+.foil-premium::after {
+  opacity: 0.22;
+}
+
+.foil-premium .foil-wash {
+  opacity: var(--foil-wash-premium);
+}
+
+.foil-premium:hover::before,
+.foil-premium:focus-within::before {
+  opacity: var(--foil-premium-hover);
+}
+
+.foil-premium:hover .foil-wash,
+.foil-premium:focus-within .foil-wash {
+  opacity: var(--foil-wash-premium-hover);
+}
+
+.foil-subtle::after {
+  background: radial-gradient(
+    14rem circle at var(--pointer-x) var(--pointer-y),
+    color-mix(in srgb, var(--cyan) 12%, transparent),
+    color-mix(in srgb, var(--primary) 6%, transparent) 36%,
+    transparent 58%
+  );
+}
+
+.foil-subtle .foil-wash {
+  opacity: 0;
+}
+
+.foil-subtle:hover .foil-wash,
+.foil-subtle:focus-within .foil-wash {
+  opacity: 0.16;
+}
+
+.foil > *:not(.foil-wash),
+.foil-premium > *:not(.foil-wash) {
+  position: relative;
+  z-index: 3;
+}
+
+.nav-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  margin: 0;
+  width: min(18.75rem, 92vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  padding: 0;
+  color: var(--foreground);
+}
+
+.nav-drawer[open],
+.nav-drawer:modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-drawer::backdrop {
+  background: rgb(5 8 20 / 0.72);
+}
+
+.glass-topbar {
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.nav-active {
+  background: color-mix(in srgb, var(--surface-high) 78%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+.nav-active::before {
+  content: "";
+  position: absolute;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  left: 0;
+  width: 2px;
+  border-radius: 99px;
+  background: linear-gradient(
+    180deg,
+    var(--cyan),
+    var(--primary) 55%,
+    var(--purple)
+  );
+}
+
+.brand-gem {
+  background-image: linear-gradient(180deg, var(--cyan), var(--primary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.brand-wordmark::after {
+  content: "";
+  display: block;
+  width: 2.6rem;
+  height: 1px;
+  margin-top: 0.4rem;
+  background: linear-gradient(
+    90deg,
+    var(--cyan),
+    var(--primary),
+    var(--purple),
+    var(--pink)
+  );
+  opacity: 0.75;
+}
+
+.btn-primary {
+  isolation: isolate;
+  --pointer-x: 80%;
+  --pointer-y: 45%;
+}
+
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--spot-angle, 120deg) at var(--pointer-x) var(--pointer-y),
+    var(--cyan),
+    var(--primary),
+    var(--purple),
+    var(--cyan)
+  );
+  opacity: 0;
+  pointer-events: none;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  transition: opacity var(--vt-duration-button) ease;
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    7rem circle at var(--pointer-x) var(--pointer-y),
+    color-mix(in srgb, var(--cyan) 22%, transparent),
+    transparent 58%
+  );
+  transition: opacity var(--vt-duration-button) ease;
+}
+
+.btn-primary:hover::before,
+.btn-primary:focus-visible::before {
+  opacity: 0.55;
+}
+
+.btn-primary:hover::after,
+.btn-primary:focus-visible::after {
+  opacity: 0.4;
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  color: var(--foreground);
+  text-shadow: 0 1px 8px rgb(5 8 20 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foil:hover,
+  .foil-premium:hover {
+    transform: none;
+  }
+
+  .foil-wash,
+  .foil::after,
+  .foil-premium::after,
+  .kpi-quiet::after,
+  .btn-primary::after {
+    transition: opacity 0ms;
+  }
+}
