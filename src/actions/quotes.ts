@@ -2,7 +2,7 @@
 
 import type { CompanyLifecycle, QuoteStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { isOpenOpportunityStage } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateQuotes } from "@/lib/crm/revalidate";
@@ -51,6 +51,11 @@ export async function createQuote(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createQuoteSchema.safeParse({
     companyId: readString(formData, "companyId"),
     opportunityId: readString(formData, "opportunityId"),
@@ -77,7 +82,6 @@ export async function createQuote(
       return { ok: false, message: "Opportunité introuvable pour cette entreprise." };
     }
 
-    const actor = await getActorUser();
     const reference = input.reference ?? (await nextQuoteReference());
     const shouldMoveToQuote =
       isOpenOpportunityStage(opportunity.stage) && opportunity.stage !== "QUOTE";
@@ -161,6 +165,11 @@ export async function updateQuoteStatus(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateQuoteStatusSchema.safeParse({
     quoteId: readString(formData, "quoteId"),
     status: readString(formData, "status"),
@@ -200,7 +209,6 @@ export async function updateQuoteStatus(
       return { ok: false, message: "Cette transition n'est pas autorisée." };
     }
 
-    const actor = await getActorUser();
     const shouldWinOpportunity = input.status === "ACCEPTED" && existing.opportunity.stage !== "WON";
     const nextLifecycle = shouldWinOpportunity
       ? lifecycleAfterWon(existing.company.lifecycleStatus)

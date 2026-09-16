@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateCalendar } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -49,6 +49,11 @@ export async function createCalendarEvent(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createCalendarEventSchema.safeParse({
     title: readString(formData, "title"),
     type: readString(formData, "type"),
@@ -74,8 +79,6 @@ export async function createCalendarEvent(
     if ("error" in links) {
       return { ok: false, message: links.error };
     }
-
-    const actor = await getActorUser();
 
     const created = await prisma.$transaction(async (tx) => {
       const event = await tx.calendarEvent.create({
@@ -126,6 +129,11 @@ export async function updateCalendarEvent(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateCalendarEventSchema.safeParse({
     id: readString(formData, "id"),
     title: readString(formData, "title"),
@@ -160,8 +168,6 @@ export async function updateCalendarEvent(
     if ("error" in links) {
       return { ok: false, message: links.error };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.calendarEvent.update({

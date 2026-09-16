@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateCrm } from "@/lib/crm/revalidate";
@@ -13,6 +13,11 @@ export async function createInteraction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createInteractionSchema.safeParse({
     companyId: readString(formData, "companyId"),
     type: readString(formData, "type"),
@@ -41,7 +46,6 @@ export async function createInteraction(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const actor = await getActorUser();
     const shouldMarkContacted =
       company.lifecycleStatus === "LEAD" &&
       (input.type === "CALL" ||

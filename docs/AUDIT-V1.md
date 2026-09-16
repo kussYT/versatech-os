@@ -99,7 +99,7 @@ Aucune migration Prisma, aucun changement d’ENV, aucune dépendance ajoutée.
 - **Zone** : App globale / `getActorUser`
 - **Problème** : premier utilisateur créé à la volée (`os@versatech.example`). Product spec MVP : authentification.
 - **Impact** : pas de session, pas de permissions futures, acteur technique si seed absent.
-- **Correction recommandée** : Auth.js (cible architecture) sans changer le modèle Company.
+- **Correction effectuée** (branche `feature/auth-v1`) : login interne + session JWT, routes métier protégées, Server Actions via `requireActor()`, actor ActivityLog = utilisateur authentifié.
 
 ### H12 — Probabilité toujours à 0 (BR-017)
 - **Zone** : Opportunity

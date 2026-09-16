@@ -4,8 +4,14 @@ VERSATECH OS — SÉCURITÉ
 Le système pourra contenir coordonnées professionnelles, historique de contacts, montants commerciaux, documents et informations internes. Il doit être privé par défaut.
 
 2. AUTHENTIFICATION
-Authentification obligatoire hors éventuelle page de login.
-Sessions sécurisées.
+Authentification obligatoire hors `/connexion`.
+Pas d'inscription publique.
+V1 : comptes internes créés par seed / opération (`AUTH_DEV_EMAIL` + `AUTH_DEV_PASSWORD` en local uniquement).
+Mots de passe : hash scrypt (`User.passwordHash`), jamais en clair.
+Session : JWT HS256 (`jose`), cookie `vt_os_session` HttpOnly, SameSite=Lax, Secure en production, durée 7 jours.
+Secret de signature : `AUTH_SECRET` (min. 32 caractères, unique en production).
+Protection des routes métier : `src/proxy.ts` (Next.js 16).
+Mutations : chaque Server Action appelle `requireActor()` ; l'ActivityLog utilise l'utilisateur de session (plus de `os@versatech.example`).
 MFA à envisager avant exposition importante de données.
 
 3. AUTORISATION

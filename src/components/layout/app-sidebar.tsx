@@ -1,15 +1,21 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { SessionAccount } from "@/components/auth/session-account";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import type { SessionUser } from "@/lib/auth/types";
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  user: SessionUser;
+};
+
+export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:z-20 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
       <Brand />
-      <SidebarNav pathname={pathname} />
+      <SidebarNav pathname={pathname} account={<SessionAccount user={user} />} />
     </aside>
   );
 }

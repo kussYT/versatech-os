@@ -9,6 +9,7 @@ User
 - id
 - name
 - email
+- passwordHash (scrypt, nullable jusqu'à initialisation du compte)
 - role
 - createdAt
 - updatedAt
