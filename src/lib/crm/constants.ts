@@ -3,8 +3,10 @@ import type {
   CompanyLifecycle,
   DocumentType,
   FollowUpStatus,
+  MaintenanceStatus,
   MilestoneStatus,
   OpportunityStage,
+  PaymentStatus,
   Priority,
   ProjectStatus,
   QuoteStatus,
@@ -115,6 +117,13 @@ export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   EXPIRED: "Expiré",
 };
 
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  PENDING: "En attente",
+  PAID: "Payé",
+  OVERDUE: "En retard",
+  CANCELED: "Annulé",
+};
+
 export const PROJECT_STATUSES = [
   "PLANNED",
   "ACTIVE",
@@ -199,6 +208,13 @@ export const CALENDAR_EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
   DELIVERY: "Livraison",
   MAINTENANCE: "Maintenance",
   ADMINISTRATIVE: "Administratif",
+};
+
+export const MAINTENANCE_STATUS_LABELS: Record<MaintenanceStatus, string> = {
+  ACTIVE: "Actif",
+  PAUSED: "Suspendu",
+  ENDED: "Terminé",
+  CANCELED: "Annulé",
 };
 
 export function projectProgress(tasks: { status: TaskStatus }[]) {

@@ -18,11 +18,17 @@ import {
 } from "@/lib/crm/constants";
 import { allowedManualLifecycles, type CompanyLifecycleFacts } from "@/lib/crm/lifecycle";
 import { endOfToday } from "@/lib/crm/form-data";
+import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
 import { prisma } from "@/lib/db/prisma";
 import {
   listDocumentsForCompany,
   type DocumentRecord,
 } from "@/lib/queries/documents";
+import type { PaymentListItem } from "@/lib/queries/payments";
+import {
+  listMaintenanceContractsForCompany,
+  type MaintenanceContractItem,
+} from "@/lib/queries/maintenance";
 
 const listInclude = {
   contacts: {
@@ -129,7 +135,10 @@ export type CompanyDetail = {
     reference: string;
     amountIncTax: string;
   }[];
+  payments: PaymentListItem[];
+  finance: FinanceTotals;
   documents: DocumentRecord[];
+  maintenanceContracts: MaintenanceContractItem[];
   allowedLifecycleStatuses: CompanyLifecycle[];
 };
 
@@ -216,7 +225,7 @@ export async function getProspectionSummary() {
 }
 
 export async function getCompanyDetail(id: string): Promise<CompanyDetail | null> {
-  const [company, documents] = await Promise.all([
+  const [company, documents, maintenanceContracts] = await Promise.all([
     prisma.company.findUnique({
       where: { id },
       include: {
@@ -246,6 +255,13 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
           projectId: true,
         },
       },
+      payments: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          quote: { select: { id: true, reference: true, status: true } },
+          project: { select: { id: true, name: true } },
+        },
+      },
       projects: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -255,6 +271,7 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
     },
       }),
     listDocumentsForCompany(id),
+    listMaintenanceContractsForCompany(id),
   ]);
 
   if (!company) {
@@ -341,7 +358,32 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         reference: quote.reference,
         amountIncTax: quote.amountIncTax.toString(),
       })),
+    payments: company.payments.map((payment) => ({
+      id: payment.id,
+      label: payment.label,
+      amount: payment.amount.toString(),
+      status: payment.status,
+      effectiveStatus: effectivePaymentStatus(payment.status, payment.dueAt),
+      dueAt: payment.dueAt?.toISOString() ?? null,
+      paidAt: payment.paidAt?.toISOString() ?? null,
+      externalReference: payment.externalReference,
+      createdAt: payment.createdAt.toISOString(),
+      company: { id: company.id, name: company.name },
+      quote: payment.quote,
+      project: payment.project,
+    })),
+    finance: computeFinanceTotals(
+      company.quotes
+        .filter((quote) => quote.status === "ACCEPTED")
+        .map((quote) => quote.amountIncTax.toString()),
+      company.payments.map((payment) => ({
+        amount: payment.amount.toString(),
+        status: payment.status,
+        dueAt: payment.dueAt,
+      })),
+    ),
     documents,
+    maintenanceContracts,
     allowedLifecycleStatuses: allowedManualLifecycles({
       current: company.lifecycleStatus,
       wonOpportunityCount: company.opportunities.filter((opportunity) => opportunity.stage === "WON")

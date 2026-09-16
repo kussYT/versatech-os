@@ -2,6 +2,7 @@ import "server-only";
 
 import { startOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
+import { sumMoney } from "@/lib/money";
 
 export type ClientListItem = {
   id: string;
@@ -61,10 +62,7 @@ export async function listClientCompanies(): Promise<ClientListItem[]> {
   });
 
   return companies.map((company) => {
-    const signed = company.quotes.reduce(
-      (sum, quote) => sum + Number(quote.amountIncTax.toString()),
-      0,
-    );
+    const signed = sumMoney(company.quotes.map((quote) => quote.amountIncTax.toString()));
     const activeProject =
       company.projects.find((project) => project.status === "ACTIVE") ??
       company.projects.find(
@@ -97,7 +95,7 @@ export async function listClientCompanies(): Promise<ClientListItem[]> {
             role: company.contacts[0].role,
           }
         : null,
-      signedRevenue: String(signed),
+      signedRevenue: signed,
       activeProject: activeProject
         ? { id: activeProject.id, name: activeProject.name }
         : null,

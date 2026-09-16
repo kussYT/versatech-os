@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProjectHub } from "@/components/projects/project-hub";
 import { getGitHubProjectSnapshot } from "@/lib/queries/github";
+import { listPaymentFormOptions } from "@/lib/queries/payments";
 import { getProjectDetail } from "@/lib/queries/projects";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,10 @@ export default async function ProjectPage({
     notFound();
   }
 
-  const github = await getGitHubProjectSnapshot(project.repositories);
+  const [github, paymentOptions] = await Promise.all([
+    getGitHubProjectSnapshot(project.repositories),
+    listPaymentFormOptions({ companyId: project.company.id, projectId: project.id }),
+  ]);
 
-  return <ProjectHub project={project} github={github} />;
+  return <ProjectHub project={project} github={github} paymentOptions={paymentOptions} />;
 }

@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Settings,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { NavIconName } from "@/lib/navigation";
@@ -31,6 +32,7 @@ const icons: Record<NavIconName, LucideIcon> = {
   github: GitBranch,
   clients: Handshake,
   quotes: FileText,
+  maintenance: Wrench,
   finance: Wallet,
   documents: Files,
   analytics: ChartColumn,

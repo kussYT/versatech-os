@@ -13,7 +13,10 @@ import {
   endOfToday,
   formatDate,
   formatDateTime,
+  analyticsPeriodRange,
   fromParisDateTime,
+  isInstantInRange,
+  parseAnalyticsPeriod,
   parseDate,
   parseDateTimeLocal,
   parisDateKey,
@@ -110,6 +113,50 @@ describe("échéances retard / aujourd'hui / futur", () => {
 
     assert.equal(dueBucket(dueAt, stillToday), "today");
     assert.equal(dueBucket(dueAt, nextDay), "overdue");
+  });
+});
+
+describe("périodes analytics Europe/Paris", () => {
+  it("borne 30 jours civils inclusifs jusqu'à la fin d'aujourd'hui", () => {
+    const now = new Date("2026-09-16T13:00:00.000Z");
+    const range = analyticsPeriodRange("30d", now);
+
+    assert.ok(range.start);
+    assert.ok(range.end);
+    assert.equal(range.start.toISOString(), "2026-08-17T22:00:00.000Z");
+    assert.equal(range.end.toISOString(), "2026-09-16T21:59:59.999Z");
+    assert.equal(isInstantInRange(fromParisDateTime(2026, 8, 18, 0, 0, 0, 0), range), true);
+    assert.equal(isInstantInRange(fromParisDateTime(2026, 8, 17, 23, 59, 0, 0), range), false);
+  });
+
+  it("borne 90 jours civils inclusifs", () => {
+    const now = new Date("2026-09-16T13:00:00.000Z");
+    const range = analyticsPeriodRange("90d", now);
+
+    assert.ok(range.start);
+    assert.equal(parisDateKey(range.start), "2026-06-19");
+    assert.equal(isInstantInRange(fromParisDateTime(2026, 6, 19, 0, 0, 0, 0), range), true);
+    assert.equal(isInstantInRange(fromParisDateTime(2026, 6, 18, 12, 0, 0, 0), range), false);
+  });
+
+  it("borne l'année civile Paris y compris autour de minuit UTC du 1er janvier", () => {
+    const now = new Date("2026-09-16T13:00:00.000Z");
+    const range = analyticsPeriodRange("year", now);
+
+    assert.ok(range.start);
+    assert.equal(range.start.toISOString(), "2025-12-31T23:00:00.000Z");
+    assert.equal(isInstantInRange(new Date("2025-12-31T22:59:00.000Z"), range), false);
+    assert.equal(isInstantInRange(new Date("2025-12-31T23:00:00.000Z"), range), true);
+  });
+
+  it("n'applique aucune borne en global et refuse une période inconnue", () => {
+    const range = analyticsPeriodRange("all", new Date("2026-09-16T13:00:00.000Z"));
+    assert.equal(range.start, null);
+    assert.equal(range.end, null);
+    assert.equal(isInstantInRange(new Date("1999-01-01T00:00:00.000Z"), range), true);
+    assert.equal(parseAnalyticsPeriod("90d"), "90d");
+    assert.equal(parseAnalyticsPeriod("nope"), "30d");
+    assert.equal(parseAnalyticsPeriod(undefined), "30d");
   });
 });
 

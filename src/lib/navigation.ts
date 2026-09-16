@@ -10,6 +10,7 @@ export type NavHref =
   | "/github"
   | "/clients"
   | "/devis"
+  | "/maintenance"
   | "/finances"
   | "/documents"
   | "/analytics"
@@ -27,6 +28,7 @@ export type NavIconName =
   | "github"
   | "clients"
   | "quotes"
+  | "maintenance"
   | "finance"
   | "documents"
   | "analytics"
@@ -77,6 +79,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: "/clients", label: "Clients", icon: "clients" },
       { href: "/devis", label: "Devis", icon: "quotes" },
+      { href: "/maintenance", label: "Maintenance", icon: "maintenance" },
       { href: "/finances", label: "Finances", icon: "finance" },
       { href: "/documents", label: "Documents", icon: "documents" },
     ],

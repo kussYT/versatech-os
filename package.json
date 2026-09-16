@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "tsx --test src/lib/auth/auth.test.ts src/lib/dates.test.ts src/lib/crm/lifecycle.test.ts src/lib/crm/probability.test.ts src/lib/crm/search.test.ts",
+    "test": "tsx --test src/lib/auth/auth.test.ts src/lib/dates.test.ts src/lib/crm/lifecycle.test.ts src/lib/crm/probability.test.ts src/lib/crm/search.test.ts src/lib/money.test.ts src/lib/finance.test.ts src/lib/maintenance/mrr.test.ts src/lib/maintenance/status.test.ts src/lib/maintenance/due.test.ts src/lib/analytics/rates.test.ts src/lib/analytics/compute.test.ts",
     "test:dates": "tsx --test src/lib/dates.test.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",

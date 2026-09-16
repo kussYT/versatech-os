@@ -12,7 +12,7 @@ import { listCompaniesToCall } from "@/lib/queries/companies";
 import { getFollowUpDashboard } from "@/lib/queries/follow-ups";
 import { getPipelineOverview } from "@/lib/queries/opportunities";
 import { getTaskDashboard } from "@/lib/queries/projects";
-import { getSignedRevenue } from "@/lib/queries/quotes";
+import { getFinanceSnapshot } from "@/lib/queries/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export default async function TodayPage() {
   const [
     pipelineOverview,
     followUps,
-    signedRevenue,
+    finance,
     taskDashboard,
     agenda,
     calls,
@@ -33,7 +33,7 @@ export default async function TodayPage() {
   ] = await Promise.all([
     getPipelineOverview(),
     getFollowUpDashboard(),
-    getSignedRevenue(),
+    getFinanceSnapshot(),
     getTaskDashboard(),
     getTodayAgenda(),
     listCompaniesToCall(),
@@ -48,7 +48,10 @@ export default async function TodayPage() {
         pipelineBrut={pipelineOverview.brutTotal}
         pipelineWeighted={pipelineOverview.weightedTotal}
         dueFollowUps={followUps.dueCount}
-        signedRevenue={signedRevenue}
+        signedRevenue={finance.signed}
+        collectedRevenue={finance.collected}
+        remainingRevenue={finance.remaining}
+        overduePayments={finance.overdueCount}
         openTasks={taskDashboard.openCount}
         callsToday={interactionCounts.calls}
         meetingsToday={interactionCounts.meetings}

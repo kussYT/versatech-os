@@ -270,3 +270,72 @@ export function weekdayMondayIndex(year: number, month: number, day: number) {
   const noon = fromParisDateTime(year, month, day, 12, 0, 0, 0);
   return (noon.getUTCDay() + 6) % 7;
 }
+
+export const ANALYTICS_PERIODS = ["30d", "90d", "year", "all"] as const;
+export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number];
+
+export type InstantRange = {
+  start: Date | null;
+  end: Date | null;
+};
+
+export const ANALYTICS_PERIOD_LABELS: Record<AnalyticsPeriod, string> = {
+  "30d": "30 jours",
+  "90d": "90 jours",
+  year: "Année",
+  all: "Global",
+};
+
+export function isAnalyticsPeriod(value: string): value is AnalyticsPeriod {
+  return (ANALYTICS_PERIODS as readonly string[]).includes(value);
+}
+
+export function parseAnalyticsPeriod(value: string | undefined): AnalyticsPeriod {
+  if (value && isAnalyticsPeriod(value)) {
+    return value;
+  }
+
+  return "30d";
+}
+
+/**
+ * Bornes inclusives en Europe/Paris.
+ * 30/90 jours = N jours civils se terminant aujourd'hui (aujourd'hui inclus).
+ * Année = 1er janvier Paris → fin d'aujourd'hui.
+ * Global = pas de borne.
+ */
+export function analyticsPeriodRange(period: AnalyticsPeriod, now = new Date()): InstantRange {
+  if (period === "all") {
+    return { start: null, end: null };
+  }
+
+  const end = endOfToday(now);
+  const parts = parisParts(now);
+
+  if (period === "year") {
+    return {
+      start: fromParisDateTime(parts.year, 1, 1, 0, 0, 0, 0),
+      end,
+    };
+  }
+
+  const daysBack = period === "30d" ? 29 : 89;
+  const startCivil = addCivilDays(parts.year, parts.month, parts.day, -daysBack);
+
+  return {
+    start: fromParisDateTime(startCivil.year, startCivil.month, startCivil.day, 0, 0, 0, 0),
+    end,
+  };
+}
+
+export function isInstantInRange(instant: Date, range: InstantRange) {
+  if (range.start && instant.getTime() < range.start.getTime()) {
+    return false;
+  }
+
+  if (range.end && instant.getTime() > range.end.getTime()) {
+    return false;
+  }
+
+  return true;
+}

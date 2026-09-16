@@ -26,6 +26,8 @@ import { DocumentSection } from "@/components/documents/document-section";
 import { CreateQuoteDialog } from "@/components/quotes/create-quote-dialog";
 import { QuoteStatusActions } from "@/components/quotes/quote-status-actions";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
+import { FinanceSection } from "@/components/finances/finance-section";
+import { CompanyMaintenanceSection } from "@/components/maintenance/company-maintenance-section";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -40,13 +42,15 @@ import {
   INTERACTION_TYPE_LABELS,
 } from "@/lib/crm/labels";
 import type { CompanyDetail } from "@/lib/queries/companies";
+import type { PaymentFormOptions } from "@/lib/queries/payments";
 import type { InteractionType } from "@/generated/prisma/client";
 
 type CompanyHubProps = {
   company: CompanyDetail;
+  paymentOptions: PaymentFormOptions;
 };
 
-export function CompanyHub({ company }: CompanyHubProps) {
+export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -260,6 +264,18 @@ export function CompanyHub({ company }: CompanyHubProps) {
         )}
       </Card>
 
+      {company.lifecycleStatus === "CLIENT" ||
+      company.quotes.some((quote) => quote.status === "ACCEPTED") ||
+      company.payments.length > 0 ? (
+        <FinanceSection
+          totals={company.finance}
+          payments={company.payments}
+          options={paymentOptions}
+          defaultCompanyId={company.id}
+          hideCompany
+        />
+      ) : null}
+
       {isClient ? (
         <Card className="p-5">
           <div className="flex items-start justify-between gap-3">
@@ -305,6 +321,17 @@ export function CompanyHub({ company }: CompanyHubProps) {
           )}
         </Card>
       ) : null}
+
+      <CompanyMaintenanceSection
+        companyId={company.id}
+        companyName={company.name}
+        contracts={company.maintenanceContracts}
+        projects={company.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          companyId: company.id,
+        }))}
+      />
 
       <DocumentSection
         documents={company.documents}
