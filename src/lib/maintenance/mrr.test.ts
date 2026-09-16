@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { computeMrr } from "./mrr";
+import { computeMrr, hasMaintenanceStarted } from "./mrr";
 
 describe("MRR maintenance", () => {
   it("somme uniquement les contrats ACTIVE déjà commencés", () => {
@@ -55,5 +55,17 @@ describe("MRR maintenance", () => {
 
     assert.equal(snapshot.mrr, "0.30");
     assert.equal(snapshot.arr, "3.60");
+  });
+});
+
+describe("hasMaintenanceStarted — Europe/Paris", () => {
+  it("traite une startDate absente comme déjà commencée", () => {
+    assert.equal(hasMaintenanceStarted(undefined, new Date("2026-09-16T12:00:00.000Z")), true);
+  });
+
+  it("commence le jour civil Paris, pas avant", () => {
+    const now = new Date("2026-09-16T12:00:00.000Z");
+    assert.equal(hasMaintenanceStarted("2026-09-16T00:00:00.000Z", now), true);
+    assert.equal(hasMaintenanceStarted("2026-09-17T00:00:00.000Z", now), false);
   });
 });

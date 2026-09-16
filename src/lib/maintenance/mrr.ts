@@ -15,7 +15,11 @@ export type MrrSnapshot = {
   activeCount: number;
 };
 
-function hasStarted(startDate: Date | string | undefined, now: Date) {
+/**
+ * Un contrat ACTIVE n'est « commencé » que si startDate ≤ le jour civil Europe/Paris.
+ * startDate absente = déjà commencé (données historiques incomplètes, pas une date inventée).
+ */
+export function hasMaintenanceStarted(startDate: Date | string | undefined, now: Date) {
   if (!startDate) {
     return true;
   }
@@ -31,7 +35,8 @@ function hasStarted(startDate: Date | string | undefined, now: Date) {
  */
 export function computeMrr(contracts: readonly MrrContractInput[], now = new Date()): MrrSnapshot {
   const active = contracts.filter(
-    (contract) => isActiveMaintenanceStatus(contract.status) && hasStarted(contract.startDate, now),
+    (contract) =>
+      isActiveMaintenanceStatus(contract.status) && hasMaintenanceStarted(contract.startDate, now),
   );
   const mrr = active.length === 0 ? ZERO_MONEY : sumMoney(active.map((contract) => contract.monthlyAmount));
 

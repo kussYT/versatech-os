@@ -30,6 +30,16 @@ import {
   listMaintenanceContractsForCompany,
   type MaintenanceContractItem,
 } from "@/lib/queries/maintenance";
+import {
+  buildClientJourney,
+  toClientJourneyInput,
+  type ClientJourney,
+} from "@/lib/client-journey";
+import {
+  selectPrincipalProject,
+  type PrincipalProjectSource,
+} from "@/lib/projects/principal";
+import { buildWebsiteStatus, type WebsiteStatusView } from "@/lib/website/status";
 
 const listInclude = {
   contacts: {
@@ -102,6 +112,7 @@ export type CompanyDetail = {
     direction: InteractionDirection;
     result: InteractionResult | null;
     notes: string | null;
+    subject: string | null;
     occurredAt: string;
   }[];
   nextFollowUp: {
@@ -116,12 +127,18 @@ export type CompanyDetail = {
     title: string;
     stage: OpportunityStage;
     estimatedValue: string;
+    updatedAt: string;
   }[];
   quotes: {
     id: string;
     reference: string;
     status: QuoteStatus;
     amountIncTax: string;
+    createdAt: string;
+    sentAt: string | null;
+    acceptedAt: string | null;
+    projectId: string | null;
+    opportunityId: string;
   }[];
   quoteOpportunities: {
     id: string;
@@ -133,8 +150,21 @@ export type CompanyDetail = {
     name: string;
     status: ProjectStatus;
     dueDate: string | null;
+    startDate: string | null;
+    completedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    opportunityId: string | null;
     progress: number;
   }[];
+  principalProject: {
+    id: string;
+    name: string;
+    status: ProjectStatus;
+    source: PrincipalProjectSource;
+  } | null;
+  journey: ClientJourney;
+  websiteStatus: WebsiteStatusView;
   acceptedQuotes: {
     id: string;
     reference: string;
@@ -239,7 +269,6 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
       },
       interactions: {
         orderBy: { occurredAt: "desc" },
-        take: 80,
       },
       followUps: {
         where: { status: "PENDING" },
@@ -247,7 +276,7 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         take: 1,
       },
       opportunities: {
-        select: { id: true, title: true, stage: true, estimatedValue: true },
+        select: { id: true, title: true, stage: true, estimatedValue: true, updatedAt: true },
         orderBy: { updatedAt: "desc" },
       },
       quotes: {
@@ -257,7 +286,11 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
           reference: true,
           status: true,
           amountIncTax: true,
+          createdAt: true,
+          sentAt: true,
+          acceptedAt: true,
           projectId: true,
+          opportunityId: true,
         },
       },
       payments: {
@@ -284,6 +317,50 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
   }
 
   const nextFollowUp = company.followUps[0] ?? null;
+  const now = new Date();
+  const journeyInput = toClientJourneyInput({
+    interactions: company.interactions,
+    quotes: company.quotes.map((quote) => ({
+      id: quote.id,
+      reference: quote.reference,
+      status: quote.status,
+      amountIncTax: quote.amountIncTax.toString(),
+      createdAt: quote.createdAt,
+      sentAt: quote.sentAt,
+      acceptedAt: quote.acceptedAt,
+      projectId: quote.projectId,
+      opportunityId: quote.opportunityId,
+    })),
+    projects: company.projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      startDate: project.startDate,
+      completedAt: project.completedAt,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      opportunityId: project.opportunityId,
+    })),
+    payments: company.payments.map((payment) => ({
+      id: payment.id,
+      amount: payment.amount.toString(),
+      status: payment.status,
+      paidAt: payment.paidAt,
+      createdAt: payment.createdAt,
+      quoteId: payment.quote?.id ?? null,
+      projectId: payment.project?.id ?? null,
+    })),
+    contracts: maintenanceContracts,
+    opportunities: company.opportunities,
+  });
+  const principal = selectPrincipalProject(journeyInput.projects, journeyInput.contracts, { now });
+  const journey = buildClientJourney(journeyInput, { now });
+  const websiteStatus = buildWebsiteStatus({
+    website: company.website,
+    projects: journeyInput.projects,
+    contracts: journeyInput.contracts,
+    now,
+  });
 
   return {
     id: company.id,
@@ -319,6 +396,7 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
       direction: interaction.direction,
       result: interaction.result,
       notes: interaction.notes,
+      subject: interaction.subject,
       occurredAt: interaction.occurredAt.toISOString(),
     })),
     nextFollowUp: nextFollowUp
@@ -337,6 +415,11 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
       reference: quote.reference,
       status: quote.status,
       amountIncTax: quote.amountIncTax.toString(),
+      createdAt: quote.createdAt.toISOString(),
+      sentAt: quote.sentAt?.toISOString() ?? null,
+      acceptedAt: quote.acceptedAt?.toISOString() ?? null,
+      projectId: quote.projectId,
+      opportunityId: quote.opportunityId,
     })),
     quoteOpportunities: company.opportunities
       .filter((opportunity) =>
@@ -352,12 +435,18 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
       title: opportunity.title,
       stage: opportunity.stage,
       estimatedValue: opportunity.estimatedValue.toString(),
+      updatedAt: opportunity.updatedAt.toISOString(),
     })),
     projects: company.projects.map((project) => ({
       id: project.id,
       name: project.name,
       status: project.status,
       dueDate: project.dueDate?.toISOString() ?? null,
+      startDate: project.startDate?.toISOString() ?? null,
+      completedAt: project.completedAt?.toISOString() ?? null,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+      opportunityId: project.opportunityId,
       progress: projectProgress(project.tasks),
     })),
     acceptedQuotes: company.quotes
@@ -393,6 +482,16 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
     ),
     documents,
     maintenanceContracts,
+    principalProject: principal
+      ? {
+          id: principal.project.id,
+          name: principal.project.name,
+          status: principal.project.status,
+          source: principal.source,
+        }
+      : null,
+    journey,
+    websiteStatus,
     allowedLifecycleStatuses: allowedManualLifecycles({
       current: company.lifecycleStatus,
       wonOpportunityCount: company.opportunities.filter((opportunity) => opportunity.stage === "WON")

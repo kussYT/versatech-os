@@ -15,7 +15,9 @@ import {
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
+import { ClientJourneySection } from "@/components/crm/client-journey";
 import { CommercialBriefSection } from "@/components/crm/commercial-brief-section";
+import { CompanyWebsiteSection } from "@/components/crm/company-website-section";
 import { TerrainBar } from "@/components/crm/terrain-bar";
 import { CreateOpportunityDialog } from "@/components/crm/create-opportunity-dialog";
 import { EditCompanyDialog } from "@/components/crm/edit-company-dialog";
@@ -151,6 +153,10 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
           )}
         </Card>
       </div>
+
+      <ClientJourneySection journey={company.journey} />
+
+      <CompanyWebsiteSection model={company.websiteStatus} />
 
       <CommercialBriefSection
         companyId={company.id}
