@@ -12,4 +12,18 @@ export const createFollowUpSchema = z.object({
     .transform((value) => emptyToNull(value)),
 });
 
+export const completeFollowUpSchema = z.object({
+  followUpId: z.string().min(1, "Relance introuvable"),
+});
+
+export const rescheduleFollowUpSchema = z.object({
+  followUpId: z.string().min(1, "Relance introuvable"),
+  dueAt: z
+    .string()
+    .transform((value) => parseDateTimeLocal(value))
+    .pipe(z.date("La nouvelle date est obligatoire")),
+});
+
 export type CreateFollowUpInput = z.infer<typeof createFollowUpSchema>;
+export type CompleteFollowUpInput = z.infer<typeof completeFollowUpSchema>;
+export type RescheduleFollowUpInput = z.infer<typeof rescheduleFollowUpSchema>;

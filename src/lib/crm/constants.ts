@@ -1,5 +1,6 @@
 import type {
   CompanyLifecycle,
+  FollowUpStatus,
   OpportunityStage,
   Priority,
 } from "@/generated/prisma/client";
@@ -83,3 +84,9 @@ export const OPPORTUNITY_STAGE_BADGE: Record<
 export function isOpenOpportunityStage(stage: OpportunityStage) {
   return (OPEN_OPPORTUNITY_STAGES as readonly OpportunityStage[]).includes(stage);
 }
+
+export const FOLLOW_UP_STATUS_LABELS: Record<FollowUpStatus, string> = {
+  PENDING: "En attente",
+  COMPLETED: "Terminée",
+  CANCELED: "Annulée",
+};

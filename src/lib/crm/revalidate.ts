@@ -15,3 +15,9 @@ export function revalidatePipeline(companyId?: string) {
   revalidatePath("/");
   revalidateCrm(companyId);
 }
+
+export function revalidateFollowUps(companyId?: string) {
+  revalidatePath("/relances");
+  revalidatePath("/");
+  revalidateCrm(companyId);
+}

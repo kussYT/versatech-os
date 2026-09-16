@@ -11,16 +11,17 @@ import { formatMoney } from "@/lib/crm/form-data";
 
 type KpiZoneProps = {
   pipelineBrut: number;
+  dueFollowUps: number;
 };
 
-export function KpiZone({ pipelineBrut }: KpiZoneProps) {
+export function KpiZone({ pipelineBrut, dueFollowUps }: KpiZoneProps) {
   const kpis = [
     { label: "Appels", icon: Phone, hint: "Aucun appel prévu", tone: "cyan" as const },
     {
       label: "Relances",
       icon: RotateCcw,
-      hint: "0 relance",
-      value: "0",
+      hint: "Échues ou prévues aujourd'hui",
+      value: String(dueFollowUps),
       tone: "violet" as const,
     },
     { label: "RDV", icon: CalendarDays, hint: "Aucun rendez-vous", tone: "orange" as const },
