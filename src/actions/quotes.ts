@@ -1,10 +1,13 @@
 "use server";
 
-import type { CompanyLifecycle, QuoteStatus } from "@/generated/prisma/client";
+import type { QuoteStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { isOpenOpportunityStage } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
+import { lifecycleAfterWon } from "@/lib/crm/lifecycle";
+import { applyCompanyLifecycleChange } from "@/lib/crm/lifecycle-db";
+import { probabilityForWrite } from "@/lib/crm/probability";
 import { parisParts } from "@/lib/dates";
 import { revalidateQuotes } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -22,10 +25,6 @@ const ALLOWED_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   REJECTED: [],
   EXPIRED: [],
 };
-
-function lifecycleAfterWon(current: CompanyLifecycle): CompanyLifecycle | null {
-  return current === "CLIENT" ? null : "CLIENT";
-}
 
 function quoteStatusDates(status: QuoteStatus) {
   if (status === "SENT") {
@@ -101,7 +100,10 @@ export async function createQuote(
       if (shouldMoveToQuote) {
         await tx.opportunity.update({
           where: { id: opportunity.id },
-          data: { stage: "QUOTE" },
+          data: {
+            stage: "QUOTE",
+            probability: probabilityForWrite("QUOTE"),
+          },
         });
 
         await tx.opportunityStageHistory.create({
@@ -244,7 +246,9 @@ export async function updateQuoteStatus(
           where: { id: existing.opportunityId },
           data: {
             stage: "WON",
+            probability: probabilityForWrite("WON"),
             wonAt: existing.opportunity.wonAt ?? new Date(),
+            lostAt: null,
           },
         });
 
@@ -268,17 +272,20 @@ export async function updateQuoteStatus(
               fromStage: existing.opportunity.stage,
               toStage: "WON",
               quoteId: existing.id,
+              probability: probabilityForWrite("WON"),
             },
           },
         });
       }
 
-      if (nextLifecycle) {
-        await tx.company.update({
-          where: { id: existing.companyId },
-          data: { lifecycleStatus: nextLifecycle },
-        });
-      }
+      await applyCompanyLifecycleChange(tx, {
+        companyId: existing.companyId,
+        from: existing.company.lifecycleStatus,
+        to: nextLifecycle,
+        actorId: actor.id,
+        reason: "quote.accepted",
+        metadata: { quoteId: existing.id },
+      });
     });
 
     revalidateQuotes(existing.companyId);

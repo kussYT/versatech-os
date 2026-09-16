@@ -2,9 +2,11 @@ import "server-only";
 
 import type { InteractionType, OpportunityStage } from "@/generated/prisma/client";
 import {
+  OPEN_OPPORTUNITY_STAGES,
   OPPORTUNITY_STAGES,
   isOpenOpportunityStage,
 } from "@/lib/crm/constants";
+import { effectiveProbability, weightedValue } from "@/lib/crm/probability";
 import { prisma } from "@/lib/db/prisma";
 
 export type PipelineOpportunityCard = {
@@ -12,6 +14,7 @@ export type PipelineOpportunityCard = {
   title: string;
   stage: OpportunityStage;
   estimatedValue: string;
+  probability: number;
   company: {
     id: string;
     name: string;
@@ -33,12 +36,14 @@ export type PipelineColumn = {
   opportunities: PipelineOpportunityCard[];
   count: number;
   estimatedTotal: number;
+  weightedTotal: number;
 };
 
 export type PipelineOverview = {
   counts: Record<OpportunityStage, number>;
   openCount: number;
   brutTotal: number;
+  weightedTotal: number;
 };
 
 function decimalToNumber(value: { toString(): string } | null | undefined) {
@@ -62,6 +67,7 @@ function toCard(
     title: opportunity.title,
     stage: opportunity.stage,
     estimatedValue: opportunity.estimatedValue.toString(),
+    probability: effectiveProbability(opportunity.stage, opportunity.probability),
     company: {
       id: opportunity.company.id,
       name: opportunity.company.name,
@@ -135,6 +141,11 @@ export async function listPipelineBoard(): Promise<PipelineColumn[]> {
         (sum, card) => sum + decimalToNumber(card.estimatedValue),
         0,
       ),
+      weightedTotal: columnCards.reduce(
+        (sum, card) =>
+          sum + weightedValue(decimalToNumber(card.estimatedValue), card.probability),
+        0,
+      ),
     };
   });
 }
@@ -144,6 +155,11 @@ export async function getPipelineOverview(): Promise<PipelineOverview> {
     by: ["stage"],
     _count: { _all: true },
     _sum: { estimatedValue: true },
+  });
+
+  const openOpportunities = await prisma.opportunity.findMany({
+    where: { stage: { in: [...OPEN_OPPORTUNITY_STAGES] } },
+    select: { stage: true, estimatedValue: true, probability: true },
   });
 
   const counts = Object.fromEntries(
@@ -161,5 +177,15 @@ export async function getPipelineOverview(): Promise<PipelineOverview> {
     }
   }
 
-  return { counts, openCount, brutTotal };
+  const weightedTotal = openOpportunities.reduce((sum, opportunity) => {
+    return (
+      sum +
+      weightedValue(
+        decimalToNumber(opportunity.estimatedValue),
+        effectiveProbability(opportunity.stage, opportunity.probability),
+      )
+    );
+  }, 0);
+
+  return { counts, openCount, brutTotal, weightedTotal };
 }

@@ -9,11 +9,25 @@ const estimatedValueSchema = z
   .transform((value) => (value === "" ? "0" : value))
   .refine((value) => /^\d+(\.\d{1,2})?$/.test(value), "Montant invalide");
 
+const optionalProbabilitySchema = z
+  .string()
+  .transform((value) => emptyToNull(value))
+  .refine(
+    (value) => value === null || /^\d{1,3}$/.test(value),
+    "Probabilité invalide",
+  )
+  .transform((value) => (value === null ? null : Number(value)))
+  .refine(
+    (value) => value === null || (value >= 0 && value <= 100),
+    "La probabilité doit être entre 0 et 100",
+  );
+
 export const createOpportunitySchema = z.object({
   companyId: z.string().min(1, "Entreprise introuvable"),
   title: z.string().trim().min(1, "Le titre est obligatoire"),
   estimatedValue: estimatedValueSchema,
   stage: z.enum(OPEN_OPPORTUNITY_STAGES, { error: "Stage invalide" }),
+  probability: optionalProbabilitySchema,
 });
 
 export const updateOpportunityStageSchema = z

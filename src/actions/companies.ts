@@ -3,6 +3,8 @@
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
+import { validateManualLifecycle } from "@/lib/crm/lifecycle";
+import { countCompanyLifecycleFacts } from "@/lib/crm/lifecycle-db";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -153,6 +155,20 @@ export async function updateCompany(
     }
 
     const primaryContact = existing.contacts[0] ?? null;
+    const facts = await countCompanyLifecycleFacts(
+      prisma,
+      existing.id,
+      existing.lifecycleStatus,
+    );
+    const lifecycleCheck = validateManualLifecycle(input.lifecycleStatus, facts);
+
+    if (!lifecycleCheck.ok) {
+      return {
+        ok: false,
+        message: lifecycleCheck.message,
+        fieldErrors: { lifecycleStatus: [lifecycleCheck.message] },
+      };
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.company.update({
@@ -170,6 +186,22 @@ export async function updateCompany(
           priority: input.priority,
         },
       });
+
+      if (input.lifecycleStatus !== existing.lifecycleStatus) {
+        await tx.activityLog.create({
+          data: {
+            actorId: actor.id,
+            entityType: "Company",
+            entityId: existing.id,
+            action: "company.lifecycle_changed",
+            metadata: {
+              from: existing.lifecycleStatus,
+              to: input.lifecycleStatus,
+              reason: "company.updated",
+            },
+          },
+        });
+      }
 
       if (input.contactFirstName && input.contactLastName) {
         if (primaryContact) {
