@@ -22,6 +22,7 @@ import {
   UserRole,
 } from "../src/generated/prisma/client";
 import { getDatabaseUrl } from "../src/lib/db/env";
+import { hashPassword } from "../src/lib/auth/password";
 
 const adapter = new PrismaPg({ connectionString: getDatabaseUrl() });
 const prisma = new PrismaClient({ adapter });
@@ -53,11 +54,19 @@ async function seed() {
 
   await resetDevelopmentData();
 
+  const devPassword = process.env.AUTH_DEV_PASSWORD?.trim();
+  if (!devPassword) {
+    throw new Error(
+      "AUTH_DEV_PASSWORD is missing. Copy .env.example and set a local-only password before seeding.",
+    );
+  }
+
   const actor = await prisma.user.create({
     data: {
       name: "Camille Durand",
-      email: "camille.durand@versatech.example",
+      email: process.env.AUTH_DEV_EMAIL?.trim() || "camille.durand@versatech.example",
       role: UserRole.ADMIN,
+      passwordHash: await hashPassword(devPassword),
     },
   });
 

@@ -15,7 +15,6 @@ import {
   eachDateKey,
   formatDayTitle,
   formatMonthTitle,
-  todayKey,
   toYearMonthKey,
 } from "@/lib/calendar/dates";
 import type {
@@ -28,6 +27,7 @@ import { cn } from "@/lib/cn";
 type CalendarViewProps = {
   year: number;
   month: number;
+  today: string;
   items: CalendarItem[];
   companies: CalendarCompanyOption[];
   projects: CalendarProjectOption[];
@@ -37,9 +37,8 @@ function itemsOnDay(items: CalendarItem[], dateKey: string) {
   return items.filter((entry) => eachDateKey(entry.startsAt, entry.endsAt).includes(dateKey));
 }
 
-export function CalendarView({ year, month, items, companies, projects }: CalendarViewProps) {
-  const today = todayKey();
-  const [selectedDay, setSelectedDay] = useState(() => defaultSelectedDay(year, month));
+export function CalendarView({ year, month, today, items, companies, projects }: CalendarViewProps) {
+  const [selectedDay, setSelectedDay] = useState(() => defaultSelectedDay(year, month, today));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CalendarItem | null>(null);
@@ -52,7 +51,8 @@ export function CalendarView({ year, month, items, companies, projects }: Calend
 
   const previous = addMonths(year, month, -1);
   const next = addMonths(year, month, 1);
-  const currentMonthKey = toYearMonthKey(new Date().getFullYear(), new Date().getMonth());
+  const [todayYear, todayMonth] = today.split("-").map(Number);
+  const currentMonthKey = toYearMonthKey(todayYear ?? year, (todayMonth ?? month + 1) - 1);
   const viewingCurrentMonth = toYearMonthKey(year, month) === currentMonthKey;
 
   function openCreate() {

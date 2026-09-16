@@ -6,6 +6,7 @@ import {
   OPPORTUNITY_STAGE_LABELS,
   OPPORTUNITY_STAGES,
 } from "@/lib/crm/constants";
+import { formatMoney } from "@/lib/crm/form-data";
 import type { PipelineOverview } from "@/lib/queries/opportunities";
 import Link from "next/link";
 
@@ -30,6 +31,9 @@ export function PipelinePreview({ overview }: PipelinePreviewProps) {
               : overview.openCount === 1
                 ? "1 opportunité ouverte"
                 : `${overview.openCount} opportunités ouvertes`}
+            {overview.weightedTotal > 0
+              ? ` · pondéré ${formatMoney(overview.weightedTotal)}`
+              : ""}
           </p>
         </div>
         <Link href="/pipeline" className="text-meta text-primary hover:text-primary-hover">

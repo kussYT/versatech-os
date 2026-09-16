@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateFollowUps } from "@/lib/crm/revalidate";
@@ -17,6 +17,11 @@ export async function createFollowUp(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createFollowUpSchema.safeParse({
     companyId: readString(formData, "companyId"),
     dueAt: readString(formData, "dueAt"),
@@ -42,7 +47,6 @@ export async function createFollowUp(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const actor = await getActorUser();
     const title = input.note ?? "Relance";
     const openOpportunity = await prisma.opportunity.findFirst({
       where: {
@@ -93,6 +97,11 @@ export async function completeFollowUp(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = completeFollowUpSchema.safeParse({
     followUpId: readString(formData, "followUpId"),
   });
@@ -121,8 +130,6 @@ export async function completeFollowUp(
     if (existing.status !== "PENDING") {
       return { ok: false, message: "Cette relance n'est plus en attente." };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.followUp.update({
@@ -156,6 +163,11 @@ export async function rescheduleFollowUp(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = rescheduleFollowUpSchema.safeParse({
     followUpId: readString(formData, "followUpId"),
     dueAt: readString(formData, "dueAt"),
@@ -183,8 +195,6 @@ export async function rescheduleFollowUp(
     if (existing.status !== "PENDING") {
       return { ok: false, message: "Seule une relance en attente peut être reportée." };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.followUp.update({

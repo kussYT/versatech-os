@@ -46,6 +46,7 @@ export default async function TodayPage() {
       <TodayHeader />
       <KpiZone
         pipelineBrut={pipelineOverview.brutTotal}
+        pipelineWeighted={pipelineOverview.weightedTotal}
         dueFollowUps={followUps.dueCount}
         signedRevenue={signedRevenue}
         openTasks={taskDashboard.openCount}

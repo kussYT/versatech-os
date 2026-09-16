@@ -1,10 +1,14 @@
 "use server";
 
-import type { CompanyLifecycle, QuoteStatus } from "@/generated/prisma/client";
+import type { QuoteStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { isOpenOpportunityStage } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
+import { lifecycleAfterWon } from "@/lib/crm/lifecycle";
+import { applyCompanyLifecycleChange } from "@/lib/crm/lifecycle-db";
+import { probabilityForWrite } from "@/lib/crm/probability";
+import { parisParts } from "@/lib/dates";
 import { revalidateQuotes } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -22,10 +26,6 @@ const ALLOWED_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   EXPIRED: [],
 };
 
-function lifecycleAfterWon(current: CompanyLifecycle): CompanyLifecycle | null {
-  return current === "CLIENT" ? null : "CLIENT";
-}
-
 function quoteStatusDates(status: QuoteStatus) {
   if (status === "SENT") {
     return { sentAt: new Date() };
@@ -39,7 +39,7 @@ function quoteStatusDates(status: QuoteStatus) {
 }
 
 async function nextQuoteReference() {
-  const year = new Date().getFullYear();
+  const year = parisParts(new Date()).year;
   const prefix = `DEV-${year}-`;
   const count = await prisma.quote.count({
     where: { reference: { startsWith: prefix } },
@@ -51,6 +51,11 @@ export async function createQuote(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createQuoteSchema.safeParse({
     companyId: readString(formData, "companyId"),
     opportunityId: readString(formData, "opportunityId"),
@@ -77,7 +82,6 @@ export async function createQuote(
       return { ok: false, message: "Opportunité introuvable pour cette entreprise." };
     }
 
-    const actor = await getActorUser();
     const reference = input.reference ?? (await nextQuoteReference());
     const shouldMoveToQuote =
       isOpenOpportunityStage(opportunity.stage) && opportunity.stage !== "QUOTE";
@@ -96,7 +100,10 @@ export async function createQuote(
       if (shouldMoveToQuote) {
         await tx.opportunity.update({
           where: { id: opportunity.id },
-          data: { stage: "QUOTE" },
+          data: {
+            stage: "QUOTE",
+            probability: probabilityForWrite("QUOTE"),
+          },
         });
 
         await tx.opportunityStageHistory.create({
@@ -161,6 +168,11 @@ export async function updateQuoteStatus(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateQuoteStatusSchema.safeParse({
     quoteId: readString(formData, "quoteId"),
     status: readString(formData, "status"),
@@ -200,7 +212,6 @@ export async function updateQuoteStatus(
       return { ok: false, message: "Cette transition n'est pas autorisée." };
     }
 
-    const actor = await getActorUser();
     const shouldWinOpportunity = input.status === "ACCEPTED" && existing.opportunity.stage !== "WON";
     const nextLifecycle = shouldWinOpportunity
       ? lifecycleAfterWon(existing.company.lifecycleStatus)
@@ -235,7 +246,9 @@ export async function updateQuoteStatus(
           where: { id: existing.opportunityId },
           data: {
             stage: "WON",
+            probability: probabilityForWrite("WON"),
             wonAt: existing.opportunity.wonAt ?? new Date(),
+            lostAt: null,
           },
         });
 
@@ -259,17 +272,20 @@ export async function updateQuoteStatus(
               fromStage: existing.opportunity.stage,
               toStage: "WON",
               quoteId: existing.id,
+              probability: probabilityForWrite("WON"),
             },
           },
         });
       }
 
-      if (nextLifecycle) {
-        await tx.company.update({
-          where: { id: existing.companyId },
-          data: { lifecycleStatus: nextLifecycle },
-        });
-      }
+      await applyCompanyLifecycleChange(tx, {
+        companyId: existing.companyId,
+        from: existing.company.lifecycleStatus,
+        to: nextLifecycle,
+        actorId: actor.id,
+        reason: "quote.accepted",
+        metadata: { quoteId: existing.id },
+      });
     });
 
     revalidateQuotes(existing.companyId);

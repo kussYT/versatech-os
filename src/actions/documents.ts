@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateDocuments } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -70,6 +70,11 @@ export async function createDocument(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createDocumentSchema.safeParse({
     name: readString(formData, "name"),
     type: readString(formData, "type"),
@@ -97,8 +102,6 @@ export async function createDocument(
     if ("error" in links) {
       return { ok: false, message: links.error };
     }
-
-    const actor = await getActorUser();
 
     const document = await prisma.$transaction(async (tx) => {
       const created = await tx.document.create({
@@ -149,6 +152,11 @@ export async function updateDocument(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateDocumentSchema.safeParse({
     id: readString(formData, "id"),
     name: readString(formData, "name"),
@@ -185,8 +193,6 @@ export async function updateDocument(
     if ("error" in links) {
       return { ok: false, message: links.error };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.document.update({

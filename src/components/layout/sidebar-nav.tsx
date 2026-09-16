@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavItem } from "@/components/layout/nav-item";
 import { cn } from "@/lib/cn";
 import {
@@ -10,9 +11,10 @@ import {
 type SidebarNavProps = {
   pathname: string;
   className?: string;
+  account?: ReactNode;
 };
 
-export function SidebarNav({ pathname, className }: SidebarNavProps) {
+export function SidebarNav({ pathname, className, account }: SidebarNavProps) {
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
       <nav
@@ -42,7 +44,8 @@ export function SidebarNav({ pathname, className }: SidebarNavProps) {
           </div>
         ))}
       </nav>
-      <div className="border-t border-border px-3 py-3">
+      <div className="space-y-3 border-t border-border px-3 py-3">
+        {account}
         <NavItem
           {...settingsItem}
           active={isNavActive(pathname, settingsItem.href)}

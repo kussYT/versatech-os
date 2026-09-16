@@ -2,7 +2,7 @@
 
 import type { MilestoneStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateProjects } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -22,6 +22,11 @@ export async function createMilestone(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createMilestoneSchema.safeParse({
     projectId: readString(formData, "projectId"),
     name: readString(formData, "name"),
@@ -46,8 +51,6 @@ export async function createMilestone(
     if (!project) {
       return { ok: false, message: "Projet introuvable." };
     }
-
-    const actor = await getActorUser();
 
     const milestone = await prisma.$transaction(async (tx) => {
       const created = await tx.milestone.create({
@@ -87,6 +90,11 @@ export async function updateMilestoneStatus(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateMilestoneStatusSchema.safeParse({
     milestoneId: readString(formData, "milestoneId"),
     status: readString(formData, "status"),
@@ -126,8 +134,6 @@ export async function updateMilestoneStatus(
     if (!ALLOWED_MILESTONE_TRANSITIONS[existing.status].includes(input.status)) {
       return { ok: false, message: "Cette transition n'est pas autorisée." };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.milestone.update({

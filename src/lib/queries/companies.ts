@@ -16,6 +16,7 @@ import {
   PROSPECT_LIFECYCLES,
   projectProgress,
 } from "@/lib/crm/constants";
+import { allowedManualLifecycles, type CompanyLifecycleFacts } from "@/lib/crm/lifecycle";
 import { endOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -129,6 +130,7 @@ export type CompanyDetail = {
     amountIncTax: string;
   }[];
   documents: DocumentRecord[];
+  allowedLifecycleStatuses: CompanyLifecycle[];
 };
 
 function toListItem(
@@ -340,5 +342,15 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         amountIncTax: quote.amountIncTax.toString(),
       })),
     documents,
+    allowedLifecycleStatuses: allowedManualLifecycles({
+      current: company.lifecycleStatus,
+      wonOpportunityCount: company.opportunities.filter((opportunity) => opportunity.stage === "WON")
+        .length,
+      acceptedQuoteCount: company.quotes.filter((quote) => quote.status === "ACCEPTED").length,
+      projectCount: company.projects.length,
+      openOpportunityCount: company.opportunities.filter((opportunity) =>
+        (OPEN_OPPORTUNITY_STAGES as readonly OpportunityStage[]).includes(opportunity.stage),
+      ).length,
+    } satisfies CompanyLifecycleFacts),
   };
 }

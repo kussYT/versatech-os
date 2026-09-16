@@ -77,7 +77,17 @@ function EditCompanyForm({
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Statut" htmlFor="edit-lifecycle" error={firstError("lifecycleStatus")}>
+        <Field
+          label="Statut"
+          htmlFor="edit-lifecycle"
+          error={firstError("lifecycleStatus")}
+          hint={
+            company.lifecycleStatus === "CLIENT" &&
+            company.allowedLifecycleStatuses.length <= 2
+              ? "Client justifié (WON, devis accepté ou projet). Seul le passage en inactif est manuel."
+              : "Le statut Client n'est pas saisissable sans opportunité gagnée, devis accepté ou projet."
+          }
+        >
           <select
             id="edit-lifecycle"
             name="lifecycleStatus"
@@ -85,9 +95,9 @@ function EditCompanyForm({
             disabled={pending}
             className={controlClassName}
           >
-            {Object.entries(COMPANY_LIFECYCLE_LABELS).map(([value, label]) => (
+            {company.allowedLifecycleStatuses.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {COMPANY_LIFECYCLE_LABELS[value]}
               </option>
             ))}
           </select>

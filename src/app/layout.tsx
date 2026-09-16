@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { getSessionUser } from "@/lib/auth/session";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,14 +23,16 @@ export const metadata: Metadata = {
     "Système d'exploitation interne pour piloter l'activité VersaTech.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getSessionUser();
+
   return (
     <html
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans">
-        <AppShell>{children}</AppShell>
+        <AppShell user={user}>{children}</AppShell>
       </body>
     </html>
   );

@@ -4,15 +4,18 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { Brand } from "@/components/layout/app-sidebar";
+import { SessionAccount } from "@/components/auth/session-account";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { Button } from "@/components/ui/button";
+import type { SessionUser } from "@/lib/auth/types";
 
 type MobileNavDrawerProps = {
   open: boolean;
   onClose: () => void;
+  user: SessionUser;
 };
 
-export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
+export function MobileNavDrawer({ open, onClose, user }: MobileNavDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pathname = usePathname();
   const previousPathname = useRef(pathname);
@@ -71,7 +74,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
             <X className="size-4" aria-hidden="true" />
           </Button>
         </div>
-        <SidebarNav pathname={pathname} />
+        <SidebarNav pathname={pathname} account={<SessionAccount user={user} />} />
       </div>
     </dialog>
   );

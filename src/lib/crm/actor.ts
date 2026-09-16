@@ -1,21 +1,14 @@
 import "server-only";
 
-import { prisma } from "@/lib/db/prisma";
+import { AUTH_REQUIRED_RESULT, actorOrUnauthorized } from "@/lib/auth/guard";
+import { getSessionUser } from "@/lib/auth/session";
+
+export { AUTH_REQUIRED_RESULT };
 
 export async function getActorUser() {
-  const existing = await prisma.user.findFirst({
-    orderBy: { createdAt: "asc" },
-  });
+  return getSessionUser();
+}
 
-  if (existing) {
-    return existing;
-  }
-
-  return prisma.user.create({
-    data: {
-      name: "VersaTech OS",
-      email: "os@versatech.example",
-      role: "ADMIN",
-    },
-  });
+export async function requireActor() {
+  return actorOrUnauthorized(await getActorUser());
 }

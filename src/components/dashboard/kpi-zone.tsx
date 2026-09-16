@@ -11,6 +11,7 @@ import { formatMoney } from "@/lib/crm/form-data";
 
 type KpiZoneProps = {
   pipelineBrut: number;
+  pipelineWeighted: number;
   dueFollowUps: number;
   signedRevenue: string;
   openTasks: number;
@@ -20,6 +21,7 @@ type KpiZoneProps = {
 
 export function KpiZone({
   pipelineBrut,
+  pipelineWeighted,
   dueFollowUps,
   signedRevenue,
   openTasks,
@@ -52,7 +54,7 @@ export function KpiZone({
     {
       label: "Pipeline",
       icon: Kanban,
-      hint: "Pipeline brut",
+      hint: `Pondéré ${formatMoney(pipelineWeighted)}`,
       value: formatMoney(pipelineBrut),
       premium: true,
       tone: "prism" as const,
