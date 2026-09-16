@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PriorityBadge } from "@/components/ui/priority-badge";
 import { PRIORITY_LABELS } from "@/lib/crm/constants";
-import { endOfToday, formatDateTime, startOfToday } from "@/lib/crm/form-data";
+import { formatDateTime } from "@/lib/crm/form-data";
+import { dueBucket } from "@/lib/dates";
 import type { TaskListItem } from "@/lib/queries/projects";
 
 type TaskBucket = "overdue" | "today" | "upcoming" | "undated";
@@ -17,21 +18,12 @@ const SECTIONS: { bucket: TaskBucket; title: string; empty: string }[] = [
   { bucket: "undated", title: "Sans échéance", empty: "Aucune tâche sans date." },
 ];
 
-function bucketFor(task: TaskListItem, start: Date, end: Date): TaskBucket {
+function bucketFor(task: TaskListItem): TaskBucket {
   if (!task.dueAt) {
     return "undated";
   }
 
-  const dueAt = new Date(task.dueAt);
-  if (dueAt < start) {
-    return "overdue";
-  }
-
-  if (dueAt <= end) {
-    return "today";
-  }
-
-  return "upcoming";
+  return dueBucket(new Date(task.dueAt));
 }
 
 type TaskBoardProps = {
@@ -39,8 +31,6 @@ type TaskBoardProps = {
 };
 
 export function TaskBoard({ tasks }: TaskBoardProps) {
-  const start = startOfToday();
-  const end = endOfToday();
   const board: Record<TaskBucket, TaskListItem[]> = {
     overdue: [],
     today: [],
@@ -49,7 +39,7 @@ export function TaskBoard({ tasks }: TaskBoardProps) {
   };
 
   for (const task of tasks) {
-    board[bucketFor(task, start, end)].push(task);
+    board[bucketFor(task)].push(task);
   }
 
   if (tasks.length === 0) {

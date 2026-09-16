@@ -1,5 +1,5 @@
 import { calendarChipClass } from "@/components/calendar/calendar-kind-badge";
-import { eachDateKey, formatTime, getMonthGridDays, toDateKey } from "@/lib/calendar/dates";
+import { eachDateKey, formatDayTitle, formatTime, getMonthGridDays } from "@/lib/calendar/dates";
 import { calendarItemLabel } from "@/lib/calendar/labels";
 import type { CalendarItem } from "@/lib/calendar/types";
 import { cn } from "@/lib/cn";
@@ -62,8 +62,8 @@ export function CalendarMonthGrid({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((date) => {
-          const key = toDateKey(date);
-          const inMonth = date.getMonth() === month;
+          const key = date.key;
+          const inMonth = date.month === month;
           const isToday = key === today;
           const isSelected = key === selectedDay;
           const dayItems = grouped.get(key) ?? [];
@@ -77,11 +77,7 @@ export function CalendarMonthGrid({
                 onClick={() => onSelectDay(key)}
                 aria-pressed={isSelected}
                 aria-current={isToday ? "date" : undefined}
-                aria-label={`${date.toLocaleDateString("fr-FR", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}${dayItems.length > 0 ? ` · ${dayItems.length} élément${dayItems.length > 1 ? "s" : ""}` : ""}`}
+                aria-label={`${formatDayTitle(key)}${dayItems.length > 0 ? ` · ${dayItems.length} élément${dayItems.length > 1 ? "s" : ""}` : ""}`}
                 className={cn(
                   "flex min-h-16 w-full flex-col gap-1 rounded-lg border border-transparent bg-background/40 p-1.5 text-left sm:min-h-24",
                   "motion-safe:transition-[border-color,background-color] motion-safe:duration-hover",
@@ -98,7 +94,7 @@ export function CalendarMonthGrid({
                     isSelected && "text-foreground",
                   )}
                 >
-                  {date.getDate()}
+                  {date.day}
                 </span>
                 <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
                   {preview.map((entry) => (

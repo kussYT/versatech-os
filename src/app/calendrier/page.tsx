@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CalendarView } from "@/components/calendar/calendar-view";
-import { getMonthGridRange, parseYearMonth } from "@/lib/calendar/dates";
+import { getMonthGridRange, parseYearMonth, toDateKey } from "@/lib/calendar/dates";
 import { endOfToday, startOfToday } from "@/lib/crm/form-data";
 import {
   listCalendarItems,
@@ -27,6 +27,7 @@ export default async function CalendrierPage({
   const grid = getMonthGridRange(year, month);
   const todayStart = startOfToday();
   const todayEnd = endOfToday();
+  const today = toDateKey(todayStart);
   const todayInGrid = todayStart >= grid.start && todayEnd <= grid.end;
 
   const [monthItems, todayItems, links] = await Promise.all([
@@ -42,6 +43,7 @@ export default async function CalendrierPage({
       key={`${year}-${month}`}
       year={year}
       month={month}
+      today={today}
       items={mergeCalendarItems([monthItems, todayItems])}
       companies={links.companies}
       projects={links.projects}
