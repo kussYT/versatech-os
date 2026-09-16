@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   CalendarClock,
+  FileText,
+  FolderKanban,
   Kanban,
   Mail,
   MessageSquare,
@@ -12,10 +14,16 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
+import Link from "next/link";
 import { CreateOpportunityDialog } from "@/components/crm/create-opportunity-dialog";
 import { EditCompanyDialog } from "@/components/crm/edit-company-dialog";
 import { FollowUpDialog } from "@/components/crm/follow-up-dialog";
 import { InteractionDialog } from "@/components/crm/interaction-dialog";
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
+import { ProjectProgress } from "@/components/projects/project-progress";
+import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
+import { CreateQuoteDialog } from "@/components/quotes/create-quote-dialog";
+import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,7 +31,7 @@ import { LifecycleBadge } from "@/components/ui/lifecycle-badge";
 import { PriorityBadge } from "@/components/ui/priority-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { PRIORITY_LABELS } from "@/lib/crm/constants";
-import { formatDateTime } from "@/lib/crm/form-data";
+import { formatDate, formatDateTime, formatMoney } from "@/lib/crm/form-data";
 import {
   INTERACTION_DIRECTION_LABELS,
   INTERACTION_RESULT_LABELS,
@@ -41,6 +49,9 @@ export function CompanyHub({ company }: CompanyHubProps) {
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [opportunityOpen, setOpportunityOpen] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const isClient = company.lifecycleStatus === "CLIENT";
   const location = [company.city, company.postalCode].filter(Boolean).join(" ");
 
   return (
@@ -66,6 +77,17 @@ export function CompanyHub({ company }: CompanyHubProps) {
               <Button variant="secondary" onClick={() => setOpportunityOpen(true)}>
                 <Kanban className="size-4" aria-hidden="true" />
                 Créer une opportunité
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={() => setQuoteOpen(true)}>
+                <FileText className="size-4" aria-hidden="true" />
+                Créer un devis
+              </Button>
+            )}
+            {isClient ? (
+              <Button variant="secondary" onClick={() => setProjectOpen(true)}>
+                <FolderKanban className="size-4" aria-hidden="true" />
+                Créer un projet
               </Button>
             ) : null}
           </div>
@@ -158,6 +180,86 @@ export function CompanyHub({ company }: CompanyHubProps) {
         )}
       </Card>
 
+      <Card className="p-5">
+        <h2 className="text-section text-foreground">Devis</h2>
+        {company.quotes.length === 0 ? (
+          <EmptyState
+            title="Aucun devis"
+            description="Créez un devis dès qu'une opportunité commerciale est ouverte."
+            action={
+              company.quoteOpportunities.length > 0 ? (
+                <Button size="sm" onClick={() => setQuoteOpen(true)}>
+                  Créer un devis
+                </Button>
+              ) : null
+            }
+          />
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {company.quotes.map((quote) => (
+              <li
+                key={quote.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/60 px-4 py-3"
+              >
+                <div>
+                  <p className="font-mono text-body text-foreground">{quote.reference}</p>
+                  <p className="mt-1 font-sans text-meta tabular-nums text-muted">
+                    {formatMoney(quote.amountIncTax)}
+                  </p>
+                </div>
+                <QuoteStatusBadge status={quote.status} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {isClient ? (
+        <Card className="p-5">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-section text-foreground">Projets</h2>
+            <Button size="sm" variant="secondary" onClick={() => setProjectOpen(true)}>
+              Créer un projet
+            </Button>
+          </div>
+          {company.projects.length === 0 ? (
+            <EmptyState
+              title="Aucun projet"
+              description="Passez du suivi commercial à la production en créant un projet."
+              action={
+                <Button size="sm" onClick={() => setProjectOpen(true)}>
+                  Créer un projet
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {company.projects.map((project) => (
+                <li key={project.id}>
+                  <Link
+                    href={`/projets/${project.id}`}
+                    className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-body font-medium text-foreground">{project.name}</p>
+                        <ProjectStatusBadge status={project.status} />
+                      </div>
+                      <p className="mt-1 font-mono text-meta text-muted">
+                        {project.dueDate ? formatDate(project.dueDate) : "Sans deadline"}
+                      </p>
+                    </div>
+                    <div className="w-full sm:max-w-[12rem]">
+                      <ProjectProgress value={project.progress} />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      ) : null}
+
       <InteractionDialog
         open={interactionOpen}
         onClose={() => setInteractionOpen(false)}
@@ -177,6 +279,18 @@ export function CompanyHub({ company }: CompanyHubProps) {
         open={opportunityOpen}
         onClose={() => setOpportunityOpen(false)}
         companyId={company.id}
+      />
+      <CreateQuoteDialog
+        open={quoteOpen}
+        onClose={() => setQuoteOpen(false)}
+        companyId={company.id}
+        opportunities={company.quoteOpportunities}
+      />
+      <CreateProjectDialog
+        open={projectOpen}
+        onClose={() => setProjectOpen(false)}
+        companyId={company.id}
+        quotes={company.acceptedQuotes}
       />
     </div>
   );

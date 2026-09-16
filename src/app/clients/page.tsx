@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/layout/section-placeholder";
+import { ClientExplorer } from "@/components/clients/client-explorer";
+import { PageHeader } from "@/components/layout/page-header";
+import { listClientCompanies } from "@/lib/queries/clients";
 
 export const metadata: Metadata = {
   title: "Clients",
 };
 
-export default function ClientsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ClientsPage() {
+  const clients = await listClientCompanies();
+
   return (
-    <SectionPlaceholder
-      title="Clients"
-      description="Les entreprises au statut client apparaîtront ici."
-      emptyTitle="Aucun client"
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Clients"
+        description="Entreprises au statut client, hors cycle commercial."
+      />
+      <ClientExplorer clients={clients} />
+    </div>
   );
 }

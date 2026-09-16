@@ -10,6 +10,10 @@ export type ActionResult = {
     interactionId?: string;
     followUpId?: string;
     opportunityId?: string;
+    quoteId?: string;
+    projectId?: string;
+    taskId?: string;
+    milestoneId?: string;
   };
 };
 

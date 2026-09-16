@@ -12,9 +12,11 @@ import { formatMoney } from "@/lib/crm/form-data";
 type KpiZoneProps = {
   pipelineBrut: number;
   dueFollowUps: number;
+  signedRevenue: string;
+  openTasks: number;
 };
 
-export function KpiZone({ pipelineBrut, dueFollowUps }: KpiZoneProps) {
+export function KpiZone({ pipelineBrut, dueFollowUps, signedRevenue, openTasks }: KpiZoneProps) {
   const kpis = [
     { label: "Appels", icon: Phone, hint: "Aucun appel prévu", tone: "cyan" as const },
     {
@@ -25,7 +27,13 @@ export function KpiZone({ pipelineBrut, dueFollowUps }: KpiZoneProps) {
       tone: "violet" as const,
     },
     { label: "RDV", icon: CalendarDays, hint: "Aucun rendez-vous", tone: "orange" as const },
-    { label: "Tâches", icon: ListTodo, hint: "Aucune tâche due", tone: "blue" as const },
+    {
+      label: "Tâches",
+      icon: ListTodo,
+      hint: "À faire ou en cours",
+      value: String(openTasks),
+      tone: "blue" as const,
+    },
     {
       label: "Pipeline",
       icon: Kanban,
@@ -37,7 +45,8 @@ export function KpiZone({ pipelineBrut, dueFollowUps }: KpiZoneProps) {
     {
       label: "CA signé",
       icon: Euro,
-      hint: "Aucune donnée disponible",
+      hint: "Devis acceptés",
+      value: formatMoney(signedRevenue),
       premium: true,
       tone: "gold" as const,
     },

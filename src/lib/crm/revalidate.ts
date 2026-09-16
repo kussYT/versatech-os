@@ -21,3 +21,22 @@ export function revalidateFollowUps(companyId?: string) {
   revalidatePath("/");
   revalidateCrm(companyId);
 }
+
+export function revalidateQuotes(companyId?: string) {
+  revalidatePath("/devis");
+  revalidatePath("/");
+  revalidatePath("/pipeline");
+  revalidateCrm(companyId);
+}
+
+export function revalidateProjects(companyId?: string, projectId?: string) {
+  revalidatePath("/projets");
+  revalidatePath("/clients");
+  revalidatePath("/");
+
+  if (projectId) {
+    revalidatePath(`/projets/${projectId}`);
+  }
+
+  revalidateCrm(companyId);
+}

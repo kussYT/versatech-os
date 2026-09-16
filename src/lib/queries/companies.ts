@@ -6,9 +6,16 @@ import type {
   InteractionDirection,
   InteractionResult,
   InteractionType,
+  OpportunityStage,
   Priority,
+  ProjectStatus,
+  QuoteStatus,
 } from "@/generated/prisma/client";
-import { OPEN_OPPORTUNITY_STAGES, PROSPECT_LIFECYCLES } from "@/lib/crm/constants";
+import {
+  OPEN_OPPORTUNITY_STAGES,
+  PROSPECT_LIFECYCLES,
+  projectProgress,
+} from "@/lib/crm/constants";
 import { endOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
 
@@ -88,6 +95,29 @@ export type CompanyDetail = {
     status: FollowUpStatus;
   } | null;
   hasOpenOpportunity: boolean;
+  quotes: {
+    id: string;
+    reference: string;
+    status: QuoteStatus;
+    amountIncTax: string;
+  }[];
+  quoteOpportunities: {
+    id: string;
+    title: string;
+    stage: OpportunityStage;
+  }[];
+  projects: {
+    id: string;
+    name: string;
+    status: ProjectStatus;
+    dueDate: string | null;
+    progress: number;
+  }[];
+  acceptedQuotes: {
+    id: string;
+    reference: string;
+    amountIncTax: string;
+  }[];
 };
 
 function toListItem(
@@ -181,8 +211,24 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         where: {
           stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
         },
-        select: { id: true },
-        take: 1,
+        select: { id: true, title: true, stage: true },
+        orderBy: { updatedAt: "desc" },
+      },
+      quotes: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          amountIncTax: true,
+          projectId: true,
+        },
+      },
+      projects: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          tasks: { select: { status: true } },
+        },
       },
     },
   });
@@ -234,5 +280,30 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         }
       : null,
     hasOpenOpportunity: company.opportunities.length > 0,
+    quotes: company.quotes.map((quote) => ({
+      id: quote.id,
+      reference: quote.reference,
+      status: quote.status,
+      amountIncTax: quote.amountIncTax.toString(),
+    })),
+    quoteOpportunities: company.opportunities.map((opportunity) => ({
+      id: opportunity.id,
+      title: opportunity.title,
+      stage: opportunity.stage,
+    })),
+    projects: company.projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      dueDate: project.dueDate?.toISOString() ?? null,
+      progress: projectProgress(project.tasks),
+    })),
+    acceptedQuotes: company.quotes
+      .filter((quote) => quote.status === "ACCEPTED" && !quote.projectId)
+      .map((quote) => ({
+        id: quote.id,
+        reference: quote.reference,
+        amountIncTax: quote.amountIncTax.toString(),
+      })),
   };
 }

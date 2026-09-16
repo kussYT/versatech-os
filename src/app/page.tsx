@@ -8,6 +8,8 @@ import { TasksPanel } from "@/components/dashboard/tasks-panel";
 import { TodayHeader } from "@/components/dashboard/today-header";
 import { getFollowUpDashboard } from "@/lib/queries/follow-ups";
 import { getPipelineOverview } from "@/lib/queries/opportunities";
+import { getTaskDashboard, getTodayDeadlines } from "@/lib/queries/projects";
+import { getSignedRevenue } from "@/lib/queries/quotes";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +18,12 @@ export const metadata: Metadata = {
 };
 
 export default async function TodayPage() {
-  const [pipelineOverview, followUps] = await Promise.all([
+  const [pipelineOverview, followUps, signedRevenue, taskDashboard, agenda] = await Promise.all([
     getPipelineOverview(),
     getFollowUpDashboard(),
+    getSignedRevenue(),
+    getTaskDashboard(),
+    getTodayDeadlines(),
   ]);
 
   return (
@@ -27,11 +32,13 @@ export default async function TodayPage() {
       <KpiZone
         pipelineBrut={pipelineOverview.brutTotal}
         dueFollowUps={followUps.dueCount}
+        signedRevenue={signedRevenue}
+        openTasks={taskDashboard.openCount}
       />
       <CallsFollowups followUps={followUps.preview} />
       <div className="grid gap-3 lg:grid-cols-2">
-        <TasksPanel />
-        <AgendaPanel />
+        <TasksPanel tasks={taskDashboard.preview} />
+        <AgendaPanel items={agenda} />
       </div>
       <PipelinePreview overview={pipelineOverview} />
       <RecentActivity />
