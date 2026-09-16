@@ -12,7 +12,7 @@ async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
         select: { createdAt: true, lifecycleStatus: true },
       }),
       prisma.interaction.findMany({
-        select: { occurredAt: true, type: true },
+        select: { occurredAt: true, type: true, direction: true, result: true, notes: true },
       }),
       prisma.opportunity.findMany({
         select: {

@@ -1,5 +1,7 @@
 import type {
   CompanyLifecycle,
+  InteractionDirection,
+  InteractionResult,
   InteractionType,
   MaintenanceStatus,
   OpportunityStage,
@@ -22,6 +24,7 @@ import {
 import { computeFinanceTotals } from "@/lib/finance";
 import { computeMrr } from "@/lib/maintenance/mrr";
 import { averageMoney, sumMoney, weightedMoney } from "@/lib/money";
+import { isTerrainVisit } from "@/lib/prospection/visit";
 
 const OUTREACH_TYPES: ReadonlySet<InteractionType> = new Set([
   "CALL",
@@ -44,6 +47,9 @@ export type AnalyticsCompanyRow = {
 export type AnalyticsInteractionRow = {
   occurredAt: Date;
   type: InteractionType;
+  direction?: InteractionDirection | null;
+  result?: InteractionResult | null;
+  notes?: string | null;
 };
 
 export type AnalyticsOpportunityRow = {
@@ -173,7 +179,9 @@ export function computeAnalytics(
       OUTREACH_TYPES.has(interaction.type) && inRange(interaction.occurredAt, range),
   );
   const calls = outreach.filter((interaction) => interaction.type === "CALL").length;
-  const meetings = outreach.filter((interaction) => interaction.type === "MEETING").length;
+  const meetings = outreach.filter(
+    (interaction) => interaction.type === "MEETING" && !isTerrainVisit(interaction),
+  ).length;
 
   const quotesSent = snapshot.quotes.filter((quote) => inRange(quote.sentAt, range));
   const quotesAcceptedFlow = snapshot.quotes.filter((quote) => inRange(quote.acceptedAt, range));

@@ -7,6 +7,8 @@ export function revalidateCrm(companyId?: string) {
   revalidatePath("/relances");
   revalidatePath("/pipeline");
   revalidatePath("/clients");
+  revalidatePath("/carte");
+  revalidatePath("/tournee");
 
   if (companyId) {
     revalidatePath(`/entreprises/${companyId}`);

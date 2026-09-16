@@ -3,6 +3,7 @@ import "server-only";
 import type {
   CompanyLifecycle,
   FollowUpStatus,
+  GeocodeStatus,
   InteractionDirection,
   InteractionResult,
   InteractionType,
@@ -82,6 +83,10 @@ export type CompanyDetail = {
   source: string | null;
   priority: Priority;
   description: string | null;
+  commercialBrief: unknown;
+  latitude: number | null;
+  longitude: number | null;
+  geocodeStatus: GeocodeStatus | null;
   contacts: {
     id: string;
     firstName: string;
@@ -295,6 +300,10 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
     source: company.source,
     priority: company.priority,
     description: company.description,
+    commercialBrief: company.commercialBrief,
+    latitude: company.latitude,
+    longitude: company.longitude,
+    geocodeStatus: company.geocodeStatus,
     contacts: company.contacts.map((contact) => ({
       id: contact.id,
       firstName: contact.firstName,

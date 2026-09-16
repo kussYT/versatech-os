@@ -19,6 +19,7 @@ export type ActionResult = {
     calendarEventId?: string;
     paymentId?: string;
     maintenanceContractId?: string;
+    tourId?: string;
   };
 };
 

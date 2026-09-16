@@ -15,6 +15,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
+import { CommercialBriefSection } from "@/components/crm/commercial-brief-section";
+import { TerrainBar } from "@/components/crm/terrain-bar";
 import { CreateOpportunityDialog } from "@/components/crm/create-opportunity-dialog";
 import { EditCompanyDialog } from "@/components/crm/edit-company-dialog";
 import { FollowUpDialog } from "@/components/crm/follow-up-dialog";
@@ -44,6 +46,8 @@ import {
 import type { CompanyDetail } from "@/lib/queries/companies";
 import type { PaymentFormOptions } from "@/lib/queries/payments";
 import type { InteractionType } from "@/generated/prisma/client";
+import { parseCommercialBrief } from "@/lib/prospection/brief";
+import { isTerrainVisit } from "@/lib/prospection/visit";
 
 type CompanyHubProps = {
   company: CompanyDetail;
@@ -59,9 +63,23 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
   const [projectOpen, setProjectOpen] = useState(false);
   const isClient = company.lifecycleStatus === "CLIENT";
   const location = [company.city, company.postalCode].filter(Boolean).join(" ");
+  const brief = parseCommercialBrief(company.commercialBrief);
 
   return (
     <div className="space-y-6">
+      <TerrainBar
+        company={company}
+        brief={brief}
+        onCall={() => {
+          if (company.phone) {
+            window.location.href = `tel:${company.phone}`;
+          }
+          setInteractionOpen(true);
+        }}
+        onInteraction={() => setInteractionOpen(true)}
+        onFollowUp={() => setFollowUpOpen(true)}
+        onOpportunity={() => setOpportunityOpen(true)}
+      />
       <PageHeader
         meta="Fiche entreprise"
         title={company.name}
@@ -134,6 +152,14 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         </Card>
       </div>
 
+      <CommercialBriefSection
+        companyId={company.id}
+        industry={company.industry}
+        description={company.description}
+        website={company.website}
+        brief={brief}
+      />
+
       <Card className="p-5">
         <h2 className="text-section text-foreground">Timeline</h2>
         {company.interactions.length === 0 ? (
@@ -160,12 +186,14 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="text-body font-medium text-foreground">
-                        {interactionLabel(interaction.type)}
+                        {isTerrainVisit(interaction)
+                          ? "Visite terrain"
+                          : interactionLabel(interaction.type)}
                       </p>
                       <span className="text-meta text-muted">
                         {INTERACTION_DIRECTION_LABELS[interaction.direction]}
                       </span>
-                      {interaction.result ? (
+                      {interaction.result && !isTerrainVisit(interaction) ? (
                         <span className="text-meta text-muted">
                           · {INTERACTION_RESULT_LABELS[interaction.result]}
                         </span>

@@ -1,6 +1,8 @@
 export type NavHref =
   | "/"
   | "/prospection"
+  | "/carte"
+  | "/tournee"
   | "/entreprises"
   | "/pipeline"
   | "/relances"
@@ -19,6 +21,8 @@ export type NavHref =
 export type NavIconName =
   | "today"
   | "prospection"
+  | "map"
+  | "tour"
   | "companies"
   | "pipeline"
   | "followups"
@@ -58,6 +62,8 @@ export const navSections: NavSection[] = [
     label: "Commercial",
     items: [
       { href: "/prospection", label: "Prospection", icon: "prospection" },
+      { href: "/carte", label: "Carte", icon: "map" },
+      { href: "/tournee", label: "Tournée", icon: "tour" },
       { href: "/entreprises", label: "Entreprises", icon: "companies" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       { href: "/relances", label: "Relances", icon: "followups" },
