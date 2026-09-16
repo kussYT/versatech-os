@@ -942,9 +942,37 @@ summary,
   background: rgb(5 8 20 / 0.72);
 }
 
+.vt-command {
+  position: fixed;
+  inset: 12vh auto auto 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  width: min(40rem, calc(100vw - 1.5rem));
+  max-height: min(70dvh, 36rem);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--surface);
+  padding: 0;
+  color: var(--foreground);
+  box-shadow: var(--shadow-soft);
+}
+
+.vt-command[open],
+.vt-command:modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.vt-command::backdrop {
+  background: rgb(5 8 20 / 0.72);
+}
+
 @media (max-width: 639px) {
-  .vt-dialog {
+  .vt-dialog,
+  .vt-command {
     inset: auto 0 0;
+    transform: none;
     margin: 0;
     width: 100vw;
     max-width: none;
