@@ -5,6 +5,7 @@ import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { isOpenOpportunityStage } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
+import { parisParts } from "@/lib/dates";
 import { revalidateQuotes } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -39,7 +40,7 @@ function quoteStatusDates(status: QuoteStatus) {
 }
 
 async function nextQuoteReference() {
-  const year = new Date().getFullYear();
+  const year = parisParts(new Date()).year;
   const prefix = `DEV-${year}-`;
   const count = await prisma.quote.count({
     where: { reference: { startsWith: prefix } },

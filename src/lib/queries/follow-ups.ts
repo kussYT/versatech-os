@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { FollowUpStatus, InteractionType } from "@/generated/prisma/client";
-import { endOfToday, startOfToday } from "@/lib/crm/form-data";
+import { dueBucket } from "@/lib/dates";
 import { prisma } from "@/lib/db/prisma";
 
 export type FollowUpBucket = "overdue" | "today" | "upcoming" | "completed";
@@ -90,22 +90,11 @@ function loadFollowUps(status: FollowUpStatus, take?: number) {
   });
 }
 
-function bucketForPending(dueAt: Date, start: Date, end: Date): Exclude<FollowUpBucket, "completed"> {
-  if (dueAt < start) {
-    return "overdue";
-  }
-
-  if (dueAt <= end) {
-    return "today";
-  }
-
-  return "upcoming";
+function bucketForPending(dueAt: Date): Exclude<FollowUpBucket, "completed"> {
+  return dueBucket(dueAt);
 }
 
 export async function listFollowUpBoard(): Promise<FollowUpBoard> {
-  const start = startOfToday();
-  const end = endOfToday();
-
   const [pending, completed] = await Promise.all([
     loadFollowUps("PENDING"),
     loadFollowUps("COMPLETED", 40),
@@ -119,7 +108,7 @@ export async function listFollowUpBoard(): Promise<FollowUpBoard> {
   };
 
   for (const followUp of pending) {
-    board[bucketForPending(followUp.dueAt, start, end)].push(toListItem(followUp));
+    board[bucketForPending(followUp.dueAt)].push(toListItem(followUp));
   }
 
   return board;
