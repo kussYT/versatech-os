@@ -87,6 +87,22 @@ function CreateOpportunityForm({
         />
       </Field>
 
+      <Field
+        label="Probabilité"
+        htmlFor="opportunity-probability"
+        hint="0 à 100. Vide = dérivée du stage"
+        error={firstError("probability")}
+      >
+        <input
+          id="opportunity-probability"
+          name="probability"
+          inputMode="numeric"
+          disabled={pending}
+          placeholder="Auto"
+          className={controlClassName}
+        />
+      </Field>
+
       <Field label="Stage initial" htmlFor="opportunity-stage" error={firstError("stage")}>
         <select
           id="opportunity-stage"

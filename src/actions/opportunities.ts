@@ -1,9 +1,18 @@
 "use server";
 
-import type { CompanyLifecycle, OpportunityStage } from "@/generated/prisma/client";
+import type { OpportunityStage } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
+import {
+  applyCompanyLifecycleChange,
+  countCompanyLifecycleFacts,
+} from "@/lib/crm/lifecycle-db";
+import {
+  lifecycleAfterOpportunityCreated,
+  nextLifecycleAfterOpportunityStageChange,
+} from "@/lib/crm/lifecycle";
+import { probabilityForWrite } from "@/lib/crm/probability";
 import { revalidatePipeline } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -16,28 +25,16 @@ function userFacingDbError() {
   return "Impossible d'enregistrer l'opportunité. Réessayez.";
 }
 
-function lifecycleAfterOpportunityCreated(current: CompanyLifecycle): CompanyLifecycle | null {
-  if (current === "LEAD" || current === "CONTACTED" || current === "QUALIFIED") {
-    return "OPPORTUNITY";
-  }
-
-  return null;
-}
-
-function lifecycleAfterWon(current: CompanyLifecycle): CompanyLifecycle | null {
-  return current === "CLIENT" ? null : "CLIENT";
-}
-
 function stageTimestamps(stage: OpportunityStage) {
   if (stage === "WON") {
-    return { wonAt: new Date() };
+    return { wonAt: new Date(), lostAt: null };
   }
 
   if (stage === "LOST") {
-    return { lostAt: new Date() };
+    return { lostAt: new Date(), wonAt: null };
   }
 
-  return {};
+  return { wonAt: null, lostAt: null };
 }
 
 export async function createOpportunity(
@@ -54,6 +51,7 @@ export async function createOpportunity(
     title: readString(formData, "title"),
     estimatedValue: readString(formData, "estimatedValue"),
     stage: readString(formData, "stage"),
+    probability: readString(formData, "probability"),
   });
 
   if (!parsed.success) {
@@ -76,6 +74,7 @@ export async function createOpportunity(
     }
 
     const nextLifecycle = lifecycleAfterOpportunityCreated(company.lifecycleStatus);
+    const probability = probabilityForWrite(input.stage, input.probability);
 
     const opportunity = await prisma.$transaction(async (tx) => {
       const created = await tx.opportunity.create({
@@ -84,6 +83,7 @@ export async function createOpportunity(
           title: input.title,
           stage: input.stage,
           estimatedValue: input.estimatedValue,
+          probability,
           source: company.source,
           ...stageTimestamps(input.stage),
         },
@@ -98,12 +98,14 @@ export async function createOpportunity(
         },
       });
 
-      if (nextLifecycle) {
-        await tx.company.update({
-          where: { id: company.id },
-          data: { lifecycleStatus: nextLifecycle },
-        });
-      }
+      await applyCompanyLifecycleChange(tx, {
+        companyId: company.id,
+        from: company.lifecycleStatus,
+        to: nextLifecycle,
+        actorId: actor.id,
+        reason: "opportunity.created",
+        metadata: { opportunityId: created.id },
+      });
 
       await tx.activityLog.create({
         data: {
@@ -115,6 +117,7 @@ export async function createOpportunity(
             title: created.title,
             companyId: company.id,
             stage: created.stage,
+            probability,
           },
         },
       });
@@ -169,14 +172,14 @@ export async function updateOpportunityStage(
       return { ok: true, data: { opportunityId: existing.id, companyId: existing.companyId } };
     }
 
-    const nextLifecycle =
-      input.stage === "WON" ? lifecycleAfterWon(existing.company.lifecycleStatus) : null;
+    const probability = probabilityForWrite(input.stage);
 
     await prisma.$transaction(async (tx) => {
       await tx.opportunity.update({
         where: { id: existing.id },
         data: {
           stage: input.stage,
+          probability,
           ...stageTimestamps(input.stage),
           lostReason: input.stage === "LOST" ? input.lostReason : existing.lostReason,
         },
@@ -191,12 +194,30 @@ export async function updateOpportunityStage(
         },
       });
 
-      if (nextLifecycle) {
-        await tx.company.update({
-          where: { id: existing.companyId },
-          data: { lifecycleStatus: nextLifecycle },
-        });
-      }
+      const facts = await countCompanyLifecycleFacts(
+        tx,
+        existing.companyId,
+        existing.company.lifecycleStatus,
+      );
+      const nextLifecycle = nextLifecycleAfterOpportunityStageChange({
+        currentCompany: existing.company.lifecycleStatus,
+        fromStage: existing.stage,
+        toStage: input.stage,
+        factsAfterChange: facts,
+      });
+
+      await applyCompanyLifecycleChange(tx, {
+        companyId: existing.companyId,
+        from: existing.company.lifecycleStatus,
+        to: nextLifecycle,
+        actorId: actor.id,
+        reason: "opportunity.stage_changed",
+        metadata: {
+          opportunityId: existing.id,
+          fromStage: existing.stage,
+          toStage: input.stage,
+        },
+      });
 
       await tx.activityLog.create({
         data: {
@@ -208,6 +229,7 @@ export async function updateOpportunityStage(
             companyId: existing.companyId,
             fromStage: existing.stage,
             toStage: input.stage,
+            probability,
           },
         },
       });

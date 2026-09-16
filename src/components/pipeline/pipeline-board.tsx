@@ -43,6 +43,11 @@ export function PipelineBoard({ columns }: PipelineBoardProps) {
             {column.estimatedTotal > 0 ? (
               <p className="text-right text-meta tabular-nums text-muted">
                 {formatMoney(column.estimatedTotal)}
+                {column.weightedTotal > 0 ? (
+                  <span className="mt-1 block text-[11px]">
+                    Pond. {formatMoney(column.weightedTotal)}
+                  </span>
+                ) : null}
               </p>
             ) : null}
           </div>
