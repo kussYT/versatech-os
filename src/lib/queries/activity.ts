@@ -41,7 +41,17 @@ export async function getTodayInteractionCounts() {
       where: { type: "CALL", occurredAt: range },
     }),
     prisma.interaction.count({
-      where: { type: "MEETING", occurredAt: range },
+      where: {
+        type: "MEETING",
+        occurredAt: range,
+        NOT: {
+          AND: [
+            { direction: "INTERNAL" },
+            { result: "OTHER" },
+            { notes: "Visite terrain" },
+          ],
+        },
+      },
     }),
   ]);
 

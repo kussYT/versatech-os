@@ -93,37 +93,37 @@ Aucune migration Prisma, aucun changement d’ENV, aucune dépendance ajoutée.
 - **Zone** : Topbar
 - **Problème** : champ « Rechercher… » et raccourci affichés, aucun handler.
 - **Impact** : affordance fausse (spec UX recherche globale).
-- **Correction recommandée** : commande palette (Company, Contact, Opportunity, Project, Task, Quote). Refactor UI dédié, hors correctif à faible risque.
+- **Correction effectuée** : palette Ctrl+K (Entreprises, Contacts, Projets, Opportunités, Documents), regroupement, navigation clavier, `search.ts` protégé par `requireActor()`.
 
 ### H11 — Pas d’authentification
 - **Zone** : App globale / `getActorUser`
 - **Problème** : premier utilisateur créé à la volée (`os@versatech.example`). Product spec MVP : authentification.
 - **Impact** : pas de session, pas de permissions futures, acteur technique si seed absent.
-- **Correction effectuée** (branche `feature/auth-v1`) : login interne + session JWT, routes métier protégées, Server Actions via `requireActor()`, actor ActivityLog = utilisateur authentifié.
+- **Correction effectuée** : login interne + session JWT (`vt_os_session`), routes métier protégées, Server Actions via `requireActor()`, actor ActivityLog = utilisateur authentifié (ADR-013).
 
 ### H12 — Probabilité toujours à 0 (BR-017)
 - **Zone** : Opportunity
 - **Problème** : `probability` défaut 0, jamais saisi ni dérivé. Pipeline pondéré impossible.
 - **Impact** : KPI pondéré faux / absent.
-- **Correction recommandée** : probabilités par stage (configurables) + saisie manuelle ; KPI pondéré = Σ valeur × p.
+- **Correction effectuée** : mapping stage → probabilité 0–100, saisie manuelle clampée, KPI pipeline pondéré = Σ valeur × p.
 
 ### H13 — Fuseau Europe/Paris vs minuit serveur
 - **Zone** : Dates (`startOfToday` / `endOfToday` vs header dashboard)
 - **Problème** : le header formate en `Europe/Paris` ; les buckets relances / tâches / agenda utilisent le fuseau du process Node.
 - **Impact** : en prod UTC, décalage des « aujourd’hui » / relances dues.
-- **Correction recommandée** : helper unique « jour civil Paris » pour tous les bornes.
+- **Correction effectuée** : helper unique `src/lib/dates.ts` (jour civil Paris) pour bornes, calendrier, relances, tâches, datetime-local et références devis.
 
 ### H14 — Revenir d’un WON ne corrige pas le lifecycle
 - **Zone** : Pipeline
 - **Problème** : `wonAt` / `lostAt` uniquement posés, jamais effacés. Company reste `CLIENT` si on recule le stage.
 - **Impact** : historique et listes Clients incohérents.
-- **Correction recommandée** : politique explicite (interdire de quitter WON/LOST, ou rollback lifecycle seulement s’il n’y a plus d’autre WON).
+- **Correction effectuée** : rollback WON uniquement si plus aucun autre WON / devis ACCEPTED / projet ; INACTIVE jamais auto-dégradé.
 
 ### H15 — Lifecycle Company modifiable à la main
 - **Zone** : Edit Company
 - **Problème** : `lifecycleStatus` libre (CLIENT sans WON, LEAD avec projets).
 - **Impact** : contournement BR-001 / workflow Gagné → Client.
-- **Correction recommandée** : transitions contraintes, ou champ lecture seule + actions métier.
+- **Correction effectuée** : transitions contraintes + ActivityLog `company.lifecycle_changed` ; helpers métier CRM sur les écritures.
 
 ### H16 — Stubs Calendrier / GitHub / Documents
 - **Zone** : `/calendrier`, `/github`, `/documents` + Agenda dashboard

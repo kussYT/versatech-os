@@ -17,6 +17,9 @@ export type ActionResult = {
     repositoryId?: string;
     documentId?: string;
     calendarEventId?: string;
+    paymentId?: string;
+    maintenanceContractId?: string;
+    tourId?: string;
   };
 };
 

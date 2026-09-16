@@ -66,5 +66,5 @@ export async function getSignedRevenue() {
     _sum: { amountIncTax: true },
   });
 
-  return result._sum.amountIncTax?.toString() ?? "0";
+  return result._sum.amountIncTax?.toString() ?? "0.00";
 }

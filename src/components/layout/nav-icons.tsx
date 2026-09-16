@@ -11,10 +11,13 @@ import {
   Kanban,
   LayoutDashboard,
   ListTodo,
+  Map,
   Phone,
   RotateCcw,
+  Route,
   Settings,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { NavIconName } from "@/lib/navigation";
@@ -22,6 +25,8 @@ import type { NavIconName } from "@/lib/navigation";
 const icons: Record<NavIconName, LucideIcon> = {
   today: LayoutDashboard,
   prospection: Phone,
+  map: Map,
+  tour: Route,
   companies: Building2,
   pipeline: Kanban,
   followups: RotateCcw,
@@ -31,6 +36,7 @@ const icons: Record<NavIconName, LucideIcon> = {
   github: GitBranch,
   clients: Handshake,
   quotes: FileText,
+  maintenance: Wrench,
   finance: Wallet,
   documents: Files,
   analytics: ChartColumn,

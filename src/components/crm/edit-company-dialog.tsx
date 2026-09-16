@@ -128,6 +128,26 @@ function EditCompanyForm({
         </Field>
       </div>
 
+      <Field label="Adresse" htmlFor="edit-address" error={firstError("address")}>
+        <input
+          id="edit-address"
+          name="address"
+          required
+          defaultValue={company.address ?? ""}
+          disabled={pending}
+          className={controlClassName}
+        />
+      </Field>
+      <Field label="Code postal" htmlFor="edit-postal">
+        <input
+          id="edit-postal"
+          name="postalCode"
+          defaultValue={company.postalCode ?? ""}
+          disabled={pending}
+          className={controlClassName}
+        />
+      </Field>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Téléphone" htmlFor="edit-phone">
           <input id="edit-phone" name="phone" type="tel" defaultValue={company.phone ?? ""} disabled={pending} className={controlClassName} />

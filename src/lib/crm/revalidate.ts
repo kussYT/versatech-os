@@ -7,6 +7,8 @@ export function revalidateCrm(companyId?: string) {
   revalidatePath("/relances");
   revalidatePath("/pipeline");
   revalidatePath("/clients");
+  revalidatePath("/carte");
+  revalidatePath("/tournee");
 
   if (companyId) {
     revalidatePath(`/entreprises/${companyId}`);
@@ -28,8 +30,24 @@ export function revalidateFollowUps(companyId?: string) {
 
 export function revalidateQuotes(companyId?: string) {
   revalidatePath("/devis");
+  revalidatePath("/finances");
+  revalidatePath("/analytics");
   revalidatePath("/");
   revalidatePath("/pipeline");
+  revalidateCrm(companyId);
+}
+
+export function revalidateFinances(companyId?: string, projectId?: string) {
+  revalidatePath("/finances");
+  revalidatePath("/analytics");
+  revalidatePath("/");
+  revalidatePath("/clients");
+  revalidatePath("/devis");
+
+  if (projectId) {
+    revalidatePath(`/projets/${projectId}`);
+  }
+
   revalidateCrm(companyId);
 }
 
@@ -37,6 +55,7 @@ export function revalidateProjects(companyId?: string, projectId?: string) {
   revalidatePath("/projets");
   revalidatePath("/taches");
   revalidatePath("/clients");
+  revalidatePath("/finances");
   revalidatePath("/");
   revalidatePath("/calendrier");
 
@@ -74,5 +93,19 @@ export function revalidateDocuments(companyId?: string | null, projectId?: strin
 
   if (companyId) {
     revalidatePath(`/entreprises/${companyId}`);
+  }
+}
+
+export function revalidateMaintenance(companyId?: string | null, projectId?: string | null) {
+  revalidatePath("/maintenance");
+  revalidatePath("/analytics");
+  revalidatePath("/");
+
+  if (projectId) {
+    revalidatePath(`/projets/${projectId}`);
+  }
+
+  if (companyId) {
+    revalidateCrm(companyId);
   }
 }

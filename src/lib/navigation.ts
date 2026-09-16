@@ -1,6 +1,8 @@
 export type NavHref =
   | "/"
   | "/prospection"
+  | "/carte"
+  | "/tournee"
   | "/entreprises"
   | "/pipeline"
   | "/relances"
@@ -10,6 +12,7 @@ export type NavHref =
   | "/github"
   | "/clients"
   | "/devis"
+  | "/maintenance"
   | "/finances"
   | "/documents"
   | "/analytics"
@@ -18,6 +21,8 @@ export type NavHref =
 export type NavIconName =
   | "today"
   | "prospection"
+  | "map"
+  | "tour"
   | "companies"
   | "pipeline"
   | "followups"
@@ -27,6 +32,7 @@ export type NavIconName =
   | "github"
   | "clients"
   | "quotes"
+  | "maintenance"
   | "finance"
   | "documents"
   | "analytics"
@@ -56,6 +62,8 @@ export const navSections: NavSection[] = [
     label: "Commercial",
     items: [
       { href: "/prospection", label: "Prospection", icon: "prospection" },
+      { href: "/carte", label: "Carte", icon: "map" },
+      { href: "/tournee", label: "Tournée", icon: "tour" },
       { href: "/entreprises", label: "Entreprises", icon: "companies" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       { href: "/relances", label: "Relances", icon: "followups" },
@@ -77,6 +85,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: "/clients", label: "Clients", icon: "clients" },
       { href: "/devis", label: "Devis", icon: "quotes" },
+      { href: "/maintenance", label: "Maintenance", icon: "maintenance" },
       { href: "/finances", label: "Finances", icon: "finance" },
       { href: "/documents", label: "Documents", icon: "documents" },
     ],

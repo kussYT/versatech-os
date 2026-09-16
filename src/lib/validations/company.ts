@@ -20,8 +20,10 @@ const optionalWebsite = z
 export const createCompanySchema = z
   .object({
     name: z.string().trim().min(1, "Le nom de l'entreprise est obligatoire"),
+    address: z.string().trim().min(1, "L'adresse est obligatoire"),
     industry: optionalText,
     city: optionalText,
+    postalCode: optionalText,
     phone: optionalText,
     email: optionalEmail,
     website: optionalWebsite,

@@ -27,6 +27,12 @@ const ACTIVITY_LABELS: Record<string, string> = {
   "repository.unlinked": "Repository GitHub retiré",
   "document.created": "Document ajouté",
   "document.updated": "Document modifié",
+  "payment.created": "Paiement enregistré",
+  "payment.marked_paid": "Paiement encaissé",
+  "payment.status_changed": "Statut de paiement modifié",
+  "maintenance.created": "Contrat de maintenance créé",
+  "maintenance.updated": "Contrat de maintenance modifié",
+  "maintenance.status_changed": "Statut de maintenance modifié",
 };
 
 type RecentActivityProps = {
