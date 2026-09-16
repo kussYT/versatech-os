@@ -1,16 +1,50 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/layout/section-placeholder";
+import { CalendarView } from "@/components/calendar/calendar-view";
+import { getMonthGridRange, parseYearMonth } from "@/lib/calendar/dates";
+import { endOfToday, startOfToday } from "@/lib/crm/form-data";
+import {
+  listCalendarItems,
+  listCalendarLinkTargets,
+  mergeCalendarItems,
+} from "@/lib/queries/calendar";
+import type { CalendarItem } from "@/lib/calendar/types";
 
 export const metadata: Metadata = {
   title: "Calendrier",
 };
 
-export default function CalendrierPage() {
+export const dynamic = "force-dynamic";
+
+function firstString(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : undefined;
+}
+
+export default async function CalendrierPage({
+  searchParams,
+}: PageProps<"/calendrier">) {
+  const params = await searchParams;
+  const { year, month } = parseYearMonth(firstString(params.month));
+  const grid = getMonthGridRange(year, month);
+  const todayStart = startOfToday();
+  const todayEnd = endOfToday();
+  const todayInGrid = todayStart >= grid.start && todayEnd <= grid.end;
+
+  const [monthItems, todayItems, links] = await Promise.all([
+    listCalendarItems(grid.start, grid.end),
+    todayInGrid
+      ? Promise.resolve([] as CalendarItem[])
+      : listCalendarItems(todayStart, todayEnd),
+    listCalendarLinkTargets(),
+  ]);
+
   return (
-    <SectionPlaceholder
-      title="Calendrier"
-      description="Les vues mois, semaine et jour apparaîtront ici."
-      emptyTitle="Aucun événement"
+    <CalendarView
+      key={`${year}-${month}`}
+      year={year}
+      month={month}
+      items={mergeCalendarItems([monthItems, todayItems])}
+      companies={links.companies}
+      projects={links.projects}
     />
   );
 }

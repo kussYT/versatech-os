@@ -3,6 +3,7 @@
 import type { CompanyLifecycle, QuoteStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { getActorUser } from "@/lib/crm/actor";
+import { isOpenOpportunityStage } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateQuotes } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -78,6 +79,8 @@ export async function createQuote(
 
     const actor = await getActorUser();
     const reference = input.reference ?? (await nextQuoteReference());
+    const shouldMoveToQuote =
+      isOpenOpportunityStage(opportunity.stage) && opportunity.stage !== "QUOTE";
 
     const quote = await prisma.$transaction(async (tx) => {
       const created = await tx.quote.create({
@@ -89,6 +92,37 @@ export async function createQuote(
           status: "DRAFT",
         },
       });
+
+      if (shouldMoveToQuote) {
+        await tx.opportunity.update({
+          where: { id: opportunity.id },
+          data: { stage: "QUOTE" },
+        });
+
+        await tx.opportunityStageHistory.create({
+          data: {
+            opportunityId: opportunity.id,
+            fromStage: opportunity.stage,
+            toStage: "QUOTE",
+            changedById: actor.id,
+          },
+        });
+
+        await tx.activityLog.create({
+          data: {
+            actorId: actor.id,
+            entityType: "Opportunity",
+            entityId: opportunity.id,
+            action: "opportunity.stage_changed",
+            metadata: {
+              companyId: opportunity.companyId,
+              fromStage: opportunity.stage,
+              toStage: "QUOTE",
+              quoteId: created.id,
+            },
+          },
+        });
+      }
 
       await tx.activityLog.create({
         data: {

@@ -14,6 +14,9 @@ export type ActionResult = {
     projectId?: string;
     taskId?: string;
     milestoneId?: string;
+    repositoryId?: string;
+    documentId?: string;
+    calendarEventId?: string;
   };
 };
 

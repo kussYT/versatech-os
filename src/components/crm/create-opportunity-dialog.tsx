@@ -6,7 +6,7 @@ import { AppDialog } from "@/components/ui/app-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, controlClassName } from "@/components/ui/field";
 import { idleActionResult } from "@/lib/crm/action-result";
-import { OPPORTUNITY_STAGE_LABELS, OPPORTUNITY_STAGES } from "@/lib/crm/constants";
+import { OPPORTUNITY_STAGE_LABELS, OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 
 type CreateOpportunityDialogProps = {
   open: boolean;
@@ -95,7 +95,7 @@ function CreateOpportunityForm({
           disabled={pending}
           className={controlClassName}
         >
-          {OPPORTUNITY_STAGES.map((stage) => (
+          {OPEN_OPPORTUNITY_STAGES.map((stage) => (
             <option key={stage} value={stage}>
               {OPPORTUNITY_STAGE_LABELS[stage]}
             </option>

@@ -6,6 +6,9 @@ import { Plus } from "lucide-react";
 import { CreateMilestoneDialog } from "@/components/projects/create-milestone-dialog";
 import { CreateTaskDialog } from "@/components/projects/create-task-dialog";
 import { MilestoneStatusActions } from "@/components/projects/milestone-status-actions";
+import { DocumentSection } from "@/components/documents/document-section";
+import { ProjectGithubSection } from "@/components/projects/project-github-section";
+import { ProjectStatusActions } from "@/components/projects/project-status-actions";
 import { ProjectProgress } from "@/components/projects/project-progress";
 import {
   MilestoneStatusBadge,
@@ -21,22 +24,29 @@ import { PageHeader } from "@/components/layout/page-header";
 import type { ReactNode } from "react";
 import { PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_STATUSES } from "@/lib/crm/constants";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/crm/form-data";
+import type { GitHubProjectSnapshot } from "@/lib/queries/github";
 import type { ProjectDetail } from "@/lib/queries/projects";
 import type { TaskStatus } from "@/generated/prisma/client";
 
 type ProjectHubProps = {
   project: ProjectDetail;
+  github: GitHubProjectSnapshot;
 };
 
 const ACTIVITY_LABELS: Record<string, string> = {
   "project.created": "Projet créé",
+  "project.status_changed": "Statut de projet modifié",
   "task.created": "Tâche créée",
   "task.status_changed": "Statut de tâche modifié",
   "milestone.created": "Jalon créé",
   "milestone.status_changed": "Statut de jalon modifié",
+  "repository.linked": "Repository GitHub associé",
+  "repository.unlinked": "Repository GitHub retiré",
+  "document.created": "Document ajouté",
+  "document.updated": "Document modifié",
 };
 
-export function ProjectHub({ project }: ProjectHubProps) {
+export function ProjectHub({ project, github }: ProjectHubProps) {
   const [taskOpen, setTaskOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
   const openTasks = project.tasks.filter(
@@ -72,6 +82,7 @@ export function ProjectHub({ project }: ProjectHubProps) {
 
       <div className="flex flex-wrap items-center gap-2">
         <ProjectStatusBadge status={project.status} />
+        <ProjectStatusActions projectId={project.id} status={project.status} />
         <Link
           href={`/entreprises/${project.company.id}`}
           className="text-meta text-primary hover:text-primary-hover"
@@ -170,6 +181,22 @@ export function ProjectHub({ project }: ProjectHubProps) {
           </ul>
         )}
       </Card>
+
+      <ProjectGithubSection projectId={project.id} github={github} />
+
+      <DocumentSection
+        documents={project.documents}
+        companies={[{ id: project.company.id, name: project.company.name }]}
+        projects={[
+          {
+            id: project.id,
+            name: project.name,
+            companyId: project.company.id,
+          },
+        ]}
+        defaultCompanyId={project.company.id}
+        defaultProjectId={project.id}
+      />
 
       <Card className="p-5">
         <h2 className="text-section text-foreground">Activité</h2>

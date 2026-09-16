@@ -14,6 +14,7 @@ Lecture V1 :
 - statut workflows/deployments si utile.
 Écriture GitHub : hors scope initial.
 Sécurité : token serveur uniquement, permissions minimales, jamais dans le navigateur.
+Variable : GITHUB_TOKEN (optionnelle). Sans token, l'association locale reste possible ; l'activité live est masquée.
 
 CALENDRIER
 Source de vérité : CalendarEvent interne.

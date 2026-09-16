@@ -53,8 +53,9 @@ function decimalToNumber(value: { toString(): string } | null | undefined) {
 function toCard(
   opportunity: Awaited<ReturnType<typeof loadOpportunities>>[number],
 ): PipelineOpportunityCard {
-  const nextFollowUp = opportunity.followUps[0] ?? null;
-  const lastInteraction = opportunity.interactions[0] ?? null;
+  const nextFollowUp = opportunity.followUps[0] ?? opportunity.company.followUps[0] ?? null;
+  const lastInteraction =
+    opportunity.interactions[0] ?? opportunity.company.interactions[0] ?? null;
 
   return {
     id: opportunity.id,
@@ -92,6 +93,17 @@ function loadOpportunities() {
           name: true,
           industry: true,
           city: true,
+          followUps: {
+            where: { status: "PENDING" },
+            orderBy: { dueAt: "asc" },
+            take: 1,
+            select: { title: true, dueAt: true },
+          },
+          interactions: {
+            orderBy: { occurredAt: "desc" },
+            take: 1,
+            select: { type: true, occurredAt: true },
+          },
         },
       },
       followUps: {

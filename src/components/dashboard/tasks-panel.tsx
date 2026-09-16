@@ -17,8 +17,8 @@ export function TasksPanel({ tasks }: TasksPanelProps) {
     <Card className="card-aurora p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-section text-foreground">Tâches</h2>
-        <Link href="/projets" className="text-meta text-primary hover:text-primary-hover">
-          Voir les projets
+        <Link href="/taches" className="text-meta text-primary hover:text-primary-hover">
+          Voir les tâches
         </Link>
       </div>
       {tasks.length === 0 ? (

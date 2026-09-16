@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OPPORTUNITY_STAGES } from "@/lib/crm/constants";
+import { OPEN_OPPORTUNITY_STAGES, OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { emptyToNull } from "@/lib/crm/form-data";
 import { fieldErrorsFromZod } from "@/lib/validations/company";
 
@@ -13,14 +13,24 @@ export const createOpportunitySchema = z.object({
   companyId: z.string().min(1, "Entreprise introuvable"),
   title: z.string().trim().min(1, "Le titre est obligatoire"),
   estimatedValue: estimatedValueSchema,
-  stage: z.enum(OPPORTUNITY_STAGES, { error: "Stage invalide" }),
+  stage: z.enum(OPEN_OPPORTUNITY_STAGES, { error: "Stage invalide" }),
 });
 
-export const updateOpportunityStageSchema = z.object({
-  opportunityId: z.string().min(1, "Opportunité introuvable"),
-  stage: z.enum(OPPORTUNITY_STAGES, { error: "Stage invalide" }),
-  lostReason: z.string().transform((value) => emptyToNull(value)),
-});
+export const updateOpportunityStageSchema = z
+  .object({
+    opportunityId: z.string().min(1, "Opportunité introuvable"),
+    stage: z.enum(OPPORTUNITY_STAGES, { error: "Stage invalide" }),
+    lostReason: z.string().transform((value) => emptyToNull(value)),
+  })
+  .superRefine((value, ctx) => {
+    if (value.stage === "LOST" && !value.lostReason) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lostReason"],
+        message: "La raison de perte est obligatoire",
+      });
+    }
+  });
 
 export type CreateOpportunityInput = z.infer<typeof createOpportunitySchema>;
 export type UpdateOpportunityStageInput = z.infer<typeof updateOpportunityStageSchema>;

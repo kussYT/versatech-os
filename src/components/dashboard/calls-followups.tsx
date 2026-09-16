@@ -4,23 +4,56 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/crm/form-data";
 import { cn } from "@/lib/cn";
+import type { CompanyListItem } from "@/lib/queries/companies";
 import type { FollowUpListItem } from "@/lib/queries/follow-ups";
 
 type CallsFollowupsProps = {
+  calls: CompanyListItem[];
   followUps: FollowUpListItem[];
 };
 
-export function CallsFollowups({ followUps }: CallsFollowupsProps) {
+export function CallsFollowups({ calls, followUps }: CallsFollowupsProps) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       <Card className="card-aurora p-4 sm:p-5">
-        <h2 className="text-section text-foreground">Appels</h2>
-        <EmptyState
-          title="Aucun appel prévu"
-          description="Les prospects à contacter aujourd'hui apparaîtront ici."
-          aside="Restez proche de vos opportunités."
-          asideIcon={Phone}
-        />
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-section text-foreground">Appels</h2>
+          <Link href="/prospection" className="text-meta text-primary hover:text-primary-hover">
+            Voir la file
+          </Link>
+        </div>
+        {calls.length === 0 ? (
+          <EmptyState
+            title="Aucun lead à contacter"
+            description="Les entreprises au statut Lead apparaîtront ici."
+            aside="Restez proche de vos opportunités."
+            asideIcon={Phone}
+          />
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {calls.map((company) => (
+              <li key={company.id}>
+                <Link
+                  href={`/entreprises/${company.id}`}
+                  className={cn(
+                    "block rounded-lg border border-border bg-background/90 px-3 py-2",
+                    "motion-safe:transition-[border-color] motion-safe:duration-hover hover:border-primary/40",
+                  )}
+                >
+                  <p className="text-body font-medium text-foreground">{company.name}</p>
+                  <p className="mt-0.5 text-meta text-muted">
+                    {[company.industry, company.city].filter(Boolean).join(" · ") || "Lead"}
+                  </p>
+                  {company.primaryContact ? (
+                    <p className="mt-1 text-meta text-faint">
+                      {company.primaryContact.firstName} {company.primaryContact.lastName}
+                    </p>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
       <Card className="card-aurora p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">

@@ -1,16 +1,27 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/layout/section-placeholder";
+import { DocumentExplorer } from "@/components/documents/document-explorer";
+import {
+  listDocumentAssociationOptions,
+  listDocuments,
+} from "@/lib/queries/documents";
 
 export const metadata: Metadata = {
   title: "Documents",
 };
 
-export default function DocumentsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function DocumentsPage() {
+  const [documents, associations] = await Promise.all([
+    listDocuments(),
+    listDocumentAssociationOptions(),
+  ]);
+
   return (
-    <SectionPlaceholder
-      title="Documents"
-      description="Les références de documents apparaîtront ici."
-      emptyTitle="Aucun document"
+    <DocumentExplorer
+      documents={documents}
+      companies={associations.companies}
+      projects={associations.projects}
     />
   );
 }

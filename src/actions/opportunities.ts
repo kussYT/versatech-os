@@ -81,6 +81,7 @@ export async function createOpportunity(
           stage: input.stage,
           estimatedValue: input.estimatedValue,
           source: company.source,
+          ...stageTimestamps(input.stage),
         },
       });
 
@@ -169,8 +170,7 @@ export async function updateOpportunityStage(
         data: {
           stage: input.stage,
           ...stageTimestamps(input.stage),
-          lostReason:
-            input.stage === "LOST" ? input.lostReason ?? existing.lostReason : existing.lostReason,
+          lostReason: input.stage === "LOST" ? input.lostReason : existing.lostReason,
         },
       });
 

@@ -2,6 +2,7 @@
 
 import type { ActionResult } from "@/lib/crm/action-result";
 import { getActorUser } from "@/lib/crm/actor";
+import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -48,10 +49,20 @@ export async function createInteraction(
         input.type === "MEETING" ||
         input.type === "MESSAGE");
 
+    const openOpportunity = await prisma.opportunity.findFirst({
+      where: {
+        companyId: company.id,
+        stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true },
+    });
+
     const interaction = await prisma.$transaction(async (tx) => {
       const created = await tx.interaction.create({
         data: {
           companyId: company.id,
+          opportunityId: openOpportunity?.id ?? null,
           type: input.type,
           direction: input.direction,
           result: input.result,

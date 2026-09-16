@@ -7,6 +7,7 @@ import {
   OPPORTUNITY_STAGES,
 } from "@/lib/crm/constants";
 import type { PipelineOverview } from "@/lib/queries/opportunities";
+import Link from "next/link";
 
 type PipelinePreviewProps = {
   overview: PipelineOverview;
@@ -31,9 +32,9 @@ export function PipelinePreview({ overview }: PipelinePreviewProps) {
                 : `${overview.openCount} opportunités ouvertes`}
           </p>
         </div>
-        <p className="hidden max-w-[11rem] text-right text-meta text-muted sm:block">
-          Suivez l&apos;avancement de vos opportunités.
-        </p>
+        <Link href="/pipeline" className="text-meta text-primary hover:text-primary-hover">
+          Voir le pipeline
+        </Link>
       </div>
       <div className="mt-4 hidden gap-2 overflow-x-auto pb-1 md:flex">
         {OPPORTUNITY_STAGES.map((stage) => {
