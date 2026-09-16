@@ -1,0 +1,238 @@
+import "server-only";
+
+import type {
+  CompanyLifecycle,
+  FollowUpStatus,
+  InteractionDirection,
+  InteractionResult,
+  InteractionType,
+  Priority,
+} from "@/generated/prisma/client";
+import { OPEN_OPPORTUNITY_STAGES, PROSPECT_LIFECYCLES } from "@/lib/crm/constants";
+import { endOfToday } from "@/lib/crm/form-data";
+import { prisma } from "@/lib/db/prisma";
+
+const listInclude = {
+  contacts: {
+    orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }],
+    take: 8,
+  },
+  interactions: {
+    orderBy: { occurredAt: "desc" as const },
+    take: 1,
+    select: { occurredAt: true, type: true },
+  },
+  followUps: {
+    where: { status: "PENDING" as FollowUpStatus },
+    orderBy: { dueAt: "asc" as const },
+    take: 1,
+    select: { dueAt: true, title: true },
+  },
+};
+
+export type CompanyListItem = {
+  id: string;
+  name: string;
+  lifecycleStatus: CompanyLifecycle;
+  industry: string | null;
+  city: string | null;
+  priority: Priority;
+  source: string | null;
+  primaryContact: {
+    firstName: string;
+    lastName: string;
+    role: string | null;
+  } | null;
+  lastInteractionAt: string | null;
+  lastInteractionType: InteractionType | null;
+  nextFollowUpAt: string | null;
+  nextFollowUpTitle: string | null;
+};
+
+export type CompanyDetail = {
+  id: string;
+  name: string;
+  lifecycleStatus: CompanyLifecycle;
+  industry: string | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  postalCode: string | null;
+  country: string | null;
+  source: string | null;
+  priority: Priority;
+  description: string | null;
+  contacts: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: string | null;
+    phone: string | null;
+    email: string | null;
+    isPrimary: boolean;
+  }[];
+  interactions: {
+    id: string;
+    type: InteractionType;
+    direction: InteractionDirection;
+    result: InteractionResult | null;
+    notes: string | null;
+    occurredAt: string;
+  }[];
+  nextFollowUp: {
+    id: string;
+    title: string;
+    dueAt: string;
+    status: FollowUpStatus;
+  } | null;
+  hasOpenOpportunity: boolean;
+};
+
+function toListItem(
+  company: Awaited<ReturnType<typeof prisma.company.findMany<{ include: typeof listInclude }>>>[number],
+): CompanyListItem {
+  const lastInteraction = company.interactions[0] ?? null;
+  const nextFollowUp = company.followUps[0] ?? null;
+  const primary =
+    company.contacts.find((contact) => contact.isPrimary) ?? company.contacts[0] ?? null;
+
+  return {
+    id: company.id,
+    name: company.name,
+    lifecycleStatus: company.lifecycleStatus,
+    industry: company.industry,
+    city: company.city,
+    priority: company.priority,
+    source: company.source,
+    primaryContact: primary
+      ? {
+          firstName: primary.firstName,
+          lastName: primary.lastName,
+          role: primary.role,
+        }
+      : null,
+    lastInteractionAt: lastInteraction?.occurredAt.toISOString() ?? null,
+    lastInteractionType: lastInteraction?.type ?? null,
+    nextFollowUpAt: nextFollowUp?.dueAt.toISOString() ?? null,
+    nextFollowUpTitle: nextFollowUp?.title ?? null,
+  };
+}
+
+export async function listProspectCompanies() {
+  const companies = await prisma.company.findMany({
+    where: { lifecycleStatus: { in: [...PROSPECT_LIFECYCLES] } },
+    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    include: listInclude,
+  });
+
+  return companies.map(toListItem);
+}
+
+export async function listAllCompanies() {
+  const companies = await prisma.company.findMany({
+    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    include: listInclude,
+  });
+
+  return companies.map(toListItem);
+}
+
+export async function getProspectionSummary() {
+  const dueLimit = endOfToday();
+
+  const [active, toContact, dueFollowUps] = await Promise.all([
+    prisma.company.count({
+      where: { lifecycleStatus: { in: [...PROSPECT_LIFECYCLES] } },
+    }),
+    prisma.company.count({
+      where: { lifecycleStatus: "LEAD" },
+    }),
+    prisma.followUp.count({
+      where: {
+        status: "PENDING",
+        dueAt: { lte: dueLimit },
+        company: { lifecycleStatus: { in: [...PROSPECT_LIFECYCLES] } },
+      },
+    }),
+  ]);
+
+  return { active, toContact, dueFollowUps };
+}
+
+export async function getCompanyDetail(id: string): Promise<CompanyDetail | null> {
+  const company = await prisma.company.findUnique({
+    where: { id },
+    include: {
+      contacts: {
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+      },
+      interactions: {
+        orderBy: { occurredAt: "desc" },
+        take: 80,
+      },
+      followUps: {
+        where: { status: "PENDING" },
+        orderBy: { dueAt: "asc" },
+        take: 1,
+      },
+      opportunities: {
+        where: {
+          stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
+        },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+
+  if (!company) {
+    return null;
+  }
+
+  const nextFollowUp = company.followUps[0] ?? null;
+
+  return {
+    id: company.id,
+    name: company.name,
+    lifecycleStatus: company.lifecycleStatus,
+    industry: company.industry,
+    website: company.website,
+    phone: company.phone,
+    email: company.email,
+    address: company.address,
+    city: company.city,
+    postalCode: company.postalCode,
+    country: company.country,
+    source: company.source,
+    priority: company.priority,
+    description: company.description,
+    contacts: company.contacts.map((contact) => ({
+      id: contact.id,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      role: contact.role,
+      phone: contact.phone,
+      email: contact.email,
+      isPrimary: contact.isPrimary,
+    })),
+    interactions: company.interactions.map((interaction) => ({
+      id: interaction.id,
+      type: interaction.type,
+      direction: interaction.direction,
+      result: interaction.result,
+      notes: interaction.notes,
+      occurredAt: interaction.occurredAt.toISOString(),
+    })),
+    nextFollowUp: nextFollowUp
+      ? {
+          id: nextFollowUp.id,
+          title: nextFollowUp.title,
+          dueAt: nextFollowUp.dueAt.toISOString(),
+          status: nextFollowUp.status,
+        }
+      : null,
+    hasOpenOpportunity: company.opportunities.length > 0,
+  };
+}

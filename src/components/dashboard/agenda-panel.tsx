@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export function AgendaPanel() {
   return (
-    <Card className="p-4 sm:p-5">
+    <Card className="card-aurora p-4 sm:p-5">
       <h2 className="text-section text-foreground">Agenda</h2>
       <EmptyState
         title="Aucun événement aujourd'hui"

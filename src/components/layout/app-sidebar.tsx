@@ -7,7 +7,7 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
+    <aside className="hidden lg:fixed lg:inset-y-0 lg:z-20 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
       <Brand />
       <SidebarNav pathname={pathname} />
     </aside>

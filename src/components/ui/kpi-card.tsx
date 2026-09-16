@@ -4,12 +4,15 @@ import { InteractiveCard } from "@/components/ui/interactive-card";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { cn } from "@/lib/cn";
 
+type KpiTone = "cyan" | "violet" | "orange" | "blue" | "prism" | "gold";
+
 type KpiCardProps = {
   label: string;
   icon?: LucideIcon;
   value?: string;
   hint?: string;
   premium?: boolean;
+  tone?: KpiTone;
   className?: string;
 };
 
@@ -19,6 +22,7 @@ export function KpiCard({
   value = "—",
   hint = "Aucune donnée disponible",
   premium = false,
+  tone,
   className,
 }: KpiCardProps) {
   const body = (
@@ -41,12 +45,16 @@ export function KpiCard({
     </>
   );
 
+  const toneClass = tone ? `foil-tone-${tone}` : undefined;
+
   if (premium) {
-    return <PremiumCard className={cn("p-4", className)}>{body}</PremiumCard>;
+    return (
+      <PremiumCard className={cn("p-4", toneClass, className)}>{body}</PremiumCard>
+    );
   }
 
   return (
-    <InteractiveCard className={cn("foil-subtle p-4", className)}>
+    <InteractiveCard className={cn("foil-subtle p-4", toneClass, className)}>
       {body}
     </InteractiveCard>
   );

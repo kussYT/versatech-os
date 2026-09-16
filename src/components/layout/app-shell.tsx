@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { ProspectComposerProvider } from "@/components/crm/prospect-composer";
 
 type AppShellProps = {
   children: ReactNode;
@@ -15,7 +16,8 @@ export function AppShell({ children }: AppShellProps) {
   const closeNav = useCallback(() => setNavOpen(false), []);
 
   return (
-    <div className="app-canvas min-h-full">
+    <ProspectComposerProvider>
+      <div className="app-canvas min-h-full">
       <a className="skip-link" href="#contenu">
         Aller au contenu
       </a>
@@ -31,6 +33,7 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
       <MobileTabBar onOpenNav={() => setNavOpen(true)} />
-    </div>
+      </div>
+    </ProspectComposerProvider>
   );
 }

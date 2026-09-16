@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell, Menu, Plus, Search } from "lucide-react";
+import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NewProspectButton } from "@/components/crm/new-prospect-button";
 
 type AppTopbarProps = {
   onOpenNav: () => void;
@@ -38,17 +39,8 @@ export function AppTopbar({ onOpenNav }: AppTopbarProps) {
         >
           <Bell className="size-4" aria-hidden="true" />
         </Button>
-        <Button className="hidden sm:inline-flex" aria-label="Nouveau prospect">
-          <Plus className="size-4" aria-hidden="true" />
-          Nouveau prospect
-        </Button>
-        <Button
-          size="icon"
-          className="sm:hidden"
-          aria-label="Nouveau prospect"
-        >
-          <Plus className="size-4" aria-hidden="true" />
-        </Button>
+        <NewProspectButton className="hidden sm:inline-flex" />
+        <NewProspectButton className="sm:hidden" iconOnly />
       </div>
     </header>
   );

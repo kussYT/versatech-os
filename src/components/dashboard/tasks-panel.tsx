@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export function TasksPanel() {
   return (
-    <Card className="p-4 sm:p-5">
+    <Card className="card-aurora p-4 sm:p-5">
       <h2 className="text-section text-foreground">Tâches</h2>
       <EmptyState
         title="Aucune tâche"

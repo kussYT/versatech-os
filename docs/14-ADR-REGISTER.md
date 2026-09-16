@@ -50,5 +50,20 @@ Décision : environnement Linux WSL lorsque autorisé par le poste.
 Raison : environnement Node/Git cohérent et permissions plus prévisibles.
 Statut : accepté.
 
+ADR-011 — PRISMA ORM 7
+Décision : utiliser Prisma ORM 7 tel qu'installé, pas la configuration Prisma 6.
+Conséquences :
+- `prisma.config.ts` porte l'URL de connexion ; `schema.prisma` ne déclare plus `url = env("DATABASE_URL")`.
+- Le client est généré avec `provider = "prisma-client"` vers `src/generated/prisma` (dossier gitignoré).
+- L'accès PostgreSQL applicatif passe par `@prisma/adapter-pg` + `pg`. Le singleton `src/lib/db/prisma.ts` est serveur uniquement.
+- Le seed n'est plus déclenché par `migrate dev` ; il s'exécute uniquement via `prisma db seed`.
+- `prisma.config.ts` retombe sur l'URL illustrative de `.env.example` seulement pour `validate` / `generate`, sans ouvrir de connexion. Le client applicatif et le seed refusent cette URL.
+Statut : accepté.
+
+ADR-012 — MONTANTS DECIMAL ET SUPPRESSIONS RESTREINTES
+Décision : montants en `Decimal(12, 2)` (euros, centimes). Pas de `Float`.
+Les relations commerciales utilisent `onDelete: Restrict` vers Company / Opportunity / User pour empêcher une suppression de Company d'effacer l'historique. Les clés optionnelles (contact, projet lié, etc.) utilisent `SetNull`.
+Statut : accepté.
+
 AJOUT D'ADR
 Créer un ADR lorsqu'une décision est coûteuse à inverser : auth, hébergement, stockage, architecture d'intégration, permissions, etc.

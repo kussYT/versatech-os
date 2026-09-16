@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export function RecentActivity() {
   return (
-    <Card className="p-4 sm:p-5">
+    <Card className="card-aurora p-4 sm:p-5">
       <h2 className="text-section text-foreground">Activité récente</h2>
       <EmptyState
         title="Aucune activité"

@@ -1,16 +1,26 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/layout/section-placeholder";
+import { CompanyExplorer } from "@/components/crm/company-explorer";
+import { NewProspectButton } from "@/components/crm/new-prospect-button";
+import { PageHeader } from "@/components/layout/page-header";
+import { listAllCompanies } from "@/lib/queries/companies";
 
 export const metadata: Metadata = {
   title: "Entreprises",
 };
 
-export default function EntreprisesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function EntreprisesPage() {
+  const companies = await listAllCompanies();
+
   return (
-    <SectionPlaceholder
-      title="Entreprises"
-      description="Le répertoire des entreprises et leurs fiches apparaîtront ici."
-      emptyTitle="Aucune entreprise"
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Entreprises"
+        description="Toutes les organisations, quel que soit leur cycle de vie."
+        actions={<NewProspectButton>Nouveau prospect</NewProspectButton>}
+      />
+      <CompanyExplorer companies={companies} variant="all" />
+    </div>
   );
 }

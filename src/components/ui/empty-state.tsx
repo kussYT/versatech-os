@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -8,6 +8,7 @@ type EmptyStateProps = {
   description?: string;
   aside?: string;
   asideIcon?: LucideIcon;
+  action?: ReactNode;
   className?: string;
 };
 
@@ -17,6 +18,7 @@ export function EmptyState({
   description,
   aside,
   asideIcon: AsideIcon,
+  action,
   className,
 }: EmptyStateProps) {
   return (
@@ -37,6 +39,7 @@ export function EmptyState({
         {description ? (
           <p className="mt-1 max-w-md text-meta text-muted">{description}</p>
         ) : null}
+        {action ? <div className="mt-4">{action}</div> : null}
       </div>
       {AsideIcon || aside ? (
         <div className="hidden shrink-0 flex-col items-end gap-2 text-right sm:flex">

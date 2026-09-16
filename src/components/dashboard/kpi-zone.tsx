@@ -7,27 +7,41 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { formatMoney } from "@/lib/crm/form-data";
 
-const kpis = [
-  { label: "Appels", icon: Phone, hint: "Aucun appel prévu" },
-  { label: "Relances", icon: RotateCcw, hint: "0 relance", value: "0" },
-  { label: "RDV", icon: CalendarDays, hint: "Aucun rendez-vous" },
-  { label: "Tâches", icon: ListTodo, hint: "Aucune tâche due" },
-  {
-    label: "Pipeline",
-    icon: Kanban,
-    hint: "Aucune donnée disponible",
-    premium: true,
-  },
-  {
-    label: "CA signé",
-    icon: Euro,
-    hint: "Aucune donnée disponible",
-    premium: true,
-  },
-] as const;
+type KpiZoneProps = {
+  pipelineBrut: number;
+};
 
-export function KpiZone() {
+export function KpiZone({ pipelineBrut }: KpiZoneProps) {
+  const kpis = [
+    { label: "Appels", icon: Phone, hint: "Aucun appel prévu", tone: "cyan" as const },
+    {
+      label: "Relances",
+      icon: RotateCcw,
+      hint: "0 relance",
+      value: "0",
+      tone: "violet" as const,
+    },
+    { label: "RDV", icon: CalendarDays, hint: "Aucun rendez-vous", tone: "orange" as const },
+    { label: "Tâches", icon: ListTodo, hint: "Aucune tâche due", tone: "blue" as const },
+    {
+      label: "Pipeline",
+      icon: Kanban,
+      hint: "Pipeline brut",
+      value: formatMoney(pipelineBrut),
+      premium: true,
+      tone: "prism" as const,
+    },
+    {
+      label: "CA signé",
+      icon: Euro,
+      hint: "Aucune donnée disponible",
+      premium: true,
+      tone: "gold" as const,
+    },
+  ] as const;
+
   return (
     <section aria-labelledby="kpi-heading">
       <h2 id="kpi-heading" className="sr-only">
@@ -42,6 +56,7 @@ export function KpiZone() {
             hint={kpi.hint}
             value={"value" in kpi ? kpi.value : "—"}
             premium={"premium" in kpi}
+            tone={kpi.tone}
           />
         ))}
       </div>
