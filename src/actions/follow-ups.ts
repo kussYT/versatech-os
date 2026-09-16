@@ -2,6 +2,7 @@
 
 import type { ActionResult } from "@/lib/crm/action-result";
 import { getActorUser } from "@/lib/crm/actor";
+import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateFollowUps } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -43,11 +44,20 @@ export async function createFollowUp(
 
     const actor = await getActorUser();
     const title = input.note ?? "Relance";
+    const openOpportunity = await prisma.opportunity.findFirst({
+      where: {
+        companyId: company.id,
+        stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true },
+    });
 
     const followUp = await prisma.$transaction(async (tx) => {
       const created = await tx.followUp.create({
         data: {
           companyId: company.id,
+          opportunityId: openOpportunity?.id ?? null,
           title,
           dueAt: input.dueAt,
           status: "PENDING",

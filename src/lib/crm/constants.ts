@@ -1,5 +1,7 @@
 import type {
+  CalendarEventType,
   CompanyLifecycle,
+  DocumentType,
   FollowUpStatus,
   MilestoneStatus,
   OpportunityStage,
@@ -157,6 +159,46 @@ export const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   PENDING: "En attente",
   DONE: "Terminé",
   CANCELED: "Annulé",
+};
+
+export const DOCUMENT_TYPES = [
+  "QUOTE",
+  "PROPOSAL",
+  "INVOICE",
+  "CONTRACT",
+  "ASSET",
+  "OTHER",
+] as const satisfies readonly DocumentType[];
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  QUOTE: "Devis",
+  PROPOSAL: "Proposition",
+  INVOICE: "Facture",
+  CONTRACT: "Contrat",
+  ASSET: "Livrable",
+  OTHER: "Autre",
+};
+
+export const CALENDAR_EVENT_TYPES = [
+  "CALL",
+  "FOLLOW_UP",
+  "MEETING",
+  "TASK",
+  "DEADLINE",
+  "DELIVERY",
+  "MAINTENANCE",
+  "ADMINISTRATIVE",
+] as const satisfies readonly CalendarEventType[];
+
+export const CALENDAR_EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
+  CALL: "Appel",
+  FOLLOW_UP: "Relance",
+  MEETING: "RDV",
+  TASK: "Tâche",
+  DEADLINE: "Deadline",
+  DELIVERY: "Livraison",
+  MAINTENANCE: "Maintenance",
+  ADMINISTRATIVE: "Administratif",
 };
 
 export function projectProgress(tasks: { status: TaskStatus }[]) {

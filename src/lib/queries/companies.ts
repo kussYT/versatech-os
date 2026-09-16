@@ -18,6 +18,10 @@ import {
 } from "@/lib/crm/constants";
 import { endOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
+import {
+  listDocumentsForCompany,
+  type DocumentRecord,
+} from "@/lib/queries/documents";
 
 const listInclude = {
   contacts: {
@@ -95,6 +99,12 @@ export type CompanyDetail = {
     status: FollowUpStatus;
   } | null;
   hasOpenOpportunity: boolean;
+  opportunities: {
+    id: string;
+    title: string;
+    stage: OpportunityStage;
+    estimatedValue: string;
+  }[];
   quotes: {
     id: string;
     reference: string;
@@ -118,6 +128,7 @@ export type CompanyDetail = {
     reference: string;
     amountIncTax: string;
   }[];
+  documents: DocumentRecord[];
 };
 
 function toListItem(
@@ -160,6 +171,17 @@ export async function listProspectCompanies() {
   return companies.map(toListItem);
 }
 
+export async function listCompaniesToCall(limit = 5) {
+  const companies = await prisma.company.findMany({
+    where: { lifecycleStatus: "LEAD" },
+    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    take: limit,
+    include: listInclude,
+  });
+
+  return companies.map(toListItem);
+}
+
 export async function listAllCompanies() {
   const companies = await prisma.company.findMany({
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
@@ -192,9 +214,10 @@ export async function getProspectionSummary() {
 }
 
 export async function getCompanyDetail(id: string): Promise<CompanyDetail | null> {
-  const company = await prisma.company.findUnique({
-    where: { id },
-    include: {
+  const [company, documents] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id },
+      include: {
       contacts: {
         orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
       },
@@ -208,10 +231,7 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         take: 1,
       },
       opportunities: {
-        where: {
-          stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
-        },
-        select: { id: true, title: true, stage: true },
+        select: { id: true, title: true, stage: true, estimatedValue: true },
         orderBy: { updatedAt: "desc" },
       },
       quotes: {
@@ -231,7 +251,9 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         },
       },
     },
-  });
+      }),
+    listDocumentsForCompany(id),
+  ]);
 
   if (!company) {
     return null;
@@ -279,17 +301,29 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
           status: nextFollowUp.status,
         }
       : null,
-    hasOpenOpportunity: company.opportunities.length > 0,
+    hasOpenOpportunity: company.opportunities.some((opportunity) =>
+      (OPEN_OPPORTUNITY_STAGES as readonly OpportunityStage[]).includes(opportunity.stage),
+    ),
     quotes: company.quotes.map((quote) => ({
       id: quote.id,
       reference: quote.reference,
       status: quote.status,
       amountIncTax: quote.amountIncTax.toString(),
     })),
-    quoteOpportunities: company.opportunities.map((opportunity) => ({
+    quoteOpportunities: company.opportunities
+      .filter((opportunity) =>
+        (OPEN_OPPORTUNITY_STAGES as readonly OpportunityStage[]).includes(opportunity.stage),
+      )
+      .map((opportunity) => ({
+        id: opportunity.id,
+        title: opportunity.title,
+        stage: opportunity.stage,
+      })),
+    opportunities: company.opportunities.map((opportunity) => ({
       id: opportunity.id,
       title: opportunity.title,
       stage: opportunity.stage,
+      estimatedValue: opportunity.estimatedValue.toString(),
     })),
     projects: company.projects.map((project) => ({
       id: project.id,
@@ -305,5 +339,6 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
         reference: quote.reference,
         amountIncTax: quote.amountIncTax.toString(),
       })),
+    documents,
   };
 }

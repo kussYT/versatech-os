@@ -7,8 +7,11 @@ import type {
   TaskStatus,
 } from "@/generated/prisma/client";
 import { OPEN_TASK_STATUSES, projectProgress } from "@/lib/crm/constants";
-import { endOfToday, startOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
+import {
+  listDocumentsForProject,
+  type DocumentRecord,
+} from "@/lib/queries/documents";
 
 export type ProjectListItem = {
   id: string;
@@ -55,7 +58,57 @@ export type ProjectDetail = {
     action: string;
     createdAt: string;
   }[];
+  repositories: {
+    id: string;
+    owner: string;
+    name: string;
+    url: string;
+    defaultBranch: string;
+  }[];
+  documents: DocumentRecord[];
 };
+
+export type TaskListItem = {
+  id: string;
+  title: string;
+  dueAt: string | null;
+  priority: Priority;
+  status: TaskStatus;
+  project: {
+    id: string;
+    name: string;
+  } | null;
+  company: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+export async function listOpenTasks(): Promise<TaskListItem[]> {
+  const tasks = await prisma.task.findMany({
+    where: { status: { in: [...OPEN_TASK_STATUSES] } },
+    orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      dueAt: true,
+      priority: true,
+      status: true,
+      project: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true } },
+    },
+  });
+
+  return tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    dueAt: task.dueAt?.toISOString() ?? null,
+    priority: task.priority,
+    status: task.status,
+    project: task.project,
+    company: task.company,
+  }));
+}
 
 export type DashboardTaskItem = {
   id: string;
@@ -68,16 +121,9 @@ export type DashboardTaskItem = {
   } | null;
 };
 
-export type AgendaItem = {
-  id: string;
-  title: string;
-  at: string;
-  href: string;
-};
-
 export async function listProjects(): Promise<ProjectListItem[]> {
   const projects = await prisma.project.findMany({
-    orderBy: [{ dueDate: "asc" }, { name: "asc" }],
+    orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { name: "asc" }],
     include: {
       company: { select: { id: true, name: true } },
       tasks: { select: { status: true } },
@@ -98,14 +144,18 @@ export async function listProjects(): Promise<ProjectListItem[]> {
 }
 
 export async function getProjectDetail(id: string): Promise<ProjectDetail | null> {
-  const project = await prisma.project.findUnique({
-    where: { id },
-    include: {
-      company: { select: { id: true, name: true } },
-      tasks: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
-      milestones: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
-    },
-  });
+  const [project, documents] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id },
+      include: {
+        company: { select: { id: true, name: true } },
+        tasks: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
+        milestones: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
+        repositories: { orderBy: [{ createdAt: "asc" }] },
+      },
+    }),
+    listDocumentsForProject(id),
+  ]);
 
   if (!project) {
     return null;
@@ -119,6 +169,14 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
         {
           entityType: "Milestone",
           entityId: { in: project.milestones.map((milestone) => milestone.id) },
+        },
+        {
+          entityType: "Repository",
+          entityId: { in: project.repositories.map((repository) => repository.id) },
+        },
+        {
+          entityType: "Document",
+          entityId: { in: documents.map((document) => document.id) },
         },
       ],
     },
@@ -156,6 +214,16 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
       action: item.action,
       createdAt: item.createdAt.toISOString(),
     })),
+    repositories: project.repositories
+      .filter((repository) => repository.provider === "github")
+      .map((repository) => ({
+        id: repository.id,
+        owner: repository.owner,
+        name: repository.name,
+        url: repository.url,
+        defaultBranch: repository.defaultBranch,
+      })),
+    documents,
   };
 }
 
@@ -188,54 +256,4 @@ export async function getTaskDashboard(limit = 5) {
       project: task.project,
     })),
   };
-}
-
-export async function getTodayDeadlines(): Promise<AgendaItem[]> {
-  const start = startOfToday();
-  const end = endOfToday();
-  const range = { gte: start, lte: end };
-
-  const [tasks, milestones, projects] = await Promise.all([
-    prisma.task.findMany({
-      where: { status: { in: [...OPEN_TASK_STATUSES] }, dueAt: range },
-      select: {
-        id: true,
-        title: true,
-        dueAt: true,
-        projectId: true,
-      },
-    }),
-    prisma.milestone.findMany({
-      where: { status: "PENDING", dueAt: range },
-      select: { id: true, name: true, dueAt: true, projectId: true },
-    }),
-    prisma.project.findMany({
-      where: {
-        status: { notIn: ["COMPLETED", "ARCHIVED"] },
-        dueDate: range,
-      },
-      select: { id: true, name: true, dueDate: true },
-    }),
-  ]);
-
-  return [
-    ...tasks.map((task) => ({
-      id: `task-${task.id}`,
-      title: task.title,
-      at: task.dueAt?.toISOString() ?? start.toISOString(),
-      href: task.projectId ? `/projets/${task.projectId}` : "/projets",
-    })),
-    ...milestones.map((milestone) => ({
-      id: `milestone-${milestone.id}`,
-      title: milestone.name,
-      at: milestone.dueAt?.toISOString() ?? start.toISOString(),
-      href: `/projets/${milestone.projectId}`,
-    })),
-    ...projects.map((project) => ({
-      id: `project-${project.id}`,
-      title: project.name,
-      at: project.dueDate?.toISOString() ?? start.toISOString(),
-      href: `/projets/${project.id}`,
-    })),
-  ].sort((left, right) => left.at.localeCompare(right.at));
 }

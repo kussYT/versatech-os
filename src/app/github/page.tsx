@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/layout/section-placeholder";
+import { GithubOverview } from "@/components/github/github-overview";
+import { PageHeader } from "@/components/layout/page-header";
+import { getGitHubOverview } from "@/lib/queries/github";
 
 export const metadata: Metadata = {
   title: "GitHub",
 };
 
-export default function GithubPage() {
+export const dynamic = "force-dynamic";
+
+export default async function GithubPage() {
+  const overview = await getGitHubOverview();
+
   return (
-    <SectionPlaceholder
-      title="GitHub"
-      description="L'activité technique liée aux projets apparaîtra ici."
-      emptyTitle="Aucune donnée disponible"
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="GitHub"
+        description="Repositories associés aux projets, en lecture seule."
+      />
+      <GithubOverview overview={overview} />
+    </div>
   );
 }

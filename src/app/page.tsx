@@ -6,9 +6,12 @@ import { PipelinePreview } from "@/components/dashboard/pipeline-preview";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { TasksPanel } from "@/components/dashboard/tasks-panel";
 import { TodayHeader } from "@/components/dashboard/today-header";
+import { getTodayAgenda } from "@/lib/queries/calendar";
+import { getRecentActivity, getTodayInteractionCounts } from "@/lib/queries/activity";
+import { listCompaniesToCall } from "@/lib/queries/companies";
 import { getFollowUpDashboard } from "@/lib/queries/follow-ups";
 import { getPipelineOverview } from "@/lib/queries/opportunities";
-import { getTaskDashboard, getTodayDeadlines } from "@/lib/queries/projects";
+import { getTaskDashboard } from "@/lib/queries/projects";
 import { getSignedRevenue } from "@/lib/queries/quotes";
 
 export const dynamic = "force-dynamic";
@@ -18,12 +21,24 @@ export const metadata: Metadata = {
 };
 
 export default async function TodayPage() {
-  const [pipelineOverview, followUps, signedRevenue, taskDashboard, agenda] = await Promise.all([
+  const [
+    pipelineOverview,
+    followUps,
+    signedRevenue,
+    taskDashboard,
+    agenda,
+    calls,
+    interactionCounts,
+    recentActivity,
+  ] = await Promise.all([
     getPipelineOverview(),
     getFollowUpDashboard(),
     getSignedRevenue(),
     getTaskDashboard(),
-    getTodayDeadlines(),
+    getTodayAgenda(),
+    listCompaniesToCall(),
+    getTodayInteractionCounts(),
+    getRecentActivity(),
   ]);
 
   return (
@@ -34,14 +49,16 @@ export default async function TodayPage() {
         dueFollowUps={followUps.dueCount}
         signedRevenue={signedRevenue}
         openTasks={taskDashboard.openCount}
+        callsToday={interactionCounts.calls}
+        meetingsToday={interactionCounts.meetings}
       />
-      <CallsFollowups followUps={followUps.preview} />
+      <CallsFollowups calls={calls} followUps={followUps.preview} />
       <div className="grid gap-3 lg:grid-cols-2">
         <TasksPanel tasks={taskDashboard.preview} />
         <AgendaPanel items={agenda} />
       </div>
       <PipelinePreview overview={pipelineOverview} />
-      <RecentActivity />
+      <RecentActivity items={recentActivity} />
     </div>
   );
 }

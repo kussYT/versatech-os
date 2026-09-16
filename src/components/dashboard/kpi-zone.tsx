@@ -14,11 +14,26 @@ type KpiZoneProps = {
   dueFollowUps: number;
   signedRevenue: string;
   openTasks: number;
+  callsToday: number;
+  meetingsToday: number;
 };
 
-export function KpiZone({ pipelineBrut, dueFollowUps, signedRevenue, openTasks }: KpiZoneProps) {
+export function KpiZone({
+  pipelineBrut,
+  dueFollowUps,
+  signedRevenue,
+  openTasks,
+  callsToday,
+  meetingsToday,
+}: KpiZoneProps) {
   const kpis = [
-    { label: "Appels", icon: Phone, hint: "Aucun appel prévu", tone: "cyan" as const },
+    {
+      label: "Appels",
+      icon: Phone,
+      hint: "Interactions appel du jour",
+      value: String(callsToday),
+      tone: "cyan" as const,
+    },
     {
       label: "Relances",
       icon: RotateCcw,
@@ -26,7 +41,7 @@ export function KpiZone({ pipelineBrut, dueFollowUps, signedRevenue, openTasks }
       value: String(dueFollowUps),
       tone: "violet" as const,
     },
-    { label: "RDV", icon: CalendarDays, hint: "Aucun rendez-vous", tone: "orange" as const },
+    { label: "RDV", icon: CalendarDays, hint: "Interactions RDV du jour", value: String(meetingsToday), tone: "orange" as const },
     {
       label: "Tâches",
       icon: ListTodo,

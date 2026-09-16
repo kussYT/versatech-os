@@ -22,7 +22,9 @@ import { InteractionDialog } from "@/components/crm/interaction-dialog";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { ProjectProgress } from "@/components/projects/project-progress";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
+import { DocumentSection } from "@/components/documents/document-section";
 import { CreateQuoteDialog } from "@/components/quotes/create-quote-dialog";
+import { QuoteStatusActions } from "@/components/quotes/quote-status-actions";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,7 +32,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LifecycleBadge } from "@/components/ui/lifecycle-badge";
 import { PriorityBadge } from "@/components/ui/priority-badge";
 import { PageHeader } from "@/components/layout/page-header";
-import { PRIORITY_LABELS } from "@/lib/crm/constants";
+import { PRIORITY_LABELS, OPPORTUNITY_STAGE_LABELS } from "@/lib/crm/constants";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/crm/form-data";
 import {
   INTERACTION_DIRECTION_LABELS,
@@ -73,17 +75,16 @@ export function CompanyHub({ company }: CompanyHubProps) {
             <Button variant="ghost" onClick={() => setEditOpen(true)}>
               Modifier
             </Button>
-            {!company.hasOpenOpportunity ? (
-              <Button variant="secondary" onClick={() => setOpportunityOpen(true)}>
-                <Kanban className="size-4" aria-hidden="true" />
-                Créer une opportunité
-              </Button>
-            ) : (
+            <Button variant="secondary" onClick={() => setOpportunityOpen(true)}>
+              <Kanban className="size-4" aria-hidden="true" />
+              Créer une opportunité
+            </Button>
+            {company.quoteOpportunities.length > 0 ? (
               <Button variant="secondary" onClick={() => setQuoteOpen(true)}>
                 <FileText className="size-4" aria-hidden="true" />
                 Créer un devis
               </Button>
-            )}
+            ) : null}
             {isClient ? (
               <Button variant="secondary" onClick={() => setProjectOpen(true)}>
                 <FolderKanban className="size-4" aria-hidden="true" />
@@ -181,6 +182,48 @@ export function CompanyHub({ company }: CompanyHubProps) {
       </Card>
 
       <Card className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-section text-foreground">Opportunités</h2>
+          <Button size="sm" variant="secondary" onClick={() => setOpportunityOpen(true)}>
+            Créer
+          </Button>
+        </div>
+        {company.opportunities.length === 0 ? (
+          <EmptyState
+            title="Aucune opportunité"
+            description="Une entreprise peut avoir plusieurs opportunités dans le temps."
+            action={
+              <Button size="sm" onClick={() => setOpportunityOpen(true)}>
+                Créer une opportunité
+              </Button>
+            }
+          />
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {company.opportunities.map((opportunity) => (
+              <li
+                key={opportunity.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/60 px-4 py-3"
+              >
+                <div>
+                  <p className="text-body font-medium text-foreground">{opportunity.title}</p>
+                  <p className="mt-1 text-meta text-muted">
+                    {OPPORTUNITY_STAGE_LABELS[opportunity.stage]}
+                    {Number(opportunity.estimatedValue) > 0
+                      ? ` · ${formatMoney(opportunity.estimatedValue)}`
+                      : ""}
+                  </p>
+                </div>
+                <Link href="/pipeline" className="text-meta text-primary hover:text-primary-hover">
+                  Pipeline
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card className="p-5">
         <h2 className="text-section text-foreground">Devis</h2>
         {company.quotes.length === 0 ? (
           <EmptyState
@@ -207,7 +250,10 @@ export function CompanyHub({ company }: CompanyHubProps) {
                     {formatMoney(quote.amountIncTax)}
                   </p>
                 </div>
-                <QuoteStatusBadge status={quote.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <QuoteStatusBadge status={quote.status} />
+                  <QuoteStatusActions quoteId={quote.id} status={quote.status} />
+                </div>
               </li>
             ))}
           </ul>
@@ -259,6 +305,17 @@ export function CompanyHub({ company }: CompanyHubProps) {
           )}
         </Card>
       ) : null}
+
+      <DocumentSection
+        documents={company.documents}
+        companies={[{ id: company.id, name: company.name }]}
+        projects={company.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          companyId: company.id,
+        }))}
+        defaultCompanyId={company.id}
+      />
 
       <InteractionDialog
         open={interactionOpen}

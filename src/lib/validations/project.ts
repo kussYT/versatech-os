@@ -25,6 +25,12 @@ export const createProjectSchema = z.object({
   quoteId: z.string().transform((value) => emptyToNull(value)),
 });
 
+export const updateProjectStatusSchema = z.object({
+  projectId: z.string().min(1, "Projet introuvable"),
+  status: z.enum(PROJECT_STATUSES, { error: "Statut invalide" }),
+});
+
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
+export type UpdateProjectStatusInput = z.infer<typeof updateProjectStatusSchema>;
 
 export { fieldErrorsFromZod };

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import Link from "next/link";
 import { updateOpportunityStage } from "@/actions/opportunities";
 import { controlClassName } from "@/components/ui/field";
@@ -21,6 +21,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
     updateOpportunityStage,
     idleActionResult,
   );
+  const lostReasonRef = useRef<HTMLInputElement>(null);
   const estimated = Number(opportunity.estimatedValue);
   const location = [opportunity.company.industry, opportunity.company.city]
     .filter(Boolean)
@@ -39,9 +40,15 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       return;
     }
 
-    if (nextStage === "LOST" && !window.confirm("Passer cette opportunité en Perdu ?")) {
-      select.value = opportunity.stage;
-      return;
+    if (nextStage === "LOST") {
+      const reason = window.prompt("Raison de la perte ?");
+      if (!reason?.trim()) {
+        select.value = opportunity.stage;
+        return;
+      }
+      if (lostReasonRef.current) {
+        lostReasonRef.current.value = reason.trim();
+      }
     }
 
     select.form?.requestSubmit();
@@ -74,9 +81,11 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
       <form action={formAction} className="mt-3">
         <input type="hidden" name="opportunityId" value={opportunity.id} />
+        <input ref={lostReasonRef} type="hidden" name="lostReason" defaultValue="" />
         <label className="block">
           <span className="sr-only">Changer le stage</span>
           <select
+            key={opportunity.stage}
             name="stage"
             defaultValue={opportunity.stage}
             disabled={pending}

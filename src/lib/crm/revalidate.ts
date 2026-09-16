@@ -1,9 +1,12 @@
 import { revalidatePath } from "next/cache";
 
 export function revalidateCrm(companyId?: string) {
+  revalidatePath("/");
   revalidatePath("/prospection");
   revalidatePath("/entreprises");
   revalidatePath("/relances");
+  revalidatePath("/pipeline");
+  revalidatePath("/clients");
 
   if (companyId) {
     revalidatePath(`/entreprises/${companyId}`);
@@ -19,6 +22,7 @@ export function revalidatePipeline(companyId?: string) {
 export function revalidateFollowUps(companyId?: string) {
   revalidatePath("/relances");
   revalidatePath("/");
+  revalidatePath("/calendrier");
   revalidateCrm(companyId);
 }
 
@@ -31,12 +35,44 @@ export function revalidateQuotes(companyId?: string) {
 
 export function revalidateProjects(companyId?: string, projectId?: string) {
   revalidatePath("/projets");
+  revalidatePath("/taches");
   revalidatePath("/clients");
   revalidatePath("/");
+  revalidatePath("/calendrier");
 
   if (projectId) {
     revalidatePath(`/projets/${projectId}`);
   }
 
   revalidateCrm(companyId);
+}
+
+export function revalidateCalendar(companyId?: string, projectId?: string) {
+  revalidatePath("/calendrier");
+  revalidatePath("/");
+
+  if (projectId) {
+    revalidatePath(`/projets/${projectId}`);
+  }
+
+  if (companyId) {
+    revalidatePath(`/entreprises/${companyId}`);
+  }
+}
+
+export function revalidateGithub(companyId?: string, projectId?: string) {
+  revalidatePath("/github");
+  revalidateProjects(companyId, projectId);
+}
+
+export function revalidateDocuments(companyId?: string | null, projectId?: string | null) {
+  revalidatePath("/documents");
+
+  if (projectId) {
+    revalidatePath(`/projets/${projectId}`);
+  }
+
+  if (companyId) {
+    revalidatePath(`/entreprises/${companyId}`);
+  }
 }
