@@ -65,5 +65,19 @@ Décision : montants en `Decimal(12, 2)` (euros, centimes). Pas de `Float`.
 Les relations commerciales utilisent `onDelete: Restrict` vers Company / Opportunity / User pour empêcher une suppression de Company d'effacer l'historique. Les clés optionnelles (contact, projet lié, etc.) utilisent `SetNull`.
 Statut : accepté.
 
+ADR-013 — AUTH CREDENTIALS INTERNES + SESSION JWT
+Décision : login e-mail / mot de passe interne, session JWT signée avec `jose`, hash scrypt via `node:crypto`. Pas d'Auth.js en V1, pas d'inscription publique, pas de multi-tenant.
+Raisons :
+- outil interne, administrateur unique (product spec) ;
+- Auth.js n'apporte pas d'OAuth/SSO utile ici ; Credentials + JWT reviendrait au même socle ;
+- Next.js 16 documente `jose` pour les sessions stateless et remplace `middleware` par `proxy.ts` (runtime Node) ;
+- une seule dépendance d'auth (`jose`) ; le hash reste dans la stdlib.
+Conséquences :
+- `User.passwordHash` additif et nullable ;
+- `AUTH_SECRET` obligatoire pour signer le cookie `vt_os_session` ;
+- `getActorUser()` lit la session, plus de création automatique `os@versatech.example` ;
+- les Server Actions refusent les mutations sans acteur via `requireActor()`.
+Statut : accepté.
+
 AJOUT D'ADR
 Créer un ADR lorsqu'une décision est coûteuse à inverser : auth, hébergement, stockage, architecture d'intégration, permissions, etc.

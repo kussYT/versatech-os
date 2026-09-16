@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "tsx --test src/lib/auth/auth.test.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "db:set-dev-password": "tsx prisma/set-dev-password.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -19,6 +22,7 @@
     "@prisma/client": "^7.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "jose": "^6.2.12",
     "lucide-react": "^1.46.0",
     "next": "16.3.5",
     "pg": "^8.23.0",

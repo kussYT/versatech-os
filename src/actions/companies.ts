@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -19,6 +19,11 @@ export async function createCompany(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createCompanySchema.safeParse({
     name: readString(formData, "name"),
     industry: readString(formData, "industry"),
@@ -44,7 +49,6 @@ export async function createCompany(
   const input = parsed.data;
 
   try {
-    const actor = await getActorUser();
     const company = await prisma.$transaction(async (tx) => {
       const created = await tx.company.create({
         data: {
@@ -99,6 +103,11 @@ export async function updateCompany(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateCompanySchema.safeParse({
     id: readString(formData, "id"),
     name: readString(formData, "name"),
@@ -143,7 +152,6 @@ export async function updateCompany(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const actor = await getActorUser();
     const primaryContact = existing.contacts[0] ?? null;
 
     await prisma.$transaction(async (tx) => {

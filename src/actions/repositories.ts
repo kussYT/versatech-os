@@ -2,7 +2,7 @@
 
 import { Prisma } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateGithub } from "@/lib/crm/revalidate";
 import { fetchGitHubRepository, isGitHubConfigured } from "@/lib/integrations/github";
@@ -18,6 +18,11 @@ export async function associateGitHubRepository(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = associateRepositorySchema.safeParse({
     projectId: readString(formData, "projectId"),
     repository: readString(formData, "repository"),
@@ -78,7 +83,6 @@ export async function associateGitHubRepository(
       return { ok: false, message: live.error.message };
     }
 
-    const actor = await getActorUser();
     const owner = live?.data.owner ?? ref.owner;
     const name = live?.data.name ?? ref.name;
     const url = live?.data.url ?? `https://github.com/${owner}/${name}`;
@@ -139,6 +143,11 @@ export async function unlinkGitHubRepository(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = unlinkRepositorySchema.safeParse({
     repositoryId: readString(formData, "repositoryId"),
   });
@@ -160,8 +169,6 @@ export async function unlinkGitHubRepository(
     if (!existing) {
       return { ok: false, message: "Repository introuvable." };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.repository.delete({ where: { id: existing.id } });

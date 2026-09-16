@@ -13,7 +13,7 @@ Monolithe web modulaire. Pas de microservices en V1.
 - Prisma ORM
 - Zod
 - React Hook Form lorsque pertinent
-- Auth.js ou solution d'auth validée au moment de l'implémentation
+- Auth.js ou solution d'auth validée au moment de l'implémentation (V1 : ADR-013, credentials internes + `jose`)
 - Recharts pour les graphiques
 - Lucide pour les icônes
 

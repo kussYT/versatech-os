@@ -2,7 +2,7 @@
 
 import type { CompanyLifecycle, OpportunityStage } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidatePipeline } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -44,6 +44,11 @@ export async function createOpportunity(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createOpportunitySchema.safeParse({
     companyId: readString(formData, "companyId"),
     title: readString(formData, "title"),
@@ -70,7 +75,6 @@ export async function createOpportunity(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const actor = await getActorUser();
     const nextLifecycle = lifecycleAfterOpportunityCreated(company.lifecycleStatus);
 
     const opportunity = await prisma.$transaction(async (tx) => {
@@ -130,6 +134,11 @@ export async function updateOpportunityStage(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateOpportunityStageSchema.safeParse({
     opportunityId: readString(formData, "opportunityId"),
     stage: readString(formData, "stage"),
@@ -160,7 +169,6 @@ export async function updateOpportunityStage(
       return { ok: true, data: { opportunityId: existing.id, companyId: existing.companyId } };
     }
 
-    const actor = await getActorUser();
     const nextLifecycle =
       input.stage === "WON" ? lifecycleAfterWon(existing.company.lifecycleStatus) : null;
 
