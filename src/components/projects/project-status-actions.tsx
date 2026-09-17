@@ -4,6 +4,10 @@ import { useActionState } from "react";
 import { updateProjectStatus } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import { idleActionResult } from "@/lib/crm/action-result";
+import {
+  SENSITIVE_ACTION_CONFIRMS,
+  preventUnconfirmedSubmit,
+} from "@/lib/crm/confirm-sensitive-action";
 import type { ProjectStatus } from "@/generated/prisma/client";
 
 const ACTIONS: {
@@ -11,13 +15,25 @@ const ACTIONS: {
   to: ProjectStatus;
   label: string;
   variant?: "primary" | "secondary" | "danger";
+  confirm?: string;
 }[] = [
   { from: ["PLANNED"], to: "ACTIVE", label: "Démarrer" },
   { from: ["ACTIVE"], to: "WAITING_CLIENT", label: "Attente client", variant: "secondary" },
   { from: ["ACTIVE", "WAITING_CLIENT"], to: "REVIEW", label: "Passer en recette" },
   { from: ["WAITING_CLIENT", "REVIEW"], to: "ACTIVE", label: "Reprendre", variant: "secondary" },
-  { from: ["ACTIVE", "REVIEW"], to: "COMPLETED", label: "Terminer" },
-  { from: ["COMPLETED"], to: "ARCHIVED", label: "Archiver", variant: "secondary" },
+  {
+    from: ["ACTIVE", "REVIEW"],
+    to: "COMPLETED",
+    label: "Terminer",
+    confirm: SENSITIVE_ACTION_CONFIRMS.projectCompleted,
+  },
+  {
+    from: ["COMPLETED"],
+    to: "ARCHIVED",
+    label: "Archiver",
+    variant: "secondary",
+    confirm: SENSITIVE_ACTION_CONFIRMS.projectArchived,
+  },
 ];
 
 type ProjectStatusActionsProps = {
@@ -36,7 +52,11 @@ export function ProjectStatusActions({ projectId, status }: ProjectStatusActions
   return (
     <div className="flex flex-wrap gap-2">
       {actions.map((action) => (
-        <form key={action.to} action={formAction}>
+        <form
+          key={action.to}
+          action={formAction}
+          onSubmit={action.confirm ? preventUnconfirmedSubmit(action.confirm) : undefined}
+        >
           <input type="hidden" name="projectId" value={projectId} />
           <input type="hidden" name="status" value={action.to} />
           <Button type="submit" size="sm" variant={action.variant} disabled={pending}>

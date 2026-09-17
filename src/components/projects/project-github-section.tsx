@@ -10,6 +10,10 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/crm/form-data";
 import { idleActionResult } from "@/lib/crm/action-result";
+import {
+  SENSITIVE_ACTION_CONFIRMS,
+  preventUnconfirmedSubmit,
+} from "@/lib/crm/confirm-sensitive-action";
 import type { GitHubProjectSnapshot, GitHubRepositorySnapshot } from "@/lib/queries/github";
 
 type ProjectGithubSectionProps = {
@@ -112,7 +116,10 @@ function RepositoryCard({ repository }: { repository: GitHubRepositorySnapshot }
             </p>
           ) : null}
         </div>
-        <UnlinkRepositoryButton repositoryId={repository.id} />
+        <UnlinkRepositoryButton
+          repositoryId={repository.id}
+          repoLabel={`${repository.owner}/${repository.name}`}
+        />
       </div>
 
       <div className="mt-4 border-t border-border pt-4">
@@ -160,14 +167,24 @@ function RepositoryCard({ repository }: { repository: GitHubRepositorySnapshot }
   );
 }
 
-function UnlinkRepositoryButton({ repositoryId }: { repositoryId: string }) {
+function UnlinkRepositoryButton({
+  repositoryId,
+  repoLabel,
+}: {
+  repositoryId: string;
+  repoLabel: string;
+}) {
   const [state, formAction, pending] = useActionState(
     unlinkGitHubRepository,
     idleActionResult,
   );
 
   return (
-    <form action={formAction} className="shrink-0">
+    <form
+      action={formAction}
+      className="shrink-0"
+      onSubmit={preventUnconfirmedSubmit(SENSITIVE_ACTION_CONFIRMS.unlinkGithub(repoLabel))}
+    >
       <input type="hidden" name="repositoryId" value={repositoryId} />
       <Button type="submit" size="sm" variant="ghost" disabled={pending}>
         {pending ? "Retrait…" : "Retirer"}

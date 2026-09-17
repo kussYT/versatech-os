@@ -16,6 +16,10 @@ import { controlClassName } from "@/components/ui/field";
 import { LifecycleBadge } from "@/components/ui/lifecycle-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCompanyAddress, externalItineraryUrl } from "@/lib/prospection/itinerary";
+import {
+  SENSITIVE_ACTION_CONFIRMS,
+  preventUnconfirmedSubmit,
+} from "@/lib/crm/confirm-sensitive-action";
 import type { TodayTour } from "@/lib/queries/tours";
 
 type TourViewProps = {
@@ -136,7 +140,12 @@ export function TourView({ tour, companies, addCompanyId }: TourViewProps) {
                             </Button>
                           </form>
                         ) : null}
-                        <form action={removeCompanyFromTodayTourForm}>
+                        <form
+                          action={removeCompanyFromTodayTourForm}
+                          onSubmit={preventUnconfirmedSubmit(
+                            SENSITIVE_ACTION_CONFIRMS.removeTourCompany(stop.company.name),
+                          )}
+                        >
                           <input type="hidden" name="companyId" value={stop.company.id} />
                           <Button type="submit" size="sm" variant="danger">
                             Retirer

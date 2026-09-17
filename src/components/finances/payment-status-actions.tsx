@@ -4,6 +4,10 @@ import { useActionState } from "react";
 import { updatePaymentStatus } from "@/actions/payments";
 import { Button } from "@/components/ui/button";
 import { idleActionResult } from "@/lib/crm/action-result";
+import {
+  SENSITIVE_ACTION_CONFIRMS,
+  preventUnconfirmedSubmit,
+} from "@/lib/crm/confirm-sensitive-action";
 import type { PaymentStatus } from "@/generated/prisma/client";
 
 const ACTIONS: {
@@ -11,10 +15,22 @@ const ACTIONS: {
   to: PaymentStatus;
   label: string;
   variant?: "primary" | "secondary" | "danger";
+  confirm?: string;
 }[] = [
-  { from: ["PENDING", "OVERDUE"], to: "PAID", label: "Marquer payé" },
+  {
+    from: ["PENDING", "OVERDUE"],
+    to: "PAID",
+    label: "Marquer payé",
+    confirm: SENSITIVE_ACTION_CONFIRMS.paymentPaid,
+  },
   { from: ["PENDING"], to: "OVERDUE", label: "Marquer en retard", variant: "secondary" },
-  { from: ["PENDING", "OVERDUE"], to: "CANCELED", label: "Annuler", variant: "danger" },
+  {
+    from: ["PENDING", "OVERDUE"],
+    to: "CANCELED",
+    label: "Annuler",
+    variant: "danger",
+    confirm: SENSITIVE_ACTION_CONFIRMS.paymentCanceled,
+  },
 ];
 
 type PaymentStatusActionsProps = {
@@ -36,7 +52,11 @@ export function PaymentStatusActions({ paymentId, status }: PaymentStatusActions
   return (
     <div className="flex flex-wrap gap-2">
       {actions.map((action) => (
-        <form key={action.to} action={formAction}>
+        <form
+          key={action.to}
+          action={formAction}
+          onSubmit={action.confirm ? preventUnconfirmedSubmit(action.confirm) : undefined}
+        >
           <input type="hidden" name="paymentId" value={paymentId} />
           <input type="hidden" name="status" value={action.to} />
           <Button type="submit" size="sm" variant={action.variant} disabled={pending}>
