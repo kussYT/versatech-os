@@ -330,7 +330,7 @@ async function deletePlan(db: PrismaClient, plan: CleanupPlan) {
 
 async function main() {
   assertDemoCleanupNotProduction();
-  const companyIds = validateDemoCleanupAllowlist();
+  const companyIds = validateDemoCleanupAllowlist(DEMO_COMPANY_IDS);
   const execute = isDemoCleanupExecuteAllowed();
 
   const prisma = new PrismaClient({
