@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
@@ -98,7 +100,7 @@ export async function createInteraction(
     revalidateCrm(company.id);
     return { ok: true, data: { interactionId: interaction.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("interactions", error);
     return {
       ok: false,
       message: "Impossible d'enregistrer l'interaction. Réessayez.",

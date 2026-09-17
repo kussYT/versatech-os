@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type {
   MilestoneStatus,
   Priority,
@@ -96,6 +98,7 @@ export type TaskListItem = {
 };
 
 export async function listOpenTasks(): Promise<TaskListItem[]> {
+  await requireAuthenticatedUser();
   const tasks = await prisma.task.findMany({
     where: { status: { in: [...OPEN_TASK_STATUSES] } },
     orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
@@ -133,6 +136,7 @@ export type DashboardTaskItem = {
 };
 
 export async function listProjects(): Promise<ProjectListItem[]> {
+  await requireAuthenticatedUser();
   const projects = await prisma.project.findMany({
     orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { name: "asc" }],
     include: {
@@ -155,6 +159,7 @@ export async function listProjects(): Promise<ProjectListItem[]> {
 }
 
 export async function getProjectDetail(id: string): Promise<ProjectDetail | null> {
+  await requireAuthenticatedUser();
   const [project, documents] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
@@ -284,6 +289,7 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
 }
 
 export async function getTaskDashboard(limit = 5) {
+  await requireAuthenticatedUser();
   const [openCount, preview] = await Promise.all([
     prisma.task.count({
       where: { status: { in: [...OPEN_TASK_STATUSES] } },

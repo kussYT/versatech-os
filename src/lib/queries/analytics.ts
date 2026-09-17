@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { AnalyticsSnapshot } from "@/lib/analytics/compute";
 import { computeAnalytics } from "@/lib/analytics/compute";
 import { prisma } from "@/lib/db/prisma";
@@ -78,6 +80,7 @@ async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
 }
 
 export async function getAnalyticsReport(period: AnalyticsPeriod, now = new Date()) {
+  await requireAuthenticatedUser();
   const snapshot = await loadAnalyticsSnapshot();
   return computeAnalytics(snapshot, period, now);
 }

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2022-11-28";
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -190,7 +192,7 @@ async function githubGet<T>(path: string): Promise<GitHubFetchResult<T>> {
 
     return { ok: true, data: (await response.json()) as T };
   } catch (error) {
-    console.error(error);
+    logServerError("github", error);
     return {
       ok: false,
       error: {

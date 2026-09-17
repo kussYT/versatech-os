@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
@@ -85,7 +87,7 @@ export async function createFollowUp(
     revalidateFollowUps(company.id);
     return { ok: true, data: { followUpId: followUp.id, companyId: company.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("follow-ups", error);
     return {
       ok: false,
       message: "Impossible de planifier la relance. Réessayez.",
@@ -154,7 +156,7 @@ export async function completeFollowUp(
     revalidateFollowUps(existing.companyId);
     return { ok: true, data: { followUpId: existing.id, companyId: existing.companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("follow-ups", error);
     return { ok: false, message: "Impossible de terminer la relance. Réessayez." };
   }
 }
@@ -220,7 +222,7 @@ export async function rescheduleFollowUp(
     revalidateFollowUps(existing.companyId);
     return { ok: true, data: { followUpId: existing.id, companyId: existing.companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("follow-ups", error);
     return { ok: false, message: "Impossible de reporter la relance. Réessayez." };
   }
 }

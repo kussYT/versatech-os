@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/crm/action-result";
 import { consumeLoginAttempt, loginAttemptKey, resetLoginAttempts } from "@/lib/auth/rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { safeRedirectPath } from "@/lib/auth/paths";
-import { createSession, destroySession } from "@/lib/auth/session";
+import { createSession, destroySession, getSessionUser, invalidateUserSessions } from "@/lib/auth/session";
 import { readString } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
 import { fieldErrorsFromZod, loginSchema } from "@/lib/validations/auth";
@@ -77,6 +77,10 @@ export async function login(
 }
 
 export async function logout() {
+  const user = await getSessionUser();
+  if (user) {
+    await invalidateUserSessions(user.id);
+  }
   await destroySession();
   redirect("/connexion");
 }

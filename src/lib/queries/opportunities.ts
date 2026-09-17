@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { InteractionType, OpportunityStage } from "@/generated/prisma/client";
 import {
   OPEN_OPPORTUNITY_STAGES,
@@ -128,6 +130,7 @@ function loadOpportunities() {
 }
 
 export async function listPipelineBoard(): Promise<PipelineColumn[]> {
+  await requireAuthenticatedUser();
   const opportunities = await loadOpportunities();
   const cards = opportunities.map(toCard);
 
@@ -151,6 +154,7 @@ export async function listPipelineBoard(): Promise<PipelineColumn[]> {
 }
 
 export async function getPipelineOverview(): Promise<PipelineOverview> {
+  await requireAuthenticatedUser();
   const grouped = await prisma.opportunity.groupBy({
     by: ["stage"],
     _count: { _all: true },

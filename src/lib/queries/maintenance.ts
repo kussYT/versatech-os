@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { MaintenanceStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -108,6 +110,7 @@ function toContractItem(
 }
 
 export async function listMaintenanceAssociationOptions(): Promise<MaintenanceAssociationOptions> {
+  await requireAuthenticatedUser();
   const [companies, projects] = await Promise.all([
     prisma.company.findMany({
       orderBy: { name: "asc" },
@@ -123,6 +126,7 @@ export async function listMaintenanceAssociationOptions(): Promise<MaintenanceAs
 }
 
 export async function listMaintenanceOverview(now = new Date()): Promise<MaintenanceOverview> {
+  await requireAuthenticatedUser();
   const contracts = await prisma.maintenanceContract.findMany({
     orderBy: [{ status: "asc" }, { startDate: "desc" }],
     include: contractInclude,
@@ -164,6 +168,7 @@ export async function listMaintenanceContractsForCompany(
   companyId: string,
   now = new Date(),
 ): Promise<MaintenanceContractItem[]> {
+  await requireAuthenticatedUser();
   const contracts = await prisma.maintenanceContract.findMany({
     where: { companyId },
     orderBy: [{ status: "asc" }, { startDate: "desc" }],

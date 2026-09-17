@@ -1,8 +1,21 @@
 import { formatCompanyAddress } from "./itinerary";
 import type { MapCompany } from "./map-model";
 
+export const NOMINATIM_TIMEOUT_MS = 8_000;
+
 export function isNominatimConfigured(userAgent = process.env.NOMINATIM_USER_AGENT) {
   return Boolean(userAgent?.trim());
+}
+
+export function nominatimRequestInit(userAgent: string): RequestInit {
+  return {
+    headers: {
+      "User-Agent": userAgent,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(NOMINATIM_TIMEOUT_MS),
+  };
 }
 
 export function nominatimSearchUrl(query: string) {

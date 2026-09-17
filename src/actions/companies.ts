@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -100,7 +102,7 @@ export async function createCompany(
     revalidateCrm(company.id);
     return { ok: true, data: { companyId: company.id, name: company.name } };
   } catch (error) {
-    console.error(error);
+    logServerError("companies", error);
     return { ok: false, message: userFacingDbError() };
   }
 }
@@ -253,7 +255,7 @@ export async function updateCompany(
     revalidateCrm(existing.id);
     return { ok: true, data: { companyId: existing.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("companies", error);
     return { ok: false, message: userFacingDbError() };
   }
 }

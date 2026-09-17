@@ -2,7 +2,7 @@ const ILLUSTRATIVE_AUTH_SECRET =
   "replace-me-with-a-random-string-of-at-least-32-chars";
 
 export const SESSION_COOKIE_NAME = "vt_os_session";
-export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+export const SESSION_TTL_SECONDS = 60 * 60 * 24;
 export const LOGIN_PATH = "/connexion";
 export const DEFAULT_AFTER_LOGIN_PATH = "/";
 

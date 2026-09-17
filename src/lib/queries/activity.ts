@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import { endOfToday, startOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
 
@@ -12,6 +14,7 @@ export type RecentActivityItem = {
 };
 
 export async function getRecentActivity(limit = 8): Promise<RecentActivityItem[]> {
+  await requireAuthenticatedUser();
   const logs = await prisma.activityLog.findMany({
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -34,6 +37,7 @@ export async function getRecentActivity(limit = 8): Promise<RecentActivityItem[]
 }
 
 export async function getTodayInteractionCounts() {
+  await requireAuthenticatedUser();
   const range = { gte: startOfToday(), lte: endOfToday() };
 
   const [calls, meetings] = await Promise.all([

@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { OpportunityStage } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -128,7 +130,7 @@ export async function createOpportunity(
     revalidatePipeline(company.id);
     return { ok: true, data: { opportunityId: opportunity.id, companyId: company.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("opportunities", error);
     return { ok: false, message: userFacingDbError() };
   }
 }
@@ -238,7 +240,7 @@ export async function updateOpportunityStage(
     revalidatePipeline(existing.companyId);
     return { ok: true, data: { opportunityId: existing.id, companyId: existing.companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("opportunities", error);
     return { ok: false, message: userFacingDbError() };
   }
 }

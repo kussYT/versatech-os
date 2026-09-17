@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import { Prisma } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -134,7 +136,7 @@ export async function associateGitHubRepository(
       return { ok: false, message: "Ce repository est déjà associé à un projet." };
     }
 
-    console.error(error);
+    logServerError("repositories", error);
     return { ok: false, message: "Impossible d'associer le repository. Réessayez." };
   }
 }
@@ -198,7 +200,7 @@ export async function unlinkGitHubRepository(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("repositories", error);
     return { ok: false, message: "Impossible de retirer le repository. Réessayez." };
   }
 }

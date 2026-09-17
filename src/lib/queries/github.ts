@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import {
   fetchGitHubRepositoryActivity,
   isGitHubConfigured,
@@ -43,6 +45,7 @@ export type GitHubOverview = {
 export async function getGitHubProjectSnapshot(
   repositories: LinkedRepository[],
 ): Promise<GitHubProjectSnapshot> {
+  await requireAuthenticatedUser();
   const configured = isGitHubConfigured();
   const snapshots = await Promise.all(
     repositories.map((repository) => loadRepositorySnapshot(repository, configured)),
@@ -52,6 +55,7 @@ export async function getGitHubProjectSnapshot(
 }
 
 export async function getGitHubOverview(): Promise<GitHubOverview> {
+  await requireAuthenticatedUser();
   const configured = isGitHubConfigured();
   const repositories = await prisma.repository.findMany({
     where: { provider: "github" },

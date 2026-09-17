@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -151,7 +153,7 @@ export async function createPayment(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("payments", error);
     return { ok: false, message: "Impossible d'enregistrer le paiement. Réessayez." };
   }
 }
@@ -252,7 +254,7 @@ export async function updatePaymentStatus(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("payments", error);
     return { ok: false, message: "Impossible de mettre à jour le paiement. Réessayez." };
   }
 }

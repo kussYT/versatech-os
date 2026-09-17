@@ -1,15 +1,21 @@
 import { SignJWT, jwtVerify } from "jose";
+import {
+  SESSION_VERSION_CLAIM,
+  readSessionVersionClaim,
+} from "@/lib/auth/session-version";
 
 export type SessionTokenPayload = {
   sub: string;
+  sessionVersion: number;
 };
 
 export async function createSessionToken(
   userId: string,
+  sessionVersion: number,
   secret: string,
   ttlSeconds: number,
 ) {
-  return new SignJWT({ sub: userId })
+  return new SignJWT({ [SESSION_VERSION_CLAIM]: sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setIssuedAt()
@@ -34,7 +40,12 @@ export async function verifySessionToken(
       return null;
     }
 
-    return { sub: payload.sub };
+    const sessionVersion = readSessionVersionClaim(payload[SESSION_VERSION_CLAIM]);
+    if (sessionVersion === null) {
+      return null;
+    }
+
+    return { sub: payload.sub, sessionVersion };
   } catch {
     return null;
   }

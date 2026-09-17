@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { DocumentType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
@@ -62,6 +64,7 @@ function toDocumentRecord(
 }
 
 export async function listDocuments(): Promise<DocumentRecord[]> {
+  await requireAuthenticatedUser();
   const documents = await prisma.document.findMany({
     orderBy: [{ createdAt: "desc" }, { name: "asc" }],
     include: documentInclude,
@@ -71,6 +74,7 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
 }
 
 export async function listDocumentsForCompany(companyId: string): Promise<DocumentRecord[]> {
+  await requireAuthenticatedUser();
   const documents = await prisma.document.findMany({
     where: { companyId },
     orderBy: [{ createdAt: "desc" }, { name: "asc" }],
@@ -81,6 +85,7 @@ export async function listDocumentsForCompany(companyId: string): Promise<Docume
 }
 
 export async function listDocumentsForProject(projectId: string): Promise<DocumentRecord[]> {
+  await requireAuthenticatedUser();
   const documents = await prisma.document.findMany({
     where: { projectId },
     orderBy: [{ createdAt: "desc" }, { name: "asc" }],
@@ -91,6 +96,7 @@ export async function listDocumentsForProject(projectId: string): Promise<Docume
 }
 
 export async function listDocumentAssociationOptions(): Promise<DocumentAssociationOptions> {
+  await requireAuthenticatedUser();
   const [companies, projects] = await Promise.all([
     prisma.company.findMany({
       select: { id: true, name: true },

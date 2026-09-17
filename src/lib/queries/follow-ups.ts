@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { FollowUpStatus, InteractionType } from "@/generated/prisma/client";
 import { dueBucket } from "@/lib/dates";
 import { prisma } from "@/lib/db/prisma";
@@ -95,6 +97,7 @@ function bucketForPending(dueAt: Date): Exclude<FollowUpBucket, "completed"> {
 }
 
 export async function listFollowUpBoard(): Promise<FollowUpBoard> {
+  await requireAuthenticatedUser();
   const [pending, completed] = await Promise.all([
     loadFollowUps("PENDING"),
     loadFollowUps("COMPLETED", 40),
@@ -115,6 +118,7 @@ export async function listFollowUpBoard(): Promise<FollowUpBoard> {
 }
 
 export async function getFollowUpDashboard(limit = 4) {
+  await requireAuthenticatedUser();
   const board = await listFollowUpBoard();
   const dueCount = board.overdue.length + board.today.length;
   const preview = [...board.overdue, ...board.today, ...board.upcoming].slice(0, limit);

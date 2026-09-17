@@ -146,6 +146,7 @@ async function setAdminIdentity() {
         name,
         role: "ADMIN",
         passwordHash: await hashPassword(password),
+        sessionVersion: { increment: 1 },
       },
     });
 

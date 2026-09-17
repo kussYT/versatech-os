@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -143,7 +145,7 @@ export async function createDocument(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("documents", error);
     return { ok: false, message: "Impossible de créer la référence. Réessayez." };
   }
 }
@@ -234,7 +236,7 @@ export async function updateDocument(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("documents", error);
     return { ok: false, message: "Impossible de mettre à jour la référence. Réessayez." };
   }
 }

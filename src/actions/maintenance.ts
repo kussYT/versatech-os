@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { MaintenanceStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -125,7 +127,7 @@ export async function createMaintenanceContract(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("maintenance", error);
     return { ok: false, message: "Impossible de créer le contrat. Réessayez." };
   }
 }
@@ -227,7 +229,7 @@ export async function updateMaintenanceContract(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("maintenance", error);
     return { ok: false, message: "Impossible de mettre à jour le contrat. Réessayez." };
   }
 }
@@ -320,7 +322,7 @@ export async function updateMaintenanceStatus(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("maintenance", error);
     return { ok: false, message: "Impossible de changer le statut. Réessayez." };
   }
 }

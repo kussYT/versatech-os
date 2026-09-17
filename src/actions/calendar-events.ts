@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -120,7 +122,7 @@ export async function createCalendarEvent(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("calendar-events", error);
     return { ok: false, message: "Impossible de créer l'événement. Réessayez." };
   }
 }
@@ -208,7 +210,7 @@ export async function updateCalendarEvent(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("calendar-events", error);
     return { ok: false, message: "Impossible de modifier l'événement. Réessayez." };
   }
 }
