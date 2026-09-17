@@ -41,7 +41,7 @@ export function AppShell({ children, user }: AppShellProps) {
         <AppTopbar onOpenNav={() => setNavOpen(true)} />
         <main
           id="contenu"
-          className="px-3 py-5 sm:px-6 sm:py-6 pb-24 lg:pb-8"
+          className="px-3 py-5 sm:px-6 sm:py-6 pb-24 lg:pb-8 [&_button]:scroll-mb-28 [&_a]:scroll-mb-28"
         >
           {children}
         </main>

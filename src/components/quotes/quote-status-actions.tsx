@@ -35,7 +35,7 @@ export function QuoteStatusActions({ quoteId, status }: QuoteStatusActionsProps)
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 scroll-mb-28">
       {actions.map((action) => (
         <form key={action.to} action={formAction}>
           <input type="hidden" name="quoteId" value={quoteId} />

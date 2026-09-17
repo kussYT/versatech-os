@@ -277,6 +277,36 @@ describe("buildClientJourney — paiements", () => {
     assert.equal(acompte.date, null);
   });
 
+  it("deux PAID le même jour : l'acompte est le premier créé, pas le plus gros", () => {
+    const samePaidAt = fromParisDateTime(2026, 8, 12, 0, 0, 0, 0);
+    const journey = buildClientJourney(
+      {
+        ...empty(),
+        quotes: [accepted],
+        payments: [
+          payment({
+            id: "pay-balance",
+            amount: "1920.00",
+            status: "PAID",
+            paidAt: samePaidAt,
+            createdAt: fromParisDateTime(2026, 8, 12, 11, 0, 0, 0),
+          }),
+          payment({
+            id: "pay-deposit",
+            amount: "1280.00",
+            status: "PAID",
+            paidAt: samePaidAt,
+            createdAt: fromParisDateTime(2026, 8, 12, 10, 0, 0, 0),
+          }),
+        ],
+      },
+      { now: NOW },
+    );
+    const acompte = journey.steps.find((step) => step.key === "ACOMPTE");
+    assert.equal(acompte?.status, "COMPLETED");
+    assert.equal(acompte?.context, "1280.00 €");
+  });
+
   it("un encaissement TTC complet solde le devis (centimes, pas de float)", () => {
     const depositAt = fromParisDateTime(2026, 8, 12, 9, 0, 0, 0);
     const balanceAt = fromParisDateTime(2026, 9, 1, 9, 0, 0, 0);

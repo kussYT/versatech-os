@@ -9,6 +9,7 @@ import { MaintenanceStatusActions } from "@/components/maintenance/maintenance-s
 import { MaintenanceStatusBadge } from "@/components/maintenance/maintenance-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatMoney } from "@/lib/crm/form-data";
 import type {
   MaintenanceCompanyOption,
@@ -32,11 +33,31 @@ export function CompanyMaintenanceSection({
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<MaintenanceContractItem | null>(null);
 
-  if (contracts.length === 0) {
-    return null;
-  }
-
   const companies: MaintenanceCompanyOption[] = [{ id: companyId, name: companyName }];
+
+  if (contracts.length === 0) {
+    return (
+      <Card className="p-5">
+        <h2 className="text-section text-foreground">Maintenance</h2>
+        <EmptyState
+          title="Aucun contrat"
+          description="Un contrat de maintenance n'encaisse rien tout seul — créez-le quand le site est en ligne."
+          action={
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              Créer un contrat
+            </Button>
+          }
+        />
+        <CreateMaintenanceDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          companies={companies}
+          projects={projects}
+          defaultCompanyId={companyId}
+        />
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-5">

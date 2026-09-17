@@ -27,6 +27,7 @@ import { PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_STATUSES } from "@/lib/crm/co
 import { formatDate, formatDateTime, formatMoney } from "@/lib/crm/form-data";
 import type { GitHubProjectSnapshot } from "@/lib/queries/github";
 import type { PaymentFormOptions } from "@/lib/queries/payments";
+import { ACTIVITY_LABELS } from "@/lib/crm/activity-labels";
 import type { ProjectDetail } from "@/lib/queries/projects";
 import type { TaskStatus } from "@/generated/prisma/client";
 
@@ -34,22 +35,6 @@ type ProjectHubProps = {
   project: ProjectDetail;
   github: GitHubProjectSnapshot;
   paymentOptions: PaymentFormOptions;
-};
-
-const ACTIVITY_LABELS: Record<string, string> = {
-  "project.created": "Projet créé",
-  "project.status_changed": "Statut de projet modifié",
-  "task.created": "Tâche créée",
-  "task.status_changed": "Statut de tâche modifié",
-  "milestone.created": "Jalon créé",
-  "milestone.status_changed": "Statut de jalon modifié",
-  "repository.linked": "Repository GitHub associé",
-  "repository.unlinked": "Repository GitHub retiré",
-  "document.created": "Document ajouté",
-  "document.updated": "Document modifié",
-  "payment.created": "Paiement enregistré",
-  "payment.marked_paid": "Paiement encaissé",
-  "payment.status_changed": "Statut de paiement modifié",
 };
 
 export function ProjectHub({ project, github, paymentOptions }: ProjectHubProps) {

@@ -63,10 +63,7 @@ export function CompanyWebsiteSection({ model }: CompanyWebsiteSectionProps) {
               )}
             </WebsiteField>
             {model.goLive ? (
-              <WebsiteField label="Mise en ligne">
-                {formatDate(model.goLive.at)}
-                <span className="ml-1 text-meta text-faint">effective</span>
-              </WebsiteField>
+              <WebsiteField label="Mise en ligne">{formatDate(model.goLive.at)}</WebsiteField>
             ) : null}
             {model.maintenance ? (
               <WebsiteField label="Maintenance">

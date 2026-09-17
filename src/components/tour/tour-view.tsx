@@ -32,7 +32,9 @@ export function TourView({ tour, companies, addCompanyId }: TourViewProps) {
     }
     const formData = new FormData();
     formData.set("companyId", addCompanyId);
-    void addCompanyToTodayTourForm(formData).then(() => router.refresh());
+    void addCompanyToTodayTourForm(formData).then(() => {
+      router.replace("/tournee");
+    });
   }, [addCompanyId, router]);
 
   return (
@@ -46,7 +48,15 @@ export function TourView({ tour, companies, addCompanyId }: TourViewProps) {
           <Card className="p-4">
             <h2 className="text-section text-foreground">Ajouter une entreprise</h2>
             <form action={addCompanyToTodayTourForm} className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <select name="companyId" className={controlClassName} required>
+              <label className="sr-only" htmlFor="tour-add-company">
+                Entreprise à ajouter
+              </label>
+              <select
+                id="tour-add-company"
+                name="companyId"
+                className={controlClassName}
+                required
+              >
                 <option value="">Choisir…</option>
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>

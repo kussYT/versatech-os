@@ -347,7 +347,17 @@ function paymentsInContext(
 function paidPayments(payments: readonly ClientJourneyPayment[]) {
   return payments
     .filter((payment) => payment.status === "PAID")
-    .sort((left, right) => time(left.paidAt ?? left.createdAt) - time(right.paidAt ?? right.createdAt));
+    .sort((left, right) => {
+      const byPaidAt = time(left.paidAt ?? left.createdAt) - time(right.paidAt ?? right.createdAt);
+      if (byPaidAt !== 0) {
+        return byPaidAt;
+      }
+      const byCreated = time(left.createdAt) - time(right.createdAt);
+      if (byCreated !== 0) {
+        return byCreated;
+      }
+      return left.id.localeCompare(right.id);
+    });
 }
 
 function contractsInContext(

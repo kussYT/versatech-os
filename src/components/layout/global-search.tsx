@@ -162,8 +162,10 @@ export function GlobalSearch({ triggerClassName }: GlobalSearchProps) {
   }
 
   const tooShort = query.trim().length > 0 && !isSearchableQuery(query);
+  const waitingForResults =
+    isSearchableQuery(query) && fetched.query !== normalizeSearchQuery(query);
   const noResults =
-    isSearchableQuery(query) && !pending && results.total === 0;
+    isSearchableQuery(query) && !pending && !waitingForResults && results.total === 0;
 
   return (
     <>
