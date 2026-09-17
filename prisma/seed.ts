@@ -23,6 +23,7 @@ import {
 } from "../src/generated/prisma/client";
 import { getDatabaseUrl } from "../src/lib/db/env";
 import { hashPassword } from "../src/lib/auth/password";
+import { assertDestructiveSeedAllowed } from "../src/lib/db/seed-guard";
 
 const adapter = new PrismaPg({ connectionString: getDatabaseUrl() });
 const prisma = new PrismaClient({ adapter });
@@ -48,9 +49,7 @@ async function resetDevelopmentData() {
 }
 
 async function seed() {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Refusing to run the development seed in production.");
-  }
+  assertDestructiveSeedAllowed();
 
   await resetDevelopmentData();
 
