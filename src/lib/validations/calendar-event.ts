@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CALENDAR_EVENT_TYPES } from "@/lib/crm/constants";
 import { emptyToNull, parseDate, parseDateTimeLocal } from "@/lib/crm/form-data";
+import { endOfParisDay, startOfParisDay } from "@/lib/dates";
 import { fieldErrorsFromZod } from "@/lib/validations/company";
 
 const optionalId = z.string().transform((value) => emptyToNull(value));
@@ -25,8 +26,7 @@ function parseBounds(allDay: boolean, startsAt: string, endsAt: string) {
   }
 
   if (allDay) {
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    return { start: startOfParisDay(start), end: endOfParisDay(end) };
   }
 
   return { start, end };

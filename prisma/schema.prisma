@@ -22,6 +22,12 @@ enum CompanyLifecycle {
   LOST
 }
 
+enum GeocodeStatus {
+  OK
+  FAILED
+  MANUAL
+}
+
 enum OpportunityStage {
   TO_QUALIFY
   TO_CONTACT
@@ -140,17 +146,20 @@ enum MilestoneStatus {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      UserRole @default(ADMIN)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  /// scrypt hash (`scrypt$N$r$p$salt$hash`). Never store plaintext passwords.
+  passwordHash String?
+  role         UserRole @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   createdInteractions Interaction[]              @relation("InteractionCreatedBy")
   assignedTasks       Task[]                     @relation("TaskAssignee")
   stageChanges        OpportunityStageHistory[]  @relation("StageChangedBy")
   activityLogs        ActivityLog[]              @relation("ActivityLogActor")
+  tours               Tour[]                     @relation("TourCreatedBy")
 }
 
 model Company {
@@ -165,10 +174,17 @@ model Company {
   city                String?
   postalCode          String?
   country             String?          @default("FR")
+  latitude            Float?
+  longitude           Float?
+  geocodedAddress     String?
+  geocodedAt          DateTime?
+  geocodeStatus       GeocodeStatus?
   source              String?
   qualificationScore  Int?
   priority            Priority         @default(NORMAL)
   description         String?
+  /// Grouped commercial brief (digital presence, strengths, opportunities, proposal, angle).
+  commercialBrief     Json?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
@@ -183,6 +199,7 @@ model Company {
   documents             Document[]
   payments              Payment[]
   maintenanceContracts  MaintenanceContract[]
+  tourStops             TourStop[]
 
   @@index([name])
   @@index([lifecycleStatus])
@@ -493,4 +510,36 @@ model ActivityLog {
   actor User? @relation("ActivityLogActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
+}
+
+/// Daily field tour. `date` is the Europe/Paris civil day stored as start-of-day instant.
+model Tour {
+  id          String   @id @default(cuid())
+  date        DateTime
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?      @relation("TourCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  stops     TourStop[]
+
+  @@unique([date])
+  @@index([date])
+}
+
+model TourStop {
+  id        String    @id @default(cuid())
+  tourId    String
+  companyId String
+  order     Int
+  visitedAt DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tour    Tour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([tourId, companyId])
+  @@index([tourId, order])
 }

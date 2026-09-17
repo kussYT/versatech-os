@@ -7,6 +7,7 @@ import { CreateMilestoneDialog } from "@/components/projects/create-milestone-di
 import { CreateTaskDialog } from "@/components/projects/create-task-dialog";
 import { MilestoneStatusActions } from "@/components/projects/milestone-status-actions";
 import { DocumentSection } from "@/components/documents/document-section";
+import { FinanceSection } from "@/components/finances/finance-section";
 import { ProjectGithubSection } from "@/components/projects/project-github-section";
 import { ProjectStatusActions } from "@/components/projects/project-status-actions";
 import { ProjectProgress } from "@/components/projects/project-progress";
@@ -25,28 +26,18 @@ import type { ReactNode } from "react";
 import { PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_STATUSES } from "@/lib/crm/constants";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/crm/form-data";
 import type { GitHubProjectSnapshot } from "@/lib/queries/github";
+import type { PaymentFormOptions } from "@/lib/queries/payments";
+import { ACTIVITY_LABELS } from "@/lib/crm/activity-labels";
 import type { ProjectDetail } from "@/lib/queries/projects";
 import type { TaskStatus } from "@/generated/prisma/client";
 
 type ProjectHubProps = {
   project: ProjectDetail;
   github: GitHubProjectSnapshot;
+  paymentOptions: PaymentFormOptions;
 };
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  "project.created": "Projet créé",
-  "project.status_changed": "Statut de projet modifié",
-  "task.created": "Tâche créée",
-  "task.status_changed": "Statut de tâche modifié",
-  "milestone.created": "Jalon créé",
-  "milestone.status_changed": "Statut de jalon modifié",
-  "repository.linked": "Repository GitHub associé",
-  "repository.unlinked": "Repository GitHub retiré",
-  "document.created": "Document ajouté",
-  "document.updated": "Document modifié",
-};
-
-export function ProjectHub({ project, github }: ProjectHubProps) {
+export function ProjectHub({ project, github, paymentOptions }: ProjectHubProps) {
   const [taskOpen, setTaskOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
   const openTasks = project.tasks.filter(
@@ -93,7 +84,7 @@ export function ProjectHub({ project, github }: ProjectHubProps) {
 
       <Card className="p-5">
         <h2 className="text-section text-foreground">Vue d&apos;ensemble</h2>
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <InfoItem label="Progression">
             <ProjectProgress value={project.progress} />
           </InfoItem>
@@ -104,6 +95,8 @@ export function ProjectHub({ project, github }: ProjectHubProps) {
           <InfoItem label="Montant">
             {project.amount ? formatMoney(project.amount) : "—"}
           </InfoItem>
+          <InfoItem label="CA signé">{formatMoney(project.finance.signed)}</InfoItem>
+          <InfoItem label="Encaissé">{formatMoney(project.finance.collected)}</InfoItem>
         </dl>
         {project.description ? (
           <p className="mt-4 whitespace-pre-wrap border-t border-border pt-4 text-body text-muted">
@@ -196,6 +189,15 @@ export function ProjectHub({ project, github }: ProjectHubProps) {
         ]}
         defaultCompanyId={project.company.id}
         defaultProjectId={project.id}
+      />
+
+      <FinanceSection
+        totals={project.finance}
+        payments={project.payments}
+        options={paymentOptions}
+        defaultCompanyId={project.company.id}
+        defaultProjectId={project.id}
+        hideCompany
       />
 
       <Card className="p-5">

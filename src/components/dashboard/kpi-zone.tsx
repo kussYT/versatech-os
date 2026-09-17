@@ -11,8 +11,12 @@ import { formatMoney } from "@/lib/crm/form-data";
 
 type KpiZoneProps = {
   pipelineBrut: number;
+  pipelineWeighted: number;
   dueFollowUps: number;
   signedRevenue: string;
+  collectedRevenue: string;
+  remainingRevenue: string;
+  overduePayments: number;
   openTasks: number;
   callsToday: number;
   meetingsToday: number;
@@ -20,8 +24,12 @@ type KpiZoneProps = {
 
 export function KpiZone({
   pipelineBrut,
+  pipelineWeighted,
   dueFollowUps,
   signedRevenue,
+  collectedRevenue,
+  remainingRevenue,
+  overduePayments,
   openTasks,
   callsToday,
   meetingsToday,
@@ -52,7 +60,7 @@ export function KpiZone({
     {
       label: "Pipeline",
       icon: Kanban,
-      hint: "Pipeline brut",
+      hint: `Pondéré ${formatMoney(pipelineWeighted)}`,
       value: formatMoney(pipelineBrut),
       premium: true,
       tone: "prism" as const,
@@ -60,7 +68,10 @@ export function KpiZone({
     {
       label: "CA signé",
       icon: Euro,
-      hint: "Devis acceptés",
+      hint:
+        overduePayments > 0
+          ? `Encaissé ${formatMoney(collectedRevenue)} · ${overduePayments} en retard`
+          : `Encaissé ${formatMoney(collectedRevenue)} · restant ${formatMoney(remainingRevenue)}`,
       value: formatMoney(signedRevenue),
       premium: true,
       tone: "gold" as const,

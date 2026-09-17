@@ -1,18 +1,10 @@
 import { PageHeader } from "@/components/layout/page-header";
+import { formatLongDate } from "@/lib/dates";
 
 export function TodayHeader() {
-  const now = new Date();
-  const dateLabel = new Intl.DateTimeFormat("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Paris",
-  }).format(now);
-
   return (
     <PageHeader
-      meta={dateLabel}
+      meta={formatLongDate()}
       title="Aujourd'hui"
       description="Les priorités du jour apparaîtront ici."
     />

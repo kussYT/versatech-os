@@ -4,14 +4,17 @@ import type {
   MilestoneStatus,
   Priority,
   ProjectStatus,
+  QuoteStatus,
   TaskStatus,
 } from "@/generated/prisma/client";
 import { OPEN_TASK_STATUSES, projectProgress } from "@/lib/crm/constants";
+import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
 import { prisma } from "@/lib/db/prisma";
 import {
   listDocumentsForProject,
   type DocumentRecord,
 } from "@/lib/queries/documents";
+import type { PaymentListItem } from "@/lib/queries/payments";
 
 export type ProjectListItem = {
   id: string;
@@ -65,6 +68,14 @@ export type ProjectDetail = {
     url: string;
     defaultBranch: string;
   }[];
+  quotes: {
+    id: string;
+    reference: string;
+    status: QuoteStatus;
+    amountIncTax: string;
+  }[];
+  payments: PaymentListItem[];
+  finance: FinanceTotals;
   documents: DocumentRecord[];
 };
 
@@ -152,6 +163,17 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
         tasks: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
         milestones: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
         repositories: { orderBy: [{ createdAt: "asc" }] },
+        quotes: {
+          orderBy: { createdAt: "desc" },
+          select: { id: true, reference: true, status: true, amountIncTax: true },
+        },
+        payments: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            quote: { select: { id: true, reference: true, status: true } },
+            project: { select: { id: true, name: true } },
+          },
+        },
       },
     }),
     listDocumentsForProject(id),
@@ -177,6 +199,10 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
         {
           entityType: "Document",
           entityId: { in: documents.map((document) => document.id) },
+        },
+        {
+          entityType: "Payment",
+          entityId: { in: project.payments.map((payment) => payment.id) },
         },
       ],
     },
@@ -223,6 +249,36 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
         url: repository.url,
         defaultBranch: repository.defaultBranch,
       })),
+    quotes: project.quotes.map((quote) => ({
+      id: quote.id,
+      reference: quote.reference,
+      status: quote.status,
+      amountIncTax: quote.amountIncTax.toString(),
+    })),
+    payments: project.payments.map((payment) => ({
+      id: payment.id,
+      label: payment.label,
+      amount: payment.amount.toString(),
+      status: payment.status,
+      effectiveStatus: effectivePaymentStatus(payment.status, payment.dueAt),
+      dueAt: payment.dueAt?.toISOString() ?? null,
+      paidAt: payment.paidAt?.toISOString() ?? null,
+      externalReference: payment.externalReference,
+      createdAt: payment.createdAt.toISOString(),
+      company: project.company,
+      quote: payment.quote,
+      project: payment.project,
+    })),
+    finance: computeFinanceTotals(
+      project.quotes
+        .filter((quote) => quote.status === "ACCEPTED")
+        .map((quote) => quote.amountIncTax.toString()),
+      project.payments.map((payment) => ({
+        amount: payment.amount.toString(),
+        status: payment.status,
+        dueAt: payment.dueAt,
+      })),
+    ),
     documents,
   };
 }

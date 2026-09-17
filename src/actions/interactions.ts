@@ -1,9 +1,11 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
+import { lifecycleAfterInteraction } from "@/lib/crm/lifecycle";
+import { applyCompanyLifecycleChange } from "@/lib/crm/lifecycle-db";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import { fieldErrorsFromZod } from "@/lib/validations/company";
@@ -13,6 +15,11 @@ export async function createInteraction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createInteractionSchema.safeParse({
     companyId: readString(formData, "companyId"),
     type: readString(formData, "type"),
@@ -41,13 +48,7 @@ export async function createInteraction(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const actor = await getActorUser();
-    const shouldMarkContacted =
-      company.lifecycleStatus === "LEAD" &&
-      (input.type === "CALL" ||
-        input.type === "EMAIL" ||
-        input.type === "MEETING" ||
-        input.type === "MESSAGE");
+    const nextLifecycle = lifecycleAfterInteraction(company.lifecycleStatus, input.type);
 
     const openOpportunity = await prisma.opportunity.findFirst({
       where: {
@@ -72,12 +73,14 @@ export async function createInteraction(
         },
       });
 
-      if (shouldMarkContacted) {
-        await tx.company.update({
-          where: { id: company.id },
-          data: { lifecycleStatus: "CONTACTED" },
-        });
-      }
+      await applyCompanyLifecycleChange(tx, {
+        companyId: company.id,
+        from: company.lifecycleStatus,
+        to: nextLifecycle,
+        actorId: actor.id,
+        reason: "interaction.created",
+        metadata: { type: created.type },
+      });
 
       await tx.activityLog.create({
         data: {

@@ -1,8 +1,10 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
+import { validateManualLifecycle } from "@/lib/crm/lifecycle";
+import { countCompanyLifecycleFacts } from "@/lib/crm/lifecycle-db";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -19,10 +21,17 @@ export async function createCompany(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createCompanySchema.safeParse({
     name: readString(formData, "name"),
     industry: readString(formData, "industry"),
+    address: readString(formData, "address"),
     city: readString(formData, "city"),
+    postalCode: readString(formData, "postalCode"),
     phone: readString(formData, "phone"),
     email: readString(formData, "email"),
     website: readString(formData, "website"),
@@ -44,14 +53,15 @@ export async function createCompany(
   const input = parsed.data;
 
   try {
-    const actor = await getActorUser();
     const company = await prisma.$transaction(async (tx) => {
       const created = await tx.company.create({
         data: {
           name: input.name,
           lifecycleStatus: "LEAD",
           industry: input.industry,
+          address: input.address,
           city: input.city,
+          postalCode: input.postalCode,
           phone: input.phone,
           email: input.email,
           website: input.website,
@@ -99,11 +109,18 @@ export async function updateCompany(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateCompanySchema.safeParse({
     id: readString(formData, "id"),
     name: readString(formData, "name"),
     industry: readString(formData, "industry"),
+    address: readString(formData, "address"),
     city: readString(formData, "city"),
+    postalCode: readString(formData, "postalCode"),
     phone: readString(formData, "phone"),
     email: readString(formData, "email"),
     website: readString(formData, "website"),
@@ -143,8 +160,21 @@ export async function updateCompany(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const actor = await getActorUser();
     const primaryContact = existing.contacts[0] ?? null;
+    const facts = await countCompanyLifecycleFacts(
+      prisma,
+      existing.id,
+      existing.lifecycleStatus,
+    );
+    const lifecycleCheck = validateManualLifecycle(input.lifecycleStatus, facts);
+
+    if (!lifecycleCheck.ok) {
+      return {
+        ok: false,
+        message: lifecycleCheck.message,
+        fieldErrors: { lifecycleStatus: [lifecycleCheck.message] },
+      };
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.company.update({
@@ -152,7 +182,9 @@ export async function updateCompany(
         data: {
           name: input.name,
           industry: input.industry,
+          address: input.address,
           city: input.city,
+          postalCode: input.postalCode,
           phone: input.phone,
           email: input.email,
           website: input.website,
@@ -162,6 +194,22 @@ export async function updateCompany(
           priority: input.priority,
         },
       });
+
+      if (input.lifecycleStatus !== existing.lifecycleStatus) {
+        await tx.activityLog.create({
+          data: {
+            actorId: actor.id,
+            entityType: "Company",
+            entityId: existing.id,
+            action: "company.lifecycle_changed",
+            metadata: {
+              from: existing.lifecycleStatus,
+              to: input.lifecycleStatus,
+              reason: "company.updated",
+            },
+          },
+        });
+      }
 
       if (input.contactFirstName && input.contactLastName) {
         if (primaryContact) {

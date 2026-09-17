@@ -6,13 +6,15 @@ import { PipelinePreview } from "@/components/dashboard/pipeline-preview";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { TasksPanel } from "@/components/dashboard/tasks-panel";
 import { TodayHeader } from "@/components/dashboard/today-header";
+import { TodayTourPanel } from "@/components/dashboard/today-tour-panel";
 import { getTodayAgenda } from "@/lib/queries/calendar";
 import { getRecentActivity, getTodayInteractionCounts } from "@/lib/queries/activity";
 import { listCompaniesToCall } from "@/lib/queries/companies";
 import { getFollowUpDashboard } from "@/lib/queries/follow-ups";
 import { getPipelineOverview } from "@/lib/queries/opportunities";
 import { getTaskDashboard } from "@/lib/queries/projects";
-import { getSignedRevenue } from "@/lib/queries/quotes";
+import { getFinanceSnapshot } from "@/lib/queries/payments";
+import { getTourDashboard } from "@/lib/queries/tours";
 
 export const dynamic = "force-dynamic";
 
@@ -24,30 +26,37 @@ export default async function TodayPage() {
   const [
     pipelineOverview,
     followUps,
-    signedRevenue,
+    finance,
     taskDashboard,
     agenda,
     calls,
     interactionCounts,
     recentActivity,
+    tourDashboard,
   ] = await Promise.all([
     getPipelineOverview(),
     getFollowUpDashboard(),
-    getSignedRevenue(),
+    getFinanceSnapshot(),
     getTaskDashboard(),
     getTodayAgenda(),
     listCompaniesToCall(),
     getTodayInteractionCounts(),
     getRecentActivity(),
+    getTourDashboard(),
   ]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5">
       <TodayHeader />
+      <TodayTourPanel dashboard={tourDashboard} />
       <KpiZone
         pipelineBrut={pipelineOverview.brutTotal}
+        pipelineWeighted={pipelineOverview.weightedTotal}
         dueFollowUps={followUps.dueCount}
-        signedRevenue={signedRevenue}
+        signedRevenue={finance.signed}
+        collectedRevenue={finance.collected}
+        remainingRevenue={finance.remaining}
+        overduePayments={finance.overdueCount}
         openTasks={taskDashboard.openCount}
         callsToday={interactionCounts.calls}
         meetingsToday={interactionCounts.meetings}

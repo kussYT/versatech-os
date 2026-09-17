@@ -15,6 +15,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
+import { ClientJourneySection } from "@/components/crm/client-journey";
+import { CommercialBriefSection } from "@/components/crm/commercial-brief-section";
+import { CompanyWebsiteSection } from "@/components/crm/company-website-section";
+import { TerrainBar } from "@/components/crm/terrain-bar";
 import { CreateOpportunityDialog } from "@/components/crm/create-opportunity-dialog";
 import { EditCompanyDialog } from "@/components/crm/edit-company-dialog";
 import { FollowUpDialog } from "@/components/crm/follow-up-dialog";
@@ -26,6 +30,8 @@ import { DocumentSection } from "@/components/documents/document-section";
 import { CreateQuoteDialog } from "@/components/quotes/create-quote-dialog";
 import { QuoteStatusActions } from "@/components/quotes/quote-status-actions";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
+import { FinanceSection } from "@/components/finances/finance-section";
+import { CompanyMaintenanceSection } from "@/components/maintenance/company-maintenance-section";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -40,13 +46,17 @@ import {
   INTERACTION_TYPE_LABELS,
 } from "@/lib/crm/labels";
 import type { CompanyDetail } from "@/lib/queries/companies";
+import type { PaymentFormOptions } from "@/lib/queries/payments";
 import type { InteractionType } from "@/generated/prisma/client";
+import { parseCommercialBrief } from "@/lib/prospection/brief";
+import { isTerrainVisit } from "@/lib/prospection/visit";
 
 type CompanyHubProps = {
   company: CompanyDetail;
+  paymentOptions: PaymentFormOptions;
 };
 
-export function CompanyHub({ company }: CompanyHubProps) {
+export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -55,9 +65,23 @@ export function CompanyHub({ company }: CompanyHubProps) {
   const [projectOpen, setProjectOpen] = useState(false);
   const isClient = company.lifecycleStatus === "CLIENT";
   const location = [company.city, company.postalCode].filter(Boolean).join(" ");
+  const brief = parseCommercialBrief(company.commercialBrief);
 
   return (
     <div className="space-y-6">
+      <TerrainBar
+        company={company}
+        brief={brief}
+        onCall={() => {
+          if (company.phone) {
+            window.location.href = `tel:${company.phone}`;
+          }
+          setInteractionOpen(true);
+        }}
+        onInteraction={() => setInteractionOpen(true)}
+        onFollowUp={() => setFollowUpOpen(true)}
+        onOpportunity={() => setOpportunityOpen(true)}
+      />
       <PageHeader
         meta="Fiche entreprise"
         title={company.name}
@@ -130,6 +154,18 @@ export function CompanyHub({ company }: CompanyHubProps) {
         </Card>
       </div>
 
+      <ClientJourneySection journey={company.journey} />
+
+      <CompanyWebsiteSection model={company.websiteStatus} />
+
+      <CommercialBriefSection
+        companyId={company.id}
+        industry={company.industry}
+        description={company.description}
+        website={company.website}
+        brief={brief}
+      />
+
       <Card className="p-5">
         <h2 className="text-section text-foreground">Timeline</h2>
         {company.interactions.length === 0 ? (
@@ -156,12 +192,14 @@ export function CompanyHub({ company }: CompanyHubProps) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="text-body font-medium text-foreground">
-                        {interactionLabel(interaction.type)}
+                        {isTerrainVisit(interaction)
+                          ? "Visite terrain"
+                          : interactionLabel(interaction.type)}
                       </p>
                       <span className="text-meta text-muted">
                         {INTERACTION_DIRECTION_LABELS[interaction.direction]}
                       </span>
-                      {interaction.result ? (
+                      {interaction.result && !isTerrainVisit(interaction) ? (
                         <span className="text-meta text-muted">
                           · {INTERACTION_RESULT_LABELS[interaction.result]}
                         </span>
@@ -260,6 +298,18 @@ export function CompanyHub({ company }: CompanyHubProps) {
         )}
       </Card>
 
+      {company.lifecycleStatus === "CLIENT" ||
+      company.quotes.some((quote) => quote.status === "ACCEPTED") ||
+      company.payments.length > 0 ? (
+        <FinanceSection
+          totals={company.finance}
+          payments={company.payments}
+          options={paymentOptions}
+          defaultCompanyId={company.id}
+          hideCompany
+        />
+      ) : null}
+
       {isClient ? (
         <Card className="p-5">
           <div className="flex items-start justify-between gap-3">
@@ -305,6 +355,17 @@ export function CompanyHub({ company }: CompanyHubProps) {
           )}
         </Card>
       ) : null}
+
+      <CompanyMaintenanceSection
+        companyId={company.id}
+        companyName={company.name}
+        contracts={company.maintenanceContracts}
+        projects={company.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          companyId: company.id,
+        }))}
+      />
 
       <DocumentSection
         documents={company.documents}

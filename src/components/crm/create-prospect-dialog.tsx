@@ -24,7 +24,7 @@ export function CreateProspectDialog({
       open={open}
       onClose={onClose}
       title="Nouveau prospect"
-      description="Le statut initial sera Lead. Les champs hors nom sont facultatifs."
+      description="Nom et adresse sont obligatoires. Le reste se complète ensuite. Statut initial : Lead."
     >
       {open ? (
         <CreateProspectForm onClose={onClose} onCreated={onCreated} />
@@ -82,6 +82,18 @@ function CreateProspectForm({
         />
       </Field>
 
+      <Field label="Adresse" htmlFor="prospect-address" error={firstError("address")}>
+        <input
+          id="prospect-address"
+          name="address"
+          required
+          autoComplete="street-address"
+          disabled={pending}
+          aria-invalid={Boolean(firstError("address"))}
+          className={controlClassName}
+        />
+      </Field>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Secteur" htmlFor="prospect-industry" error={firstError("industry")}>
           <input id="prospect-industry" name="industry" disabled={pending} className={controlClassName} />
@@ -90,6 +102,10 @@ function CreateProspectForm({
           <input id="prospect-city" name="city" disabled={pending} className={controlClassName} />
         </Field>
       </div>
+
+      <Field label="Code postal" htmlFor="prospect-postal" error={firstError("postalCode")}>
+        <input id="prospect-postal" name="postalCode" disabled={pending} className={controlClassName} />
+      </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Téléphone" htmlFor="prospect-phone" error={firstError("phone")}>

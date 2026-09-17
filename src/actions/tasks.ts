@@ -2,7 +2,7 @@
 
 import type { TaskStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateProjects } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -23,6 +23,11 @@ export async function createTask(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createTaskSchema.safeParse({
     projectId: readString(formData, "projectId"),
     title: readString(formData, "title"),
@@ -49,8 +54,6 @@ export async function createTask(
     if (!project) {
       return { ok: false, message: "Projet introuvable." };
     }
-
-    const actor = await getActorUser();
 
     const task = await prisma.$transaction(async (tx) => {
       const created = await tx.task.create({
@@ -92,6 +95,11 @@ export async function updateTaskStatus(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateTaskStatusSchema.safeParse({
     taskId: readString(formData, "taskId"),
     status: readString(formData, "status"),
@@ -130,8 +138,6 @@ export async function updateTaskStatus(
     if (!ALLOWED_TASK_TRANSITIONS[existing.status].includes(input.status)) {
       return { ok: false, message: "Cette transition n'est pas autorisée." };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.task.update({

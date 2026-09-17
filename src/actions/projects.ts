@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/crm/action-result";
-import { getActorUser } from "@/lib/crm/actor";
+import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateProjects } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
@@ -16,6 +16,11 @@ export async function createProject(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = createProjectSchema.safeParse({
     companyId: readString(formData, "companyId"),
     name: readString(formData, "name"),
@@ -61,8 +66,6 @@ export async function createProject(
     if (quote?.projectId) {
       return { ok: false, message: "Ce devis est déjà associé à un projet." };
     }
-
-    const actor = await getActorUser();
 
     const project = await prisma.$transaction(async (tx) => {
       const created = await tx.project.create({
@@ -122,6 +125,11 @@ export async function updateProjectStatus(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
   const parsed = updateProjectStatusSchema.safeParse({
     projectId: readString(formData, "projectId"),
     status: readString(formData, "status"),
@@ -156,8 +164,6 @@ export async function updateProjectStatus(
     if (!ALLOWED_PROJECT_TRANSITIONS[existing.status].includes(input.status)) {
       return { ok: false, message: "Cette transition n'est pas autorisée." };
     }
-
-    const actor = await getActorUser();
 
     await prisma.$transaction(async (tx) => {
       await tx.project.update({

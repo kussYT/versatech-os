@@ -63,8 +63,13 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         {estimated > 0 ? (
           <p className="mt-2 font-sans text-body font-semibold tabular-nums text-foreground">
             {formatMoney(opportunity.estimatedValue)}
+            <span className="ml-2 text-meta font-medium text-muted">
+              {opportunity.probability} %
+            </span>
           </p>
-        ) : null}
+        ) : (
+          <p className="mt-2 text-meta text-muted">{opportunity.probability} %</p>
+        )}
         {opportunity.nextFollowUp ? (
           <p className="mt-2 text-meta text-muted">
             Relance · {formatDateTime(opportunity.nextFollowUp.dueAt)}
