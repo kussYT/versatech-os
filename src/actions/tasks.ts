@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { TaskStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -86,7 +88,7 @@ export async function createTask(
     revalidateProjects(project.companyId, project.id);
     return { ok: true, data: { taskId: task.id, projectId: project.id, companyId: project.companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("tasks", error);
     return { ok: false, message: "Impossible de créer la tâche. Réessayez." };
   }
 }
@@ -173,7 +175,7 @@ export async function updateTaskStatus(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("tasks", error);
     return { ok: false, message: "Impossible de mettre à jour la tâche. Réessayez." };
   }
 }

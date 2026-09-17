@@ -27,7 +27,10 @@ async function setDevPassword() {
     const passwordHash = await hashPassword(password);
     const result = await prisma.user.updateMany({
       where: { email },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        sessionVersion: { increment: 1 },
+      },
     });
 
     if (result.count === 0) {

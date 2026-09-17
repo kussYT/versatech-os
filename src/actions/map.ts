@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -8,6 +10,7 @@ import { prisma } from "@/lib/db/prisma";
 import {
   geocodeQueryForCompany,
   isNominatimConfigured,
+  nominatimRequestInit,
   nominatimSearchUrl,
   parseNominatimHit,
   shouldSkipGeocode,
@@ -53,13 +56,10 @@ export async function geocodeCompany(
       return { ok: true, data: { companyId } };
     }
 
-    const response = await fetch(nominatimSearchUrl(query), {
-      headers: {
-        "User-Agent": process.env.NOMINATIM_USER_AGENT!.trim(),
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
+    const response = await fetch(
+      nominatimSearchUrl(query),
+      nominatimRequestInit(process.env.NOMINATIM_USER_AGENT!.trim()),
+    );
 
     if (!response.ok) {
       await prisma.company.update({
@@ -103,7 +103,7 @@ export async function geocodeCompany(
     revalidateMap(company.id);
     return { ok: true, data: { companyId: company.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("map", error);
     return { ok: false, message: "Impossible de géocoder cette adresse." };
   }
 }
@@ -164,7 +164,7 @@ export async function saveCompanyLocation(
     revalidateMap(company.id);
     return { ok: true, data: { companyId: company.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("map", error);
     return { ok: false, message: "Impossible d'enregistrer la localisation." };
   }
 }

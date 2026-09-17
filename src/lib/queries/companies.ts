@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type {
   CompanyLifecycle,
   FollowUpStatus,
@@ -208,6 +210,7 @@ function toListItem(
 }
 
 export async function listProspectCompanies() {
+  await requireAuthenticatedUser();
   const companies = await prisma.company.findMany({
     where: { lifecycleStatus: { in: [...PROSPECT_LIFECYCLES] } },
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
@@ -218,6 +221,7 @@ export async function listProspectCompanies() {
 }
 
 export async function listCompaniesToCall(limit = 5) {
+  await requireAuthenticatedUser();
   const companies = await prisma.company.findMany({
     where: { lifecycleStatus: "LEAD" },
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
@@ -229,6 +233,7 @@ export async function listCompaniesToCall(limit = 5) {
 }
 
 export async function listAllCompanies() {
+  await requireAuthenticatedUser();
   const companies = await prisma.company.findMany({
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
     include: listInclude,
@@ -238,6 +243,7 @@ export async function listAllCompanies() {
 }
 
 export async function getProspectionSummary() {
+  await requireAuthenticatedUser();
   const dueLimit = endOfToday();
 
   const [active, toContact, dueFollowUps] = await Promise.all([
@@ -260,6 +266,7 @@ export async function getProspectionSummary() {
 }
 
 export async function getCompanyDetail(id: string): Promise<CompanyDetail | null> {
+  await requireAuthenticatedUser();
   const [company, documents, maintenanceContracts] = await Promise.all([
     prisma.company.findUnique({
       where: { id },

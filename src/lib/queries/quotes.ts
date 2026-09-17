@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { QuoteStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
@@ -38,6 +40,7 @@ function relevantAt(quote: {
 }
 
 export async function listQuotes(): Promise<QuoteListItem[]> {
+  await requireAuthenticatedUser();
   const quotes = await prisma.quote.findMany({
     orderBy: [{ createdAt: "desc" }, { reference: "asc" }],
     include: {
@@ -61,6 +64,7 @@ export async function listQuotes(): Promise<QuoteListItem[]> {
 }
 
 export async function getSignedRevenue() {
+  await requireAuthenticatedUser();
   const result = await prisma.quote.aggregate({
     where: { status: "ACCEPTED" },
     _sum: { amountIncTax: true },

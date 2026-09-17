@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import { recordTerrainVisit } from "@/actions/visit";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -45,7 +47,7 @@ export async function ensureTodayTour(): Promise<ActionResult> {
     revalidateTour();
     return { ok: true, data: { tourId: tour.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("tours", error);
     return { ok: false, message: "Impossible de créer la tournée du jour." };
   }
 }
@@ -117,7 +119,7 @@ export async function addCompanyToTodayTour(
     revalidateTour(companyId);
     return { ok: true, data: { companyId, name: result.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("tours", error);
     return { ok: false, message: "Impossible d'ajouter cette entreprise." };
   }
 }
@@ -174,7 +176,7 @@ export async function removeCompanyFromTodayTour(
     revalidateTour(companyId);
     return { ok: true, data: { companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("tours", error);
     return { ok: false, message: "Impossible de retirer cette entreprise." };
   }
 }
@@ -222,7 +224,7 @@ export async function moveTourStop(
     revalidateTour(companyId);
     return { ok: true, data: { companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("tours", error);
     return { ok: false, message: "Impossible de réordonner la tournée." };
   }
 }
@@ -267,7 +269,7 @@ export async function markTourStopVisited(
     revalidateTour(companyId);
     return interaction;
   } catch (error) {
-    console.error(error);
+    logServerError("tours", error);
     return { ok: false, message: "Visite enregistrée mais la tournée n'a pas pu être mise à jour." };
   }
 }

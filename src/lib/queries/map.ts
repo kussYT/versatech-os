@@ -1,10 +1,13 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { CompanyLifecycle } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { MapCompany } from "@/lib/prospection/map-model";
 
 export async function listMapCompanies(): Promise<MapCompany[]> {
+  await requireAuthenticatedUser();
   const companies = await prisma.company.findMany({
     orderBy: [{ name: "asc" }],
     select: {

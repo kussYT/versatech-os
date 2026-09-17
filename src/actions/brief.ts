@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -69,7 +71,7 @@ export async function updateCommercialBrief(
     revalidateCrm(companyId);
     return { ok: true, data: { companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("brief", error);
     return { ok: false, message: "Impossible d'enregistrer le brief. Réessayez." };
   }
 }

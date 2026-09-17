@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isNominatimConfigured, parseNominatimHit, shouldSkipGeocode } from "./geocode";
+import {
+  NOMINATIM_TIMEOUT_MS,
+  isNominatimConfigured,
+  nominatimRequestInit,
+  parseNominatimHit,
+  shouldSkipGeocode,
+} from "./geocode";
 
 describe("nominatim parse", () => {
   it("reads lat/lon from the first hit", () => {
@@ -28,5 +34,14 @@ describe("nominatim parse", () => {
     assert.equal(isNominatimConfigured(""), false);
     assert.equal(isNominatimConfigured("   "), false);
     assert.equal(isNominatimConfigured("VersaTech OS CRM (ops@versatech.example)"), true);
+  });
+
+  it("attaches a timeout abort signal to Nominatim fetches", () => {
+    const init = nominatimRequestInit("VersaTech OS CRM (ops@versatech.example)");
+    assert.equal(NOMINATIM_TIMEOUT_MS, 8_000);
+    assert.ok(init.signal instanceof AbortSignal);
+    assert.equal(init.cache, "no-store");
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get("User-Agent"), "VersaTech OS CRM (ops@versatech.example)");
   });
 });

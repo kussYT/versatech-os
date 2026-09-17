@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import { startOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
 import { sumMoney } from "@/lib/money";
@@ -35,6 +37,7 @@ function earliestUpcoming(values: (Date | null | undefined)[]) {
 }
 
 export async function listClientCompanies(): Promise<ClientListItem[]> {
+  await requireAuthenticatedUser();
   const companies = await prisma.company.findMany({
     where: { lifecycleStatus: "CLIENT" },
     orderBy: { name: "asc" },

@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
@@ -107,7 +109,7 @@ export async function createProject(
     revalidateProjects(company.id, project.id);
     return { ok: true, data: { projectId: project.id, companyId: company.id } };
   } catch (error) {
-    console.error(error);
+    logServerError("projects", error);
     return { ok: false, message: "Impossible de créer le projet. Réessayez." };
   }
 }
@@ -193,7 +195,7 @@ export async function updateProjectStatus(
     revalidateProjects(existing.companyId, existing.id);
     return { ok: true, data: { projectId: existing.id, companyId: existing.companyId } };
   } catch (error) {
-    console.error(error);
+    logServerError("projects", error);
     return { ok: false, message: "Impossible de mettre à jour le projet. Réessayez." };
   }
 }

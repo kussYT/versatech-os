@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import { prisma } from "@/lib/db/prisma";
 import { tourDateFor } from "@/lib/prospection/tour";
 
@@ -28,6 +30,7 @@ export type TodayTour = {
 };
 
 export async function getTodayTour(): Promise<TodayTour | null> {
+  await requireAuthenticatedUser();
   const date = tourDateFor();
   const tour = await prisma.tour.findUnique({
     where: { date },
@@ -78,6 +81,7 @@ export type TourDashboard = {
 };
 
 export async function getTourDashboard(): Promise<TourDashboard> {
+  await requireAuthenticatedUser();
   const tour = await getTodayTour();
   if (!tour) {
     return { planned: 0, visited: 0, remaining: 0, nextNames: [] };
@@ -99,6 +103,7 @@ export async function getTourDashboard(): Promise<TourDashboard> {
 }
 
 export async function listCompaniesForTourPicker() {
+  await requireAuthenticatedUser();
   return prisma.company.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, city: true, lifecycleStatus: true },

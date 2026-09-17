@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { MilestoneStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -81,7 +83,7 @@ export async function createMilestone(
       data: { milestoneId: milestone.id, projectId: project.id, companyId: project.companyId },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("milestones", error);
     return { ok: false, message: "Impossible de créer le jalon. Réessayez." };
   }
 }
@@ -169,7 +171,7 @@ export async function updateMilestoneStatus(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("milestones", error);
     return { ok: false, message: "Impossible de mettre à jour le jalon. Réessayez." };
   }
 }

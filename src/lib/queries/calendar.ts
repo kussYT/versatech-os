@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { CalendarEventType } from "@/generated/prisma/client";
 import { startOfLocalDay, endOfLocalDay, isLocalMidnight } from "@/lib/calendar/dates";
 import type {
@@ -71,6 +73,7 @@ export function mergeCalendarItems(groups: CalendarItem[][]) {
 }
 
 export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promise<CalendarItem[]> {
+  await requireAuthenticatedUser();
   const todayStart = startOfToday();
   const range = { gte: rangeStart, lte: rangeEnd };
 
@@ -241,6 +244,7 @@ export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promi
 }
 
 export async function getTodayAgenda(): Promise<CalendarItem[]> {
+  await requireAuthenticatedUser();
   return listCalendarItems(startOfToday(), endOfToday());
 }
 
@@ -248,6 +252,7 @@ export async function listCalendarLinkTargets(): Promise<{
   companies: CalendarCompanyOption[];
   projects: CalendarProjectOption[];
 }> {
+  await requireAuthenticatedUser();
   const [companies, projects] = await Promise.all([
     prisma.company.findMany({
       select: { id: true, name: true },

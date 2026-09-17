@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import {
   emptySearchResults,
   type SearchResults,
@@ -16,7 +18,7 @@ export async function searchGlobal(query: string): Promise<SearchResults> {
   try {
     return await searchWorkspace(query);
   } catch (error) {
-    console.error(error);
+    logServerError("search", error);
     return emptySearchResults(query);
   }
 }

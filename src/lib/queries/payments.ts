@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import type { PaymentStatus, QuoteStatus } from "@/generated/prisma/client";
 import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
 import { centsToMoneyString, parseMoneyToCents } from "@/lib/money";
@@ -117,6 +119,7 @@ function paymentWhere(scope: FinanceScope) {
 }
 
 export async function getFinanceSnapshot(scope: FinanceScope = {}, now = new Date()) {
+  await requireAuthenticatedUser();
   const [quotes, payments] = await Promise.all([
     prisma.quote.findMany({
       where: quoteWhere(scope),
@@ -140,6 +143,7 @@ export async function getFinanceSnapshot(scope: FinanceScope = {}, now = new Dat
 }
 
 export async function listPayments(scope: FinanceScope = {}, now = new Date()): Promise<PaymentListItem[]> {
+  await requireAuthenticatedUser();
   const payments = await prisma.payment.findMany({
     where: paymentWhere(scope),
     orderBy: [{ createdAt: "desc" }, { label: "asc" }],
@@ -150,6 +154,7 @@ export async function listPayments(scope: FinanceScope = {}, now = new Date()): 
 }
 
 export async function listPaymentFormOptions(scope: FinanceScope = {}): Promise<PaymentFormOptions> {
+  await requireAuthenticatedUser();
   const [companies, quotes, projects, paidByQuote] = await Promise.all([
     prisma.company.findMany({
       where: scope.companyId ? { id: scope.companyId } : undefined,

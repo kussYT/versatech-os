@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/observability/log-error";
+
 import type { QuoteStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
@@ -159,7 +161,7 @@ export async function createQuote(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("quotes", error);
     return { ok: false, message: "Impossible de créer le devis. Réessayez." };
   }
 }
@@ -298,7 +300,7 @@ export async function updateQuoteStatus(
       },
     };
   } catch (error) {
-    console.error(error);
+    logServerError("quotes", error);
     return { ok: false, message: "Impossible de mettre à jour le devis. Réessayez." };
   }
 }

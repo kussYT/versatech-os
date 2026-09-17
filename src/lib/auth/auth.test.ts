@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { SignJWT } from "jose";
+import { SESSION_TTL_SECONDS } from "./config";
 import { AUTH_REQUIRED_RESULT, actorOrUnauthorized } from "./guard";
-import { isPublicPath, safeRedirectPath } from "./paths";
+import { isHealthPath, isLoginPath, isPublicPath, safeRedirectPath } from "./paths";
 import { hashPassword, verifyPassword } from "./password";
 import {
   consumeLoginAttempt,
   loginAttemptKey,
   resetLoginAttempts,
 } from "./rate-limit";
+import { isCurrentSessionVersion } from "./session-version";
 import { createSessionToken, verifySessionToken } from "./token";
 import { loginSchema } from "../validations/auth";
 
@@ -32,20 +34,23 @@ describe("password hashing", () => {
 });
 
 describe("session token", () => {
-  test("round-trips a user id", async () => {
-    const token = await createSessionToken("user_abc", SECRET, 60);
+  test("uses a 24-hour TTL", () => {
+    assert.equal(SESSION_TTL_SECONDS, 60 * 60 * 24);
+  });
+  test("round-trips a user id and sessionVersion", async () => {
+    const token = await createSessionToken("user_abc", 3, SECRET, 60);
     const payload = await verifySessionToken(token, SECRET);
-    assert.deepEqual(payload, { sub: "user_abc" });
+    assert.deepEqual(payload, { sub: "user_abc", sessionVersion: 3 });
   });
 
   test("rejects a tampered token", async () => {
-    const token = await createSessionToken("user_abc", SECRET, 60);
+    const token = await createSessionToken("user_abc", 0, SECRET, 60);
     const tampered = `${token.slice(0, -4)}xxxx`;
     assert.equal(await verifySessionToken(tampered, SECRET), null);
   });
 
   test("rejects a token signed with another secret", async () => {
-    const token = await createSessionToken("user_abc", SECRET, 60);
+    const token = await createSessionToken("user_abc", 0, SECRET, 60);
     assert.equal(
       await verifySessionToken(token, "another-secret-at-least-32-characters!!"),
       null,
@@ -53,7 +58,7 @@ describe("session token", () => {
   });
 
   test("rejects an expired token", async () => {
-    const expired = await new SignJWT({ sub: "user_abc" })
+    const expired = await new SignJWT({ sv: 0 })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject("user_abc")
       .setIssuedAt(Math.floor(Date.now() / 1000) - 120)
@@ -63,18 +68,44 @@ describe("session token", () => {
     assert.equal(await verifySessionToken(expired, SECRET), null);
   });
 
+  test("rejects a token without sessionVersion", async () => {
+    const legacy = await new SignJWT({ sub: "user_abc" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject("user_abc")
+      .setIssuedAt()
+      .setExpirationTime("60s")
+      .sign(new TextEncoder().encode(SECRET));
+
+    assert.equal(await verifySessionToken(legacy, SECRET), null);
+  });
+
   test("rejects an empty token", async () => {
     assert.equal(await verifySessionToken("", SECRET), null);
   });
 });
 
+describe("sessionVersion revocation", () => {
+  test("a bumped stored version invalidates the previous JWT claim", async () => {
+    const token = await createSessionToken("user_abc", 0, SECRET, 60);
+    const payload = await verifySessionToken(token, SECRET);
+    assert.ok(payload);
+    assert.equal(isCurrentSessionVersion(payload.sessionVersion, 0), true);
+    assert.equal(isCurrentSessionVersion(payload.sessionVersion, 1), false);
+  });
+});
+
 describe("public paths and redirects", () => {
-  test("only /connexion is public", () => {
+  test("only login and health are public", () => {
     assert.equal(isPublicPath("/connexion"), true);
+    assert.equal(isLoginPath("/connexion"), true);
     assert.equal(isPublicPath("/connexion/reset"), true);
+    assert.equal(isPublicPath("/api/health"), true);
+    assert.equal(isHealthPath("/api/health"), true);
+    assert.equal(isLoginPath("/api/health"), false);
     assert.equal(isPublicPath("/"), false);
     assert.equal(isPublicPath("/entreprises"), false);
     assert.equal(isPublicPath("/projets/abc"), false);
+    assert.equal(isPublicPath("/api/other"), false);
   });
 
   test("blocks open redirects", () => {
@@ -83,6 +114,7 @@ describe("public paths and redirects", () => {
     assert.equal(safeRedirectPath("//evil.example"), "/");
     assert.equal(safeRedirectPath("https://evil.example"), "/");
     assert.equal(safeRedirectPath("/connexion"), "/");
+    assert.equal(safeRedirectPath("/api/health"), "/");
     assert.equal(safeRedirectPath("/entreprises?x=1"), "/entreprises?x=1");
   });
 });

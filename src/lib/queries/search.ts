@@ -1,5 +1,7 @@
 import "server-only";
 
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+
 import {
   emptySearchResults,
   groupSearchHits,
@@ -18,6 +20,7 @@ function contains(term: string) {
 }
 
 export async function searchWorkspace(rawQuery: string): Promise<SearchResults> {
+  await requireAuthenticatedUser();
   const query = normalizeSearchQuery(rawQuery);
   if (!isSearchableQuery(query)) {
     return emptySearchResults(query);
