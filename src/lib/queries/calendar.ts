@@ -11,6 +11,7 @@ import type {
   CalendarProjectOption,
 } from "@/lib/calendar/types";
 import { OPEN_TASK_STATUSES } from "@/lib/crm/constants";
+import { tourStopsToCalendarItems } from "@/lib/calendar/terrain-visits";
 import { endOfToday, startOfToday } from "@/lib/crm/form-data";
 import { prisma } from "@/lib/db/prisma";
 
@@ -37,6 +38,9 @@ function item(input: {
   project: LinkRef;
   editable: boolean;
   overdue: boolean;
+  visitOrder?: number | null;
+  visitStatus?: "pending" | "visited" | null;
+  secondaryHref?: string | null;
 }): CalendarItem {
   return {
     id: `${input.kind}:${input.entityId}`,
@@ -52,6 +56,9 @@ function item(input: {
     project: input.project,
     editable: input.editable,
     overdue: input.overdue,
+    visitOrder: input.visitOrder ?? null,
+    visitStatus: input.visitStatus ?? null,
+    secondaryHref: input.secondaryHref ?? null,
   };
 }
 
@@ -68,6 +75,9 @@ export function mergeCalendarItems(groups: CalendarItem[][]) {
     if (byStart !== 0) {
       return byStart;
     }
+    if (left.kind === "terrain_visit" && right.kind === "terrain_visit") {
+      return (left.visitOrder ?? 0) - (right.visitOrder ?? 0);
+    }
     return left.title.localeCompare(right.title, "fr");
   });
 }
@@ -77,7 +87,7 @@ export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promi
   const todayStart = startOfToday();
   const range = { gte: rangeStart, lte: rangeEnd };
 
-  const [events, followUps, tasks, projects, milestones] = await Promise.all([
+  const [events, followUps, tasks, projects, milestones, tours] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: {
         startsAt: { lte: rangeEnd },
@@ -140,6 +150,21 @@ export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promi
           select: {
             id: true,
             name: true,
+            company: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+    prisma.tour.findMany({
+      where: { date: { gte: rangeStart, lte: rangeEnd } },
+      select: {
+        date: true,
+        stops: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            order: true,
+            visitedAt: true,
             company: { select: { id: true, name: true } },
           },
         },
@@ -240,6 +265,17 @@ export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promi
         overdue: isOverdue(dueAt, todayStart),
       });
     }),
+    tourStopsToCalendarItems(
+      tours.flatMap((tour) =>
+        tour.stops.map((stop) => ({
+          stopId: stop.id,
+          order: stop.order,
+          visitedAt: stop.visitedAt,
+          tourDate: tour.date,
+          company: stop.company,
+        })),
+      ),
+    ),
   ]);
 }
 

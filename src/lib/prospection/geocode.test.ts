@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   NOMINATIM_TIMEOUT_MS,
+  PROTECTED_GEOCODE_COMPANY_ID,
+  hasGeocodableStreetAddress,
   isNominatimConfigured,
   nominatimRequestInit,
   parseNominatimHit,
+  planCompanyGeocode,
+  geocodeQueryForCompany,
   shouldSkipGeocode,
 } from "./geocode";
 
@@ -43,5 +47,78 @@ describe("nominatim parse", () => {
     assert.equal(init.cache, "no-store");
     const headers = new Headers(init.headers);
     assert.equal(headers.get("User-Agent"), "VersaTech OS CRM (ops@versatech.example)");
+  });
+});
+
+describe("geocodage idempotent sans coordonnées inventées", () => {
+  const base = {
+    id: "co_1",
+    name: "HL BEAUTY",
+    address: "48 Avenue Villars",
+    postalCode: "59300",
+    city: "Valenciennes",
+    country: "FR",
+    latitude: null as number | null,
+    longitude: null as number | null,
+    geocodedAddress: null as string | null,
+    geocodeStatus: null as null,
+  };
+
+  it("fetches only when a street address with a number is present", () => {
+    assert.equal(hasGeocodableStreetAddress({ address: "48 Avenue Villars" }), true);
+    assert.equal(hasGeocodableStreetAddress({ address: null }), false);
+    assert.equal(hasGeocodableStreetAddress({ address: "Valenciennes" }), false);
+    assert.equal(planCompanyGeocode(base).action, "fetch");
+  });
+
+  it("does not invent coordinates for a city-only company", () => {
+    const plan = planCompanyGeocode({
+      ...base,
+      name: "L'Instant Gourmand",
+      address: null,
+      postalCode: null,
+    });
+    assert.equal(plan.action, "mark_manual");
+    assert.equal("lat" in plan, false);
+    assert.equal("lng" in plan, false);
+  });
+
+  it("skips companies that already have coordinates", () => {
+    const plan = planCompanyGeocode({
+      ...base,
+      latitude: 50.35,
+      longitude: 3.52,
+      geocodedAddress: "48 Avenue Villars, 59300 Valenciennes, FR",
+      geocodeStatus: "OK",
+    });
+    assert.equal(plan.action, "skip");
+    if (plan.action === "skip") {
+      assert.equal(plan.reason, "has_coords");
+    }
+  });
+
+  it("does not retry the same failed query", () => {
+    const queryCompany = {
+      ...base,
+      geocodeStatus: "FAILED" as const,
+      geocodedAddress: geocodeQueryForCompany(base),
+    };
+    const plan = planCompanyGeocode(queryCompany);
+    assert.equal(plan.action, "skip");
+    if (plan.action === "skip") {
+      assert.equal(plan.reason, "already_failed");
+    }
+  });
+
+  it("never geocodes the protected ALEX company", () => {
+    const plan = planCompanyGeocode({
+      ...base,
+      id: PROTECTED_GEOCODE_COMPANY_ID,
+      name: "ALEX'CEPTION",
+    });
+    assert.equal(plan.action, "skip");
+    if (plan.action === "skip") {
+      assert.equal(plan.reason, "protected");
+    }
   });
 });

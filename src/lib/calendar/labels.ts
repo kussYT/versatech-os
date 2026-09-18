@@ -9,6 +9,7 @@ export const CALENDAR_KIND_LABELS: Record<CalendarItemKind, string> = {
   task: "Tâche",
   project: "Deadline",
   milestone: "Jalon",
+  terrain_visit: "Terrain",
 };
 
 export function calendarItemLabel(item: CalendarItem) {

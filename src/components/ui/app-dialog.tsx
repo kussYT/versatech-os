@@ -50,7 +50,7 @@ export function AppDialog({
         }
       }}
     >
-      <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="vt-dialog-header">
         <div className="min-w-0">
           <h2 id={titleId} className="text-h2 text-foreground">
             {title}
@@ -70,7 +70,7 @@ export function AppDialog({
           <X className="size-4" aria-hidden="true" />
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-5 py-4">{children}</div>
+      <div className="vt-dialog-body">{children}</div>
     </dialog>
   );
 }

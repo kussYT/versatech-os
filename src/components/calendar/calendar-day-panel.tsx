@@ -78,6 +78,12 @@ export function CalendarDayPanel({
                       Entreprise · {entry.company.name}
                     </Link>
                   ) : null}
+                  {entry.kind === "terrain_visit" ? (
+                    <p className="text-meta text-muted">
+                      Ordre {entry.visitOrder ?? "—"} ·{" "}
+                      {entry.visitStatus === "visited" ? "Visitée" : "À visiter"}
+                    </p>
+                  ) : null}
                   {entry.project ? (
                     <Link
                       href={`/projets/${entry.project.id}`}
@@ -90,6 +96,14 @@ export function CalendarDayPanel({
                     {entry.href ? (
                       <Link href={entry.href} className={buttonVariants({ variant: "secondary", size: "sm" })}>
                         Ouvrir
+                      </Link>
+                    ) : null}
+                    {entry.secondaryHref ? (
+                      <Link
+                        href={entry.secondaryHref}
+                        className={buttonVariants({ variant: "secondary", size: "sm" })}
+                      >
+                        Tournée
                       </Link>
                     ) : null}
                     {entry.editable ? (

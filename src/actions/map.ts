@@ -8,12 +8,9 @@ import { readString } from "@/lib/crm/form-data";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
-  geocodeQueryForCompany,
+  fetchNominatimHit,
   isNominatimConfigured,
-  nominatimRequestInit,
-  nominatimSearchUrl,
-  parseNominatimHit,
-  shouldSkipGeocode,
+  planCompanyGeocode,
 } from "@/lib/prospection/geocode";
 import { formatCompanyAddress } from "@/lib/prospection/map-model";
 
@@ -51,29 +48,42 @@ export async function geocodeCompany(
       return { ok: false, message: "Entreprise introuvable." };
     }
 
-    const query = geocodeQueryForCompany(company);
-    if (shouldSkipGeocode(company, query)) {
+    const plan = planCompanyGeocode(company);
+    if (plan.action === "skip") {
+      if (plan.reason === "protected") {
+        return { ok: false, message: "Cette entreprise n'est pas géocodable automatiquement." };
+      }
       return { ok: true, data: { companyId } };
     }
 
-    const response = await fetch(
-      nominatimSearchUrl(query),
-      nominatimRequestInit(process.env.NOMINATIM_USER_AGENT!.trim()),
-    );
-
-    if (!response.ok) {
+    if (plan.action === "mark_manual") {
       await prisma.company.update({
         where: { id: company.id },
-        data: { geocodeStatus: "FAILED" },
+        data: {
+          geocodeStatus: "MANUAL",
+          geocodedAddress: plan.query || null,
+          geocodedAt: new Date(),
+        },
       });
-      return { ok: false, message: "Géocodage indisponible. Réessayez plus tard." };
+      revalidateMap(company.id);
+      return {
+        ok: false,
+        message: "Adresse insuffisante pour un géocodage automatique. Saisissez les coordonnées manuellement.",
+      };
     }
 
-    const hit = parseNominatimHit(await response.json());
+    const hit = await fetchNominatimHit(
+      plan.query,
+      process.env.NOMINATIM_USER_AGENT!.trim(),
+    );
+
     if (!hit) {
       await prisma.company.update({
         where: { id: company.id },
-        data: { geocodeStatus: "FAILED" },
+        data: {
+          geocodeStatus: "FAILED",
+          geocodedAddress: plan.query,
+        },
       });
       return { ok: false, message: "Adresse introuvable. Complétez la localisation manuellement." };
     }
@@ -84,7 +94,7 @@ export async function geocodeCompany(
         data: {
           latitude: hit.lat,
           longitude: hit.lon,
-          geocodedAddress: query,
+          geocodedAddress: plan.query,
           geocodedAt: new Date(),
           geocodeStatus: "OK",
         },

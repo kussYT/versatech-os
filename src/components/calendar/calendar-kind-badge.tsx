@@ -14,6 +14,7 @@ const kindBadgeVariants = cva(
         task: "border-primary/30 bg-primary/10 text-primary",
         project: "border-warning/30 bg-warning/10 text-warning",
         milestone: "border-purple/30 bg-purple/10 text-purple",
+        terrain: "border-cyan/40 bg-cyan/15 text-cyan",
         admin: "border-faint/40 bg-surface-high text-faint",
       },
     },
@@ -35,6 +36,9 @@ function toneFor(item: CalendarItem): NonNullable<VariantProps<typeof kindBadgeV
   }
   if (item.kind === "milestone") {
     return "milestone";
+  }
+  if (item.kind === "terrain_visit") {
+    return "terrain";
   }
 
   switch (item.eventType) {

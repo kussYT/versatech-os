@@ -6,6 +6,7 @@ export const CALENDAR_ITEM_KINDS = [
   "task",
   "project",
   "milestone",
+  "terrain_visit",
 ] as const;
 
 export type CalendarItemKind = (typeof CALENDAR_ITEM_KINDS)[number];
@@ -29,6 +30,9 @@ export type CalendarItem = {
   project: CalendarLink | null;
   editable: boolean;
   overdue: boolean;
+  visitOrder?: number | null;
+  visitStatus?: "pending" | "visited" | null;
+  secondaryHref?: string | null;
 };
 
 export type CalendarCompanyOption = CalendarLink;

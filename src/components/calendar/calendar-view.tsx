@@ -70,7 +70,7 @@ export function CalendarView({ year, month, today, items, companies, projects }:
       <PageHeader
         meta="Planning interne"
         title="Calendrier"
-        description="Vue mensuelle des événements manuels, relances, tâches, deadlines et jalons — sans duplication."
+        description="Vue mensuelle des événements manuels, visites terrain, relances, tâches, deadlines et jalons — sans duplication."
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" aria-hidden="true" />
