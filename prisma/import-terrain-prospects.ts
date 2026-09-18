@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PROTECTED_COMPANY_ID, PROTECTED_USER_ID } from "../src/lib/db/demo-cleanup-guard";
 import { getDatabaseUrl } from "../src/lib/db/env";
+import { assertTerrainProspectImportAllowed } from "../src/lib/db/terrain-import-guard";
 import {
   geocodeQueryForCompany,
   isNominatimConfigured,
@@ -19,14 +20,6 @@ import {
 import { addCompanyToStops } from "../src/lib/prospection/tour";
 
 const NOMINATIM_GAP_MS = 1_100;
-
-function assertNotProduction(env: NodeJS.Dict<string | undefined> = process.env) {
-  if (env.NODE_ENV === "production") {
-    throw new Error(
-      "Refusing terrain prospect import in production. This script is for the local development database only.",
-    );
-  }
-}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -232,7 +225,7 @@ async function importOne(prisma: PrismaClient, actorId: string, name: (typeof TE
 }
 
 async function main() {
-  assertNotProduction();
+  assertTerrainProspectImportAllowed();
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: getDatabaseUrl() }),
