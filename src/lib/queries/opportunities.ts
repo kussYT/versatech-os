@@ -10,6 +10,7 @@ import {
 } from "@/lib/crm/constants";
 import { effectiveProbability, weightedValue } from "@/lib/crm/probability";
 import { prisma } from "@/lib/db/prisma";
+import { centsToMoneyString, tryParseMoneyToCents, weightedMoney } from "@/lib/money";
 
 export type PipelineOpportunityCard = {
   id: string;
@@ -46,6 +47,12 @@ export type PipelineOverview = {
   openCount: number;
   brutTotal: number;
   weightedTotal: number;
+};
+
+/** Dashboard numbers plus money.ts strings for TodayService (agent DTO). */
+export type PipelineOverviewLoad = PipelineOverview & {
+  brutTotalMoney: string;
+  weightedTotalMoney: string;
 };
 
 function decimalToNumber(value: { toString(): string } | null | undefined) {
@@ -91,42 +98,74 @@ function toCard(
   };
 }
 
-function loadOpportunities() {
-  return prisma.opportunity.findMany({
-    orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
-    include: {
-      company: {
-        select: {
-          id: true,
-          name: true,
-          industry: true,
-          city: true,
-          followUps: {
-            where: { status: "PENDING" },
-            orderBy: { dueAt: "asc" },
-            take: 1,
-            select: { title: true, dueAt: true },
-          },
-          interactions: {
-            orderBy: { occurredAt: "desc" },
-            take: 1,
-            select: { type: true, occurredAt: true },
-          },
-        },
-      },
+const opportunityCardInclude = {
+  company: {
+    select: {
+      id: true,
+      name: true,
+      industry: true,
+      city: true,
       followUps: {
-        where: { status: "PENDING" },
-        orderBy: { dueAt: "asc" },
+        where: { status: "PENDING" as const },
+        orderBy: { dueAt: "asc" as const },
         take: 1,
         select: { title: true, dueAt: true },
       },
       interactions: {
-        orderBy: { occurredAt: "desc" },
+        orderBy: { occurredAt: "desc" as const },
         take: 1,
         select: { type: true, occurredAt: true },
       },
     },
+  },
+  followUps: {
+    where: { status: "PENDING" as const },
+    orderBy: { dueAt: "asc" as const },
+    take: 1,
+    select: { title: true, dueAt: true },
+  },
+  interactions: {
+    orderBy: { occurredAt: "desc" as const },
+    take: 1,
+    select: { type: true, occurredAt: true },
+  },
+} as const;
+
+function loadOpportunities(options?: { stage?: OpportunityStage; take?: number }) {
+  return prisma.opportunity.findMany({
+    where: options?.stage ? { stage: options.stage } : undefined,
+    ...(options?.take != null ? { take: options.take } : {}),
+    orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
+    include: opportunityCardInclude,
   });
+}
+
+export type PipelineValueRow = {
+  stage: OpportunityStage;
+  estimatedValue: string;
+  probability: number;
+};
+
+/** Caller must authenticate. Lightweight rows for money.ts stage totals (not the board dump). */
+export async function loadPipelineValueRows(): Promise<PipelineValueRow[]> {
+  const rows = await prisma.opportunity.findMany({
+    select: { stage: true, estimatedValue: true, probability: true },
+  });
+
+  return rows.map((row) => ({
+    stage: row.stage,
+    estimatedValue: row.estimatedValue.toString(),
+    probability: effectiveProbability(row.stage, row.probability),
+  }));
+}
+
+/** Caller must authenticate. SQL `take` per stage — do not dump the UI board. */
+export async function loadPipelineStageCards(
+  stage: OpportunityStage,
+  take: number,
+): Promise<PipelineOpportunityCard[]> {
+  const opportunities = await loadOpportunities({ stage, take });
+  return opportunities.map(toCard);
 }
 
 export async function listPipelineBoard(): Promise<PipelineColumn[]> {
@@ -153,8 +192,8 @@ export async function listPipelineBoard(): Promise<PipelineColumn[]> {
   });
 }
 
-export async function getPipelineOverview(): Promise<PipelineOverview> {
-  await requireAuthenticatedUser();
+/** Caller must authenticate. Number totals stay dashboard-identical; money strings use money.ts. */
+export async function loadPipelineOverview(): Promise<PipelineOverviewLoad> {
   const grouped = await prisma.opportunity.groupBy({
     by: ["stage"],
     _count: { _all: true },
@@ -191,5 +230,44 @@ export async function getPipelineOverview(): Promise<PipelineOverview> {
     );
   }, 0);
 
-  return { counts, openCount, brutTotal, weightedTotal };
+  let brutCents = BigInt(0);
+  let weightedCents = BigInt(0);
+  for (const opportunity of openOpportunities) {
+    const amount = opportunity.estimatedValue.toString();
+    const cents = tryParseMoneyToCents(amount);
+    if (cents === null) {
+      continue;
+    }
+    brutCents += cents;
+    try {
+      const weighted = tryParseMoneyToCents(
+        weightedMoney(amount, effectiveProbability(opportunity.stage, opportunity.probability)),
+      );
+      if (weighted !== null) {
+        weightedCents += weighted;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return {
+    counts,
+    openCount,
+    brutTotal,
+    weightedTotal,
+    brutTotalMoney: centsToMoneyString(brutCents),
+    weightedTotalMoney: centsToMoneyString(weightedCents),
+  };
+}
+
+export async function getPipelineOverview(): Promise<PipelineOverview> {
+  await requireAuthenticatedUser();
+  const loaded = await loadPipelineOverview();
+  return {
+    counts: loaded.counts,
+    openCount: loaded.openCount,
+    brutTotal: loaded.brutTotal,
+    weightedTotal: loaded.weightedTotal,
+  };
 }

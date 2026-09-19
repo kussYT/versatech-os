@@ -125,8 +125,8 @@ export async function listMaintenanceAssociationOptions(): Promise<MaintenanceAs
   return { companies, projects };
 }
 
-export async function listMaintenanceOverview(now = new Date()): Promise<MaintenanceOverview> {
-  await requireAuthenticatedUser();
+/** Caller must authenticate. Same aggregation as the maintenance UI. */
+export async function loadMaintenanceOverview(now = new Date()): Promise<MaintenanceOverview> {
   const contracts = await prisma.maintenanceContract.findMany({
     orderBy: [{ status: "asc" }, { startDate: "desc" }],
     include: contractInclude,
@@ -162,6 +162,42 @@ export async function listMaintenanceOverview(now = new Date()): Promise<Mainten
     upcomingDueCount: upcomingDues.length,
     upcomingDues,
   };
+}
+
+export async function listMaintenanceOverview(now = new Date()): Promise<MaintenanceOverview> {
+  await requireAuthenticatedUser();
+  return loadMaintenanceOverview(now);
+}
+
+export type MaintenanceMrrScope = {
+  companyId?: string;
+  projectId?: string;
+};
+
+/**
+ * Caller must authenticate. MRR/ARR via `computeMrr` only — no invented formula.
+ * Scope AND-filters like finance quotes/payments.
+ */
+export async function loadMaintenanceMrrSnapshot(
+  scope: MaintenanceMrrScope = {},
+  now = new Date(),
+) {
+  const contracts = await prisma.maintenanceContract.findMany({
+    where: {
+      ...(scope.companyId ? { companyId: scope.companyId } : {}),
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+    },
+    select: { status: true, monthlyAmount: true, startDate: true },
+  });
+
+  return computeMrr(
+    contracts.map((contract) => ({
+      status: contract.status,
+      monthlyAmount: contract.monthlyAmount.toString(),
+      startDate: contract.startDate,
+    })),
+    now,
+  );
 }
 
 export async function listMaintenanceContractsForCompany(

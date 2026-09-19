@@ -1,0 +1,17 @@
+---
+description: Core VersaTech OS domain, data, and mutation invariants
+alwaysApply: true
+---
+
+# VersaTech OS — core
+
+- **PostgreSQL** is the business source of truth. Do not treat caches, UI state, LLM memory, or invented numbers as CRM facts.
+- **Prisma is server-only** (`src/lib/db/prisma.ts`). Never import the client in Client Components, prompts, or browser code.
+- Civil days, “today”, and tour dates use **Europe/Paris** via `src/lib/dates.ts`. Do not use host-local TZ or raw `Date` calendar math.
+- **Company** is the only CRM organisation entity (ADR-004). There is **no Client table**. Lifecycle lives in `src/lib/crm/lifecycle.ts` — do not fork status rules in UI or actions.
+- Money: `Decimal` + `src/lib/money.ts` (bigint cents). **Never** `number`/`float` for amounts, CA, or MRR arithmetic.
+- **Tour / TourStop** is tour truth. Do not persist terrain visits as `CalendarEvent`. Project stops onto the calendar; do not duplicate them.
+- Terrain visits are **excluded from real RDV KPIs** (`isTerrainVisit`).
+- Mutations: `requireActor()` (or equivalent, no anonymous write) **and** `ActivityLog`. Do not silently skip the journal.
+- Schema changes **only** via Prisma migrations. **Never** `prisma db push` against production. Never destructive seed/reset (`ALLOW_DESTRUCTIVE_SEED`) on a real database.
+- **ALEX'CEPTION and imported prospects are real production data.** Never invent companies, amounts, stages, or KPIs. If the data is missing, say so.

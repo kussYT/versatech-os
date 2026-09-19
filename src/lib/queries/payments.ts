@@ -118,8 +118,8 @@ function paymentWhere(scope: FinanceScope) {
   };
 }
 
-export async function getFinanceSnapshot(scope: FinanceScope = {}, now = new Date()) {
-  await requireAuthenticatedUser();
+/** Caller must authenticate. READ aggregates via computeFinanceTotals (money strings). */
+export async function loadFinanceSnapshot(scope: FinanceScope = {}, now = new Date()) {
   const [quotes, payments] = await Promise.all([
     prisma.quote.findMany({
       where: quoteWhere(scope),
@@ -140,6 +140,11 @@ export async function getFinanceSnapshot(scope: FinanceScope = {}, now = new Dat
     })),
     now,
   );
+}
+
+export async function getFinanceSnapshot(scope: FinanceScope = {}, now = new Date()) {
+  await requireAuthenticatedUser();
+  return loadFinanceSnapshot(scope, now);
 }
 
 export async function listPayments(scope: FinanceScope = {}, now = new Date()): Promise<PaymentListItem[]> {

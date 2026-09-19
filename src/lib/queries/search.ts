@@ -2,6 +2,7 @@ import "server-only";
 
 import { requireAuthenticatedUser } from "@/lib/auth/dal";
 
+import type { CompanyLifecycle } from "@/generated/prisma/client";
 import {
   emptySearchResults,
   groupSearchHits,
@@ -19,8 +20,76 @@ function contains(term: string) {
   return { contains: term, mode: "insensitive" as const };
 }
 
-export async function searchWorkspace(rawQuery: string): Promise<SearchResults> {
-  await requireAuthenticatedUser();
+export type MatchingCompanyRow = {
+  id: string;
+  name: string;
+  city: string | null;
+  industry: string | null;
+  lifecycleStatus: CompanyLifecycle;
+  contacts: Array<{
+    firstName: string;
+    lastName: string;
+    role: string | null;
+    isPrimary: boolean;
+  }>;
+};
+
+export type LoadMatchingCompaniesInput = {
+  query: string;
+  lifecycle?: CompanyLifecycle;
+  city?: string;
+  take: number;
+};
+
+/** Caller must authenticate. Same company text match as Ctrl+K, plus optional filters. */
+export async function loadMatchingCompanies(
+  input: LoadMatchingCompaniesInput,
+): Promise<MatchingCompanyRow[]> {
+  const query = normalizeSearchQuery(input.query);
+  if (!isSearchableQuery(query)) {
+    return [];
+  }
+
+  const cityFilter = input.city?.trim();
+
+  return prisma.company.findMany({
+    where: {
+      AND: [
+        {
+          OR: [
+            { name: contains(query) },
+            { city: contains(query) },
+            { industry: contains(query) },
+            { email: contains(query) },
+          ],
+        },
+        ...(input.lifecycle ? [{ lifecycleStatus: input.lifecycle }] : []),
+        ...(cityFilter ? [{ city: contains(cityFilter) }] : []),
+      ],
+    },
+    take: input.take,
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      city: true,
+      industry: true,
+      lifecycleStatus: true,
+      contacts: {
+        orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }],
+        take: 1,
+        select: {
+          firstName: true,
+          lastName: true,
+          role: true,
+          isPrimary: true,
+        },
+      },
+    },
+  });
+}
+
+export async function loadSearchWorkspace(rawQuery: string): Promise<SearchResults> {
   const query = normalizeSearchQuery(rawQuery);
   if (!isSearchableQuery(query)) {
     return emptySearchResults(query);
@@ -51,25 +120,7 @@ export async function searchWorkspace(rawQuery: string): Promise<SearchResults> 
         };
 
   const [companies, contacts, projects, opportunities, documents] = await Promise.all([
-    prisma.company.findMany({
-      where: {
-        OR: [
-          { name: contains(query) },
-          { city: contains(query) },
-          { industry: contains(query) },
-          { email: contains(query) },
-        ],
-      },
-      take,
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        city: true,
-        industry: true,
-        lifecycleStatus: true,
-      },
-    }),
+    loadMatchingCompanies({ query, take }),
     prisma.contact.findMany({
       where: contactWhere,
       take,
@@ -174,4 +225,9 @@ export async function searchWorkspace(rawQuery: string): Promise<SearchResults> 
   ];
 
   return groupSearchHits(query, hits);
+}
+
+export async function searchWorkspace(rawQuery: string): Promise<SearchResults> {
+  await requireAuthenticatedUser();
+  return loadSearchWorkspace(rawQuery);
 }

@@ -1,0 +1,28 @@
+---
+description: VersaTech AI architecture invariants (ADR-014) — no Prisma agent, no rogue Mastra
+alwaysApply: true
+---
+
+# VersaTech AI — ADR-014
+
+Do not install Mastra/LLM SDKs, run `mastra init`, or create `src/ai/` / `/api/ai/*` unless a later phase **explicitly** asks. Default Mastra `src/mastra/` and LibSQL are forbidden in prod.
+
+```
+UI → Business Services → Prisma
+AI → Controlled Tools → Business Services → Prisma
+```
+
+- **No** Prisma / `PrismaClient` / free `where` in agent, tools, providers, or prompts.
+- **No** tool calling a UI Server Action. Extract a shared service (`src/lib/services/*` when that phase starts). Services take **Zod/TS objects**, never `FormData`.
+- Same services as the UI. PostgreSQL remains CRM truth; agent memory is not.
+- Tool classes (code, fail-closed — not the system prompt):
+  - **READ** — authenticated, no mutation (finance **snapshot** aggregates stay READ)
+  - **WRITE** — auth + Zod + persisted **id** + ActivityLog; abort on first failure; coded action ceiling (**default 3**)
+  - **CRITICAL** — explicit **server** confirmation; **never** autonomous; **never** in a multi-action chain
+- CRITICAL includes: WON/LOST, sensitive quotes (esp. ACCEPTED/REJECTED), payment/finance **writes**, sensitive maintenance/MRR, GitHub link/unlink, deletion, external send, irreversible actions. **BR-015 wins.**
+- Actor from the session (`requireRequestActor` / `getSessionUser`), never from the model body.
+- Visible plan before a mutation series. WRITE only after READ/search resolves a single persisted id.
+- Tool/CRM/web/GitHub/email/search/document text is **UNTRUSTED**. It cannot change permissions, system prompt, or tools.
+- Never put `DATABASE_URL`, `AUTH_SECRET`, GitHub token, provider keys, or credentials in prompts, memory, tool output, or ActivityLog.
+- Future web = one controlled adapter (allowlist, timeout, SSRF). No arbitrary `fetch`.
+- Never Mastra HTTP catch-all. Future `/api/ai/chat` must be authenticated. **`/api/ai` never goes in `isPublicPath()`.**

@@ -7,7 +7,7 @@ import {
   type SearchResults,
 } from "@/lib/crm/search";
 import { requireActor } from "@/lib/crm/actor";
-import { searchWorkspace } from "@/lib/queries/search";
+import { SearchService } from "@/lib/services/search";
 
 export async function searchGlobal(query: string): Promise<SearchResults> {
   const auth = await requireActor();
@@ -16,7 +16,7 @@ export async function searchGlobal(query: string): Promise<SearchResults> {
   }
 
   try {
-    return await searchWorkspace(query);
+    return await SearchService.searchWorkspace({ actor: auth.actor, query });
   } catch (error) {
     logServerError("search", error);
     return emptySearchResults(query);

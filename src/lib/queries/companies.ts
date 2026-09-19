@@ -9,6 +9,7 @@ import type {
   InteractionDirection,
   InteractionResult,
   InteractionType,
+  MaintenanceStatus,
   OpportunityStage,
   Priority,
   ProjectStatus,
@@ -220,8 +221,8 @@ export async function listProspectCompanies() {
   return companies.map(toListItem);
 }
 
-export async function listCompaniesToCall(limit = 5) {
-  await requireAuthenticatedUser();
+/** Caller must authenticate. LEAD file, same take as the dashboard. */
+export async function loadCompaniesToCall(limit = 5) {
   const companies = await prisma.company.findMany({
     where: { lifecycleStatus: "LEAD" },
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
@@ -232,14 +233,33 @@ export async function listCompaniesToCall(limit = 5) {
   return companies.map(toListItem);
 }
 
-export async function listAllCompanies() {
+export async function listCompaniesToCall(limit = 5) {
   await requireAuthenticatedUser();
+  return loadCompaniesToCall(limit);
+}
+
+/** Caller must authenticate. */
+export async function loadAllCompanies() {
   const companies = await prisma.company.findMany({
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
     include: listInclude,
   });
 
   return companies.map(toListItem);
+}
+
+export async function listAllCompanies() {
+  await requireAuthenticatedUser();
+  return loadAllCompanies();
+}
+
+/** Caller must authenticate. */
+export async function loadCompanyExists(id: string): Promise<boolean> {
+  const row = await prisma.company.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  return row != null;
 }
 
 export async function getProspectionSummary() {
@@ -265,7 +285,215 @@ export async function getProspectionSummary() {
   return { active, toContact, dueFollowUps };
 }
 
-export async function getCompanyDetail(id: string): Promise<CompanyDetail | null> {
+export const COMPANY_COMPACT_LOAD_LIMITS = {
+  contacts: 8,
+  openOpportunities: 8,
+  projects: 20,
+  maintenanceContracts: 20,
+} as const;
+
+export type CompanyCompactLoad = {
+  id: string;
+  name: string;
+  lifecycleStatus: CompanyLifecycle;
+  industry: string | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  postalCode: string | null;
+  country: string | null;
+  source: string | null;
+  priority: Priority;
+  description: string | null;
+  commercialBrief: unknown;
+  geocodeStatus: GeocodeStatus | null;
+  contacts: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: string | null;
+    phone: string | null;
+    email: string | null;
+    isPrimary: boolean;
+  }[];
+  lastInteraction: {
+    id: string;
+    type: InteractionType;
+    direction: InteractionDirection;
+    result: InteractionResult | null;
+    notes: string | null;
+    subject: string | null;
+    occurredAt: Date;
+  } | null;
+  nextFollowUp: {
+    id: string;
+    title: string;
+    dueAt: Date;
+    status: FollowUpStatus;
+  } | null;
+  openOpportunities: {
+    id: string;
+    title: string;
+    stage: OpportunityStage;
+    estimatedValue: string;
+    updatedAt: Date;
+  }[];
+  projects: {
+    id: string;
+    name: string;
+    status: ProjectStatus;
+    startDate: Date | null;
+    completedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+  maintenanceContracts: {
+    id: string;
+    status: MaintenanceStatus;
+    monthlyAmount: string;
+    startDate: Date;
+    projectId: string | null;
+  }[];
+};
+
+/** Caller must authenticate. Compact projection — not the hub. */
+export async function loadCompanyCompact(id: string): Promise<CompanyCompactLoad | null> {
+  const company = await prisma.company.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      lifecycleStatus: true,
+      industry: true,
+      website: true,
+      phone: true,
+      email: true,
+      address: true,
+      city: true,
+      postalCode: true,
+      country: true,
+      source: true,
+      priority: true,
+      description: true,
+      commercialBrief: true,
+      geocodeStatus: true,
+      contacts: {
+        orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }],
+        take: COMPANY_COMPACT_LOAD_LIMITS.contacts,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          phone: true,
+          email: true,
+          isPrimary: true,
+        },
+      },
+      interactions: {
+        orderBy: { occurredAt: "desc" as const },
+        take: 1,
+        select: {
+          id: true,
+          type: true,
+          direction: true,
+          result: true,
+          notes: true,
+          subject: true,
+          occurredAt: true,
+        },
+      },
+      followUps: {
+        where: { status: "PENDING" as FollowUpStatus },
+        orderBy: { dueAt: "asc" as const },
+        take: 1,
+        select: { id: true, title: true, dueAt: true, status: true },
+      },
+      opportunities: {
+        where: { stage: { in: [...OPEN_OPPORTUNITY_STAGES] } },
+        orderBy: { updatedAt: "desc" as const },
+        take: COMPANY_COMPACT_LOAD_LIMITS.openOpportunities,
+        select: {
+          id: true,
+          title: true,
+          stage: true,
+          estimatedValue: true,
+          updatedAt: true,
+        },
+      },
+      projects: {
+        orderBy: { createdAt: "desc" as const },
+        take: COMPANY_COMPACT_LOAD_LIMITS.projects,
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          startDate: true,
+          completedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      maintenanceContracts: {
+        orderBy: [{ status: "asc" as const }, { startDate: "desc" as const }],
+        take: COMPANY_COMPACT_LOAD_LIMITS.maintenanceContracts,
+        select: {
+          id: true,
+          status: true,
+          monthlyAmount: true,
+          startDate: true,
+          projectId: true,
+        },
+      },
+    },
+  });
+
+  if (!company) {
+    return null;
+  }
+
+  return {
+    id: company.id,
+    name: company.name,
+    lifecycleStatus: company.lifecycleStatus,
+    industry: company.industry,
+    website: company.website,
+    phone: company.phone,
+    email: company.email,
+    address: company.address,
+    city: company.city,
+    postalCode: company.postalCode,
+    country: company.country,
+    source: company.source,
+    priority: company.priority,
+    description: company.description,
+    commercialBrief: company.commercialBrief,
+    geocodeStatus: company.geocodeStatus,
+    contacts: company.contacts,
+    lastInteraction: company.interactions[0] ?? null,
+    nextFollowUp: company.followUps[0] ?? null,
+    openOpportunities: company.opportunities.map((opportunity) => ({
+      id: opportunity.id,
+      title: opportunity.title,
+      stage: opportunity.stage,
+      estimatedValue: opportunity.estimatedValue.toString(),
+      updatedAt: opportunity.updatedAt,
+    })),
+    projects: company.projects,
+    maintenanceContracts: company.maintenanceContracts.map((contract) => ({
+      id: contract.id,
+      status: contract.status,
+      monthlyAmount: contract.monthlyAmount.toString(),
+      startDate: contract.startDate,
+      projectId: contract.projectId,
+    })),
+  };
+}
+
+/** Caller must authenticate. Full hub for `/entreprises/[id]`. */
+export async function loadCompanyDetail(id: string): Promise<CompanyDetail | null> {
   await requireAuthenticatedUser();
   const [company, documents, maintenanceContracts] = await Promise.all([
     prisma.company.findUnique({
@@ -510,4 +738,9 @@ export async function getCompanyDetail(id: string): Promise<CompanyDetail | null
       ).length,
     } satisfies CompanyLifecycleFacts),
   };
+}
+
+export async function getCompanyDetail(id: string): Promise<CompanyDetail | null> {
+  await requireAuthenticatedUser();
+  return loadCompanyDetail(id);
 }

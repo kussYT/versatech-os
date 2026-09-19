@@ -97,23 +97,40 @@ export type TaskListItem = {
   } | null;
 };
 
-export async function listOpenTasks(): Promise<TaskListItem[]> {
-  await requireAuthenticatedUser();
-  const tasks = await prisma.task.findMany({
-    where: { status: { in: [...OPEN_TASK_STATUSES] } },
-    orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      title: true,
-      dueAt: true,
-      priority: true,
-      status: true,
-      project: { select: { id: true, name: true } },
-      company: { select: { id: true, name: true } },
-    },
-  });
+export type LoadOpenTasksInput = {
+  take?: number;
+  companyId?: string;
+  projectId?: string;
+  dueAt?: {
+    lt?: Date;
+    lte?: Date;
+    gt?: Date;
+    gte?: Date;
+  };
+  /** Upcoming bucket: due after `dueAt.gt` **or** null dueAt (TOOLS-V1). */
+  includeNullDueAt?: boolean;
+};
 
-  return tasks.map((task) => ({
+const openTaskSelect = {
+  id: true,
+  title: true,
+  dueAt: true,
+  priority: true,
+  status: true,
+  project: { select: { id: true, name: true } },
+  company: { select: { id: true, name: true } },
+} as const;
+
+function toTaskListItem(task: {
+  id: string;
+  title: string;
+  dueAt: Date | null;
+  priority: TaskListItem["priority"];
+  status: TaskListItem["status"];
+  project: TaskListItem["project"];
+  company: TaskListItem["company"];
+}): TaskListItem {
+  return {
     id: task.id,
     title: task.title,
     dueAt: task.dueAt?.toISOString() ?? null,
@@ -121,7 +138,44 @@ export async function listOpenTasks(): Promise<TaskListItem[]> {
     status: task.status,
     project: task.project,
     company: task.company,
-  }));
+  };
+}
+
+/** Caller must authenticate. Open tasks = TODO | IN_PROGRESS. */
+export async function loadOpenTasks(input: LoadOpenTasksInput = {}): Promise<TaskListItem[]> {
+  const dueFilter = input.dueAt
+    ? input.includeNullDueAt
+      ? { OR: [{ dueAt: input.dueAt }, { dueAt: null }] }
+      : { dueAt: input.dueAt }
+    : {};
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      status: { in: [...OPEN_TASK_STATUSES] },
+      ...(input.companyId ? { companyId: input.companyId } : {}),
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+      ...dueFilter,
+    },
+    orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    ...(input.take != null ? { take: input.take } : {}),
+    select: openTaskSelect,
+  });
+
+  return tasks.map(toTaskListItem);
+}
+
+export async function listOpenTasks(): Promise<TaskListItem[]> {
+  await requireAuthenticatedUser();
+  return loadOpenTasks();
+}
+
+/** Caller must authenticate. */
+export async function loadProjectExists(id: string): Promise<boolean> {
+  const row = await prisma.project.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  return row != null;
 }
 
 export type DashboardTaskItem = {
@@ -288,8 +342,8 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
   };
 }
 
-export async function getTaskDashboard(limit = 5) {
-  await requireAuthenticatedUser();
+/** Caller must authenticate. Open tasks = TODO | IN_PROGRESS. */
+export async function loadTaskDashboard(limit = 5) {
   const [openCount, preview] = await Promise.all([
     prisma.task.count({
       where: { status: { in: [...OPEN_TASK_STATUSES] } },
@@ -318,4 +372,9 @@ export async function getTaskDashboard(limit = 5) {
       project: task.project,
     })),
   };
+}
+
+export async function getTaskDashboard(limit = 5) {
+  await requireAuthenticatedUser();
+  return loadTaskDashboard(limit);
 }

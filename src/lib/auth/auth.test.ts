@@ -106,6 +106,8 @@ describe("public paths and redirects", () => {
     assert.equal(isPublicPath("/entreprises"), false);
     assert.equal(isPublicPath("/projets/abc"), false);
     assert.equal(isPublicPath("/api/other"), false);
+    assert.equal(isPublicPath("/api/ai"), false);
+    assert.equal(isPublicPath("/api/ai/chat"), false);
   });
 
   test("blocks open redirects", () => {

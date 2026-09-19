@@ -29,9 +29,9 @@ export type TodayTour = {
   stops: TourStopItem[];
 };
 
-export async function getTodayTour(): Promise<TodayTour | null> {
-  await requireAuthenticatedUser();
-  const date = tourDateFor();
+/** Caller must authenticate. Terrain truth = Tour / TourStop for the Paris civil day. */
+export async function loadTodayTour(now = new Date()): Promise<TodayTour | null> {
+  const date = tourDateFor(now);
   const tour = await prisma.tour.findUnique({
     where: { date },
     include: {
@@ -73,6 +73,11 @@ export async function getTodayTour(): Promise<TodayTour | null> {
   };
 }
 
+export async function getTodayTour(): Promise<TodayTour | null> {
+  await requireAuthenticatedUser();
+  return loadTodayTour();
+}
+
 export type TourDashboard = {
   planned: number;
   visited: number;
@@ -80,9 +85,7 @@ export type TourDashboard = {
   nextNames: string[];
 };
 
-export async function getTourDashboard(): Promise<TourDashboard> {
-  await requireAuthenticatedUser();
-  const tour = await getTodayTour();
+export function toTourDashboard(tour: TodayTour | null): TourDashboard {
   if (!tour) {
     return { planned: 0, visited: 0, remaining: 0, nextNames: [] };
   }
@@ -100,6 +103,16 @@ export async function getTourDashboard(): Promise<TourDashboard> {
     remaining,
     nextNames,
   };
+}
+
+/** Caller must authenticate. */
+export async function loadTourDashboard(now = new Date()): Promise<TourDashboard> {
+  return toTourDashboard(await loadTodayTour(now));
+}
+
+export async function getTourDashboard(): Promise<TourDashboard> {
+  await requireAuthenticatedUser();
+  return loadTourDashboard();
 }
 
 export async function listCompaniesForTourPicker() {

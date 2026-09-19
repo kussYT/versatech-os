@@ -7,14 +7,8 @@ import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { TasksPanel } from "@/components/dashboard/tasks-panel";
 import { TodayHeader } from "@/components/dashboard/today-header";
 import { TodayTourPanel } from "@/components/dashboard/today-tour-panel";
-import { getTodayAgenda } from "@/lib/queries/calendar";
-import { getRecentActivity, getTodayInteractionCounts } from "@/lib/queries/activity";
-import { listCompaniesToCall } from "@/lib/queries/companies";
-import { getFollowUpDashboard } from "@/lib/queries/follow-ups";
-import { getPipelineOverview } from "@/lib/queries/opportunities";
-import { getTaskDashboard } from "@/lib/queries/projects";
-import { getFinanceSnapshot } from "@/lib/queries/payments";
-import { getTourDashboard } from "@/lib/queries/tours";
+import { requireAuthenticatedUser } from "@/lib/auth/dal";
+import { TodayService } from "@/lib/services/today";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +17,9 @@ export const metadata: Metadata = {
 };
 
 export default async function TodayPage() {
-  const [
+  const actor = await requireAuthenticatedUser();
+  const overview = await TodayService.getTodayOverview({ actor });
+  const {
     pipelineOverview,
     followUps,
     finance,
@@ -33,17 +29,7 @@ export default async function TodayPage() {
     interactionCounts,
     recentActivity,
     tourDashboard,
-  ] = await Promise.all([
-    getPipelineOverview(),
-    getFollowUpDashboard(),
-    getFinanceSnapshot(),
-    getTaskDashboard(),
-    getTodayAgenda(),
-    listCompaniesToCall(),
-    getTodayInteractionCounts(),
-    getRecentActivity(),
-    getTourDashboard(),
-  ]);
+  } = TodayService.toTodayDashboardView(overview);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5">

@@ -52,8 +52,20 @@ const followUpInclude = {
   },
 };
 
+export type LoadFollowUpItemsInput = {
+  status: FollowUpStatus;
+  take?: number;
+  companyId?: string;
+  dueAt?: {
+    lt?: Date;
+    lte?: Date;
+    gt?: Date;
+    gte?: Date;
+  };
+};
+
 function toListItem(
-  followUp: Awaited<ReturnType<typeof loadFollowUps>>[number],
+  followUp: Awaited<ReturnType<typeof loadFollowUpsQuery>>[number],
 ): FollowUpListItem {
   const lastInteraction = followUp.company.interactions[0] ?? null;
 
@@ -80,24 +92,47 @@ function toListItem(
   };
 }
 
-function loadFollowUps(status: FollowUpStatus, take?: number) {
+function loadFollowUpsQuery(input: LoadFollowUpItemsInput) {
   return prisma.followUp.findMany({
-    where: { status },
+    where: {
+      status: input.status,
+      ...(input.companyId ? { companyId: input.companyId } : {}),
+      ...(input.dueAt ? { dueAt: input.dueAt } : {}),
+    },
     orderBy:
-      status === "COMPLETED"
+      input.status === "COMPLETED"
         ? [{ completedAt: "desc" }, { dueAt: "desc" }]
         : [{ dueAt: "asc" }, { createdAt: "asc" }],
-    take,
+    take: input.take,
     include: followUpInclude,
   });
 }
 
-function bucketForPending(dueAt: Date): Exclude<FollowUpBucket, "completed"> {
-  return dueBucket(dueAt);
+function loadFollowUps(status: FollowUpStatus, take?: number) {
+  return loadFollowUpsQuery({ status, take });
 }
 
-export async function listFollowUpBoard(): Promise<FollowUpBoard> {
-  await requireAuthenticatedUser();
+/** Caller must authenticate. SQL `take` — do not dump then slice. */
+export async function loadFollowUpItems(
+  input: LoadFollowUpItemsInput,
+): Promise<FollowUpListItem[]> {
+  const rows = await loadFollowUpsQuery(input);
+  return rows.map(toListItem);
+}
+
+function bucketForPending(dueAt: Date, now: Date): Exclude<FollowUpBucket, "completed"> {
+  return dueBucket(dueAt, now);
+}
+
+export type FollowUpDashboard = {
+  dueCount: number;
+  overdueCount: number;
+  todayCount: number;
+  preview: FollowUpListItem[];
+};
+
+/** Caller must authenticate. */
+export async function loadFollowUpBoard(now = new Date()): Promise<FollowUpBoard> {
   const [pending, completed] = await Promise.all([
     loadFollowUps("PENDING"),
     loadFollowUps("COMPLETED", 40),
@@ -111,17 +146,34 @@ export async function listFollowUpBoard(): Promise<FollowUpBoard> {
   };
 
   for (const followUp of pending) {
-    board[bucketForPending(followUp.dueAt)].push(toListItem(followUp));
+    board[bucketForPending(followUp.dueAt, now)].push(toListItem(followUp));
   }
 
   return board;
 }
 
-export async function getFollowUpDashboard(limit = 4) {
+export async function listFollowUpBoard(): Promise<FollowUpBoard> {
   await requireAuthenticatedUser();
-  const board = await listFollowUpBoard();
-  const dueCount = board.overdue.length + board.today.length;
+  return loadFollowUpBoard();
+}
+
+/** Caller must authenticate. Preview order: overdue → today → upcoming. */
+export async function loadFollowUpDashboard(limit = 4, now = new Date()): Promise<FollowUpDashboard> {
+  const board = await loadFollowUpBoard(now);
+  const overdueCount = board.overdue.length;
+  const todayCount = board.today.length;
   const preview = [...board.overdue, ...board.today, ...board.upcoming].slice(0, limit);
 
-  return { dueCount, preview };
+  return {
+    dueCount: overdueCount + todayCount,
+    overdueCount,
+    todayCount,
+    preview,
+  };
+}
+
+export async function getFollowUpDashboard(limit = 4) {
+  await requireAuthenticatedUser();
+  const dashboard = await loadFollowUpDashboard(limit);
+  return { dueCount: dashboard.dueCount, preview: dashboard.preview };
 }

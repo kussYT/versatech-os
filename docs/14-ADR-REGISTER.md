@@ -79,5 +79,20 @@ Conséquences :
 - les Server Actions refusent les mutations sans acteur via `requireActor()`.
 Statut : accepté.
 
+ADR-014 — VERSATECH AI : TOOLS CONTRÔLÉS, PAS DE PRISMA AGENT
+Décision : l'assistant VersaTech AI n'accède jamais à Prisma ni aux Server Actions UI. Il passe uniquement par des tools contrôlés qui appellent les mêmes services métier que l'interface. Détail : `docs/ADR-014-VERSATECH-AI-ARCHITECTURE.md`.
+Raisons :
+- ADR-008 (IA après données structurées) et BR-015 (l'IA ne valide pas seule un paiement, une suppression, un changement critique ou un envoi externe) ;
+- aujourd'hui les écritures sont couplées FormData / Server Actions / `window.confirm` navigateur ;
+- PostgreSQL reste la vérité CRM ; la mémoire d'agent n'en est pas une copie.
+Conséquences :
+- flux UI → services → Prisma ; flux IA → tools → services → Prisma ;
+- services en objets TypeScript/Zod, jamais FormData ; Prisma reste `server-only` ;
+- classes READ / WRITE / CRITICAL ; CRITICAL = confirmation serveur explicite, jamais en chaîne autonome ;
+- WRITE par id persisté, plafond d'actions (défaut 3), abort au premier échec, plan visible avant une série de mutations ;
+- pas d'API Mastra catch-all ; future `/api/ai/chat` authentifiée ; `/api/ai` hors `isPublicPath()` ;
+- ne pas lancer `mastra init` / squelette `src/mastra/` / LibSQL en production.
+Statut : accepté.
+
 AJOUT D'ADR
 Créer un ADR lorsqu'une décision est coûteuse à inverser : auth, hébergement, stockage, architecture d'intégration, permissions, etc.

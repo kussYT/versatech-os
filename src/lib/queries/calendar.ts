@@ -82,9 +82,13 @@ export function mergeCalendarItems(groups: CalendarItem[][]) {
   });
 }
 
-export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promise<CalendarItem[]> {
-  await requireAuthenticatedUser();
-  const todayStart = startOfToday();
+/** Caller must authenticate. Used by Calendar UI and TodayService. */
+export async function loadCalendarItems(
+  rangeStart: Date,
+  rangeEnd: Date,
+  now = new Date(),
+): Promise<CalendarItem[]> {
+  const todayStart = startOfToday(now);
   const range = { gte: rangeStart, lte: rangeEnd };
 
   const [events, followUps, tasks, projects, milestones, tours] = await Promise.all([
@@ -279,9 +283,19 @@ export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promi
   ]);
 }
 
+export async function listCalendarItems(rangeStart: Date, rangeEnd: Date): Promise<CalendarItem[]> {
+  await requireAuthenticatedUser();
+  return loadCalendarItems(rangeStart, rangeEnd);
+}
+
+/** Caller must authenticate. Agenda of the Europe/Paris civil day for `now`. */
+export async function loadTodayAgenda(now = new Date()): Promise<CalendarItem[]> {
+  return loadCalendarItems(startOfToday(now), endOfToday(now), now);
+}
+
 export async function getTodayAgenda(): Promise<CalendarItem[]> {
   await requireAuthenticatedUser();
-  return listCalendarItems(startOfToday(), endOfToday());
+  return loadTodayAgenda();
 }
 
 export async function listCalendarLinkTargets(): Promise<{
