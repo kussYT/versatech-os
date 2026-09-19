@@ -14,6 +14,10 @@ import { createExecuteTool, createProductionTools, executeTool } from "@/ai/tool
 import type { SessionUser } from "@/lib/auth/types";
 import { emptyTodayOverview, parseTodayOverview } from "@/lib/services/today/schema";
 
+if (!process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 32) {
+  process.env.AUTH_SECRET = "unit-test-secret-at-least-32-characters-long";
+}
+
 const actor: SessionUser = {
   id: "user_1",
   name: "Camille Durand",
@@ -72,7 +76,7 @@ describe("first scenario — Qu'est-ce que j'ai aujourd'hui ?", () => {
     });
     assert.equal(result.success, false);
     if (!result.success) {
-      assert.equal(result.error.code, "NOT_AVAILABLE");
+      assert.equal(result.error.code, "CONFIRMATION_REQUIRED");
     }
   });
 });

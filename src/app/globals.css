@@ -40,6 +40,7 @@
   --foil-wash-hover: 0.3;
   --foil-wash-premium: 0.22;
   --foil-wash-premium-hover: 0.36;
+  --vt-ai-confirm-tap: 2.75rem;
 }
 
 @theme inline {
@@ -865,6 +866,112 @@ summary,
   padding: 0.75rem 1rem;
 }
 
+.vt-ai-confirm-card {
+  width: min(100%, 22rem);
+  scroll-margin-bottom: 5.5rem;
+  border: 1px solid color-mix(in srgb, var(--cyan) 22%, var(--border));
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 0.9rem 1rem 0.85rem;
+  color: var(--foreground);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--cyan) 8%, transparent);
+}
+
+.vt-ai-confirm-title {
+  margin: 0;
+  font-size: var(--text-section);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.vt-ai-confirm-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-body);
+  line-height: 1.45;
+}
+
+.vt-ai-confirm-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.65rem;
+  margin: 0.75rem 0 0;
+  font-size: var(--text-body);
+}
+
+.vt-ai-confirm-date-label {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vt-ai-confirm-result {
+  margin: 0.75rem 0 0;
+  font-size: var(--text-meta);
+  color: var(--success);
+}
+
+.vt-ai-confirm-result-error {
+  color: var(--danger);
+}
+
+.vt-ai-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+}
+
+.vt-ai-confirm-button {
+  min-height: var(--vt-ai-confirm-tap, 2.75rem);
+  min-width: 7.5rem;
+}
+
+.vt-ai-sources {
+  width: min(100%, 22rem);
+  margin: 0;
+}
+
+.vt-ai-sources-label {
+  margin: 0 0 0.3rem;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vt-ai-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vt-ai-sources-list a {
+  color: var(--cyan);
+  font-size: var(--text-meta);
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.vt-ai-sources-list a:hover,
+.vt-ai-sources-list a:focus-visible {
+  text-decoration: underline;
+}
+
 .vt-ai-orb {
   position: relative;
   isolation: isolate;
@@ -950,6 +1057,19 @@ summary,
     height: var(--vt-ai-vv-height, 100dvh);
     max-height: var(--vt-ai-vv-height, 100dvh);
     border-left: 0;
+  }
+
+  .vt-ai-confirm-card {
+    width: 100%;
+  }
+
+  .vt-ai-confirm-actions {
+    flex-direction: column;
+  }
+
+  .vt-ai-confirm-button {
+    width: 100%;
+    min-width: 0;
   }
 }
 

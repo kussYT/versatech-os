@@ -203,6 +203,8 @@ describe("POST /api/ai/chat contract", () => {
     );
     assert.match(source, /versatechAgent\.stream/);
     assert.match(source, /createChatSseResponse/);
+    assert.match(source, /takePendingConfirmation/);
+    assert.match(source, /getConfirmation/);
     assert.match(source, /toAgentMessages/);
     assert.doesNotMatch(source, /versatechAgent\.generate/);
     assert.doesNotMatch(source, /setInterval/);

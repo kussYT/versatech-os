@@ -2,24 +2,17 @@
 
 import { logServerError } from "@/lib/observability/log-error";
 
-import type { TaskStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateProjects } from "@/lib/crm/revalidate";
-import { prisma } from "@/lib/db/prisma";
 import {
   createTaskSchema,
   fieldErrorsFromZod,
   updateTaskStatusSchema,
 } from "@/lib/validations/task";
-
-const ALLOWED_TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  TODO: ["IN_PROGRESS", "CANCELED"],
-  IN_PROGRESS: ["DONE", "TODO", "CANCELED"],
-  DONE: [],
-  CANCELED: [],
-};
+import { TaskService } from "@/lib/services/tasks";
+import { toActionResult } from "@/lib/services/_shared/result";
 
 export async function createTask(
   _prev: ActionResult,
@@ -29,7 +22,6 @@ export async function createTask(
   if (!auth.ok) {
     return auth.result;
   }
-  const { actor } = auth;
   const parsed = createTaskSchema.safeParse({
     projectId: readString(formData, "projectId"),
     title: readString(formData, "title"),
@@ -46,47 +38,20 @@ export async function createTask(
     };
   }
 
-  const input = parsed.data;
-
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: input.projectId },
+    const result = await TaskService.createTask({
+      actor: auth.actor,
+      title: parsed.data.title,
+      priority: parsed.data.priority,
+      dueAt: parsed.data.dueAt,
+      description: parsed.data.description,
+      projectId: parsed.data.projectId,
     });
-
-    if (!project) {
-      return { ok: false, message: "Projet introuvable." };
+    if (!result.ok) {
+      return toActionResult(result);
     }
-
-    const task = await prisma.$transaction(async (tx) => {
-      const created = await tx.task.create({
-        data: {
-          title: input.title,
-          description: input.description,
-          status: "TODO",
-          priority: input.priority,
-          dueAt: input.dueAt,
-          companyId: project.companyId,
-          opportunityId: project.opportunityId,
-          projectId: project.id,
-          assignedToId: actor.id,
-        },
-      });
-
-      await tx.activityLog.create({
-        data: {
-          actorId: actor.id,
-          entityType: "Task",
-          entityId: created.id,
-          action: "task.created",
-          metadata: { projectId: project.id, companyId: project.companyId },
-        },
-      });
-
-      return created;
-    });
-
-    revalidateProjects(project.companyId, project.id);
-    return { ok: true, data: { taskId: task.id, projectId: project.id, companyId: project.companyId } };
+    revalidateProjects(result.data.companyId, result.data.projectId);
+    return toActionResult(result);
   } catch (error) {
     logServerError("tasks", error);
     return { ok: false, message: "Impossible de créer la tâche. Réessayez." };
@@ -101,7 +66,6 @@ export async function updateTaskStatus(
   if (!auth.ok) {
     return auth.result;
   }
-  const { actor } = auth;
   const parsed = updateTaskStatusSchema.safeParse({
     taskId: readString(formData, "taskId"),
     status: readString(formData, "status"),
@@ -115,65 +79,17 @@ export async function updateTaskStatus(
     };
   }
 
-  const input = parsed.data;
-
   try {
-    const existing = await prisma.task.findUnique({
-      where: { id: input.taskId },
+    const result = await TaskService.updateTaskStatus({
+      actor: auth.actor,
+      taskId: parsed.data.taskId,
+      status: parsed.data.status,
     });
-
-    if (!existing) {
-      return { ok: false, message: "Tâche introuvable." };
+    if (!result.ok) {
+      return toActionResult(result);
     }
-
-    if (existing.status === input.status) {
-      return {
-        ok: true,
-        data: {
-          taskId: existing.id,
-          projectId: existing.projectId ?? undefined,
-          companyId: existing.companyId ?? undefined,
-        },
-      };
-    }
-
-    if (!ALLOWED_TASK_TRANSITIONS[existing.status].includes(input.status)) {
-      return { ok: false, message: "Cette transition n'est pas autorisée." };
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.task.update({
-        where: { id: existing.id },
-        data: {
-          status: input.status,
-          completedAt: input.status === "DONE" ? new Date() : existing.completedAt,
-        },
-      });
-
-      await tx.activityLog.create({
-        data: {
-          actorId: actor.id,
-          entityType: "Task",
-          entityId: existing.id,
-          action: "task.status_changed",
-          metadata: {
-            projectId: existing.projectId,
-            fromStatus: existing.status,
-            toStatus: input.status,
-          },
-        },
-      });
-    });
-
-    revalidateProjects(existing.companyId ?? undefined, existing.projectId ?? undefined);
-    return {
-      ok: true,
-      data: {
-        taskId: existing.id,
-        projectId: existing.projectId ?? undefined,
-        companyId: existing.companyId ?? undefined,
-      },
-    };
+    revalidateProjects(result.data.companyId, result.data.projectId);
+    return toActionResult(result);
   } catch (error) {
     logServerError("tasks", error);
     return { ok: false, message: "Impossible de mettre à jour la tâche. Réessayez." };

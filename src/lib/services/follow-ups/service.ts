@@ -5,7 +5,9 @@ import { endOfToday, startOfToday } from "@/lib/dates";
 import { loadCompanyExists } from "@/lib/queries/companies";
 import { loadFollowUpItems, type FollowUpListItem } from "@/lib/queries/follow-ups";
 import { mapFollowUpList } from "./map";
+import { completeFollowUp, createFollowUp } from "./write";
 import {
+  COMPANY_NOT_FOUND_MESSAGE,
   PENDING_FOLLOW_UP_BUCKETS,
   parseListFollowUpsInput,
   requireServiceActor,
@@ -63,7 +65,7 @@ export async function listFollowUps({
   if (input.companyId) {
     const exists = await loadCompanyExists(input.companyId);
     if (!exists) {
-      throw new Error("Entreprise introuvable.");
+      throw new Error(COMPANY_NOT_FOUND_MESSAGE);
     }
   }
 
@@ -100,6 +102,15 @@ export async function listFollowUps({
   return mapFollowUpList(collected, input.limit);
 }
 
+export { createFollowUp, completeFollowUp };
+export type {
+  CreateFollowUpInput,
+  CompleteFollowUpInput,
+  FollowUpWriteResult,
+} from "./write";
+
 export const FollowUpService = {
   listFollowUps,
+  createFollowUp,
+  completeFollowUp,
 };

@@ -5,15 +5,17 @@ import { endOfToday, startOfToday } from "@/lib/dates";
 import { loadCompanyExists } from "@/lib/queries/companies";
 import { loadOpenTasks, loadProjectExists, type LoadOpenTasksInput } from "@/lib/queries/projects";
 import { mapTaskList } from "./map";
+import { createTask, updateTaskStatus } from "./write";
 import {
+  COMPANY_NOT_FOUND_MESSAGE,
+  PROJECT_NOT_FOUND_MESSAGE,
   parseListOpenTasksInput,
   requireServiceActor,
   type TaskDueBucket,
   type TaskListDto,
 } from "./schema";
 
-export const COMPANY_NOT_FOUND_MESSAGE = "Entreprise introuvable.";
-export const PROJECT_NOT_FOUND_MESSAGE = "Projet introuvable.";
+export { COMPANY_NOT_FOUND_MESSAGE, PROJECT_NOT_FOUND_MESSAGE };
 
 export type ListOpenTasksInput = {
   actor: SessionUser;
@@ -83,6 +85,15 @@ export async function listOpenTasks({
   return mapTaskList(items, input.limit);
 }
 
+export { createTask, updateTaskStatus };
+export type {
+  CreateTaskInput,
+  UpdateTaskStatusInput,
+  TaskWriteResult,
+} from "./write";
+
 export const TaskService = {
   listOpenTasks,
+  createTask,
+  updateTaskStatus,
 };

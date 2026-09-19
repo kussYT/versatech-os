@@ -4,9 +4,13 @@ import { createTool } from "@mastra/core/tools";
 import type { RequestContext } from "@mastra/core/request-context";
 import type { z } from "zod";
 
+import { stashPendingConfirmation } from "@/ai/chat/pending-confirmation";
 import { createToolRuntime } from "@/ai/context";
-import { toolFailure } from "@/ai/result";
+import { toolFailure, toModelVisibleToolResult, type ToolResult } from "@/ai/result";
 import {
+  completeFollowUpInputSchema,
+  createFollowUpInputSchema,
+  createTaskInputSchema,
   getCompanyInputSchema,
   getFinanceSnapshotInputSchema,
   getPipelineInputSchema,
@@ -17,6 +21,7 @@ import {
   listFollowUpsInputSchema,
   listTasksInputSchema,
   searchCompaniesInputSchema,
+  webSearchInputSchema,
 } from "@/ai/schemas";
 import { executeTool, type ExecuteToolArgs } from "@/ai/tools";
 import type { SessionUser } from "@/lib/auth/types";
@@ -82,6 +87,10 @@ function executeFromRequestContext(
     runtime: created.runtime,
     name,
     input: inputData,
+  }).then((result) => {
+    const typed = result as ToolResult;
+    stashPendingConfirmation(requestContext, typed);
+    return toModelVisibleToolResult(typed);
   });
 }
 
@@ -171,6 +180,34 @@ export function createVersatechMastraTools(execute: VersatechExecuteTool = execu
       description:
         "Journal métier récent : actions libellées, sans métadonnées brutes.",
       inputSchema: getRecentActivityInputSchema,
+      execute,
+    }),
+    webSearch: createVersatechMastraTool({
+      id: "webSearch",
+      description:
+        "Recherche web contrôlée pour des faits actuels ou externes (extraits sourcés). Ce n'est pas le CRM. Si l'outil est indisponible, le dire ; ne pas inventer.",
+      inputSchema: webSearchInputSchema,
+      execute,
+    }),
+    createFollowUp: createVersatechMastraTool({
+      id: "createFollowUp",
+      description:
+        "Préparer une relance (companyId persisté, dueAt ISO 8601). Convertir demain/lundi en jour civil Europe/Paris avant l'appel. Ne mute pas : renvoie une proposition à confirmer.",
+      inputSchema: createFollowUpInputSchema,
+      execute,
+    }),
+    completeFollowUp: createVersatechMastraTool({
+      id: "completeFollowUp",
+      description:
+        "Préparer la clôture d'une relance PENDING par followUpId persisté. Ne mute pas : proposition à confirmer.",
+      inputSchema: completeFollowUpInputSchema,
+      execute,
+    }),
+    createTask: createVersatechMastraTool({
+      id: "createTask",
+      description:
+        "Préparer une tâche (title, companyId ou projectId persisté, dueAt ISO optionnel). Convertir les dates relatives en Europe/Paris. Ne mute pas : proposition à confirmer.",
+      inputSchema: createTaskInputSchema,
       execute,
     }),
   };

@@ -18,14 +18,26 @@ export const TOOL_PERMISSIONS = {
   getPipeline: "READ",
   getFinanceSnapshot: "READ",
   getRecentActivity: "READ",
+  webSearch: "READ",
   createCompany: "WRITE",
   createFollowUp: "WRITE",
+  completeFollowUp: "WRITE",
+  createTask: "WRITE",
   updateOpportunityStageWonLost: "CRITICAL",
   updateQuoteStatus: "CRITICAL",
   createPayment: "CRITICAL",
 } as const satisfies Record<string, PermissionLevel>;
 
 export type CatalogToolName = keyof typeof TOOL_PERMISSIONS;
+
+/** LLM-invoked WRITE that may emit a confirmation proposal (never mutates). */
+export const CONFIRMABLE_WRITE_TOOLS = ["createFollowUp", "completeFollowUp", "createTask"] as const;
+
+export type ConfirmableWriteToolName = (typeof CONFIRMABLE_WRITE_TOOLS)[number];
+
+export function isConfirmableWriteTool(name: string): name is ConfirmableWriteToolName {
+  return (CONFIRMABLE_WRITE_TOOLS as readonly string[]).includes(name);
+}
 
 export function getToolPermission(name: string): PermissionLevel | undefined {
   if (Object.prototype.hasOwnProperty.call(TOOL_PERMISSIONS, name)) {

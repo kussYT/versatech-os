@@ -545,3 +545,17 @@ model TourStop {
   @@unique([tourId, companyId])
   @@index([tourId, order])
 }
+
+/// Technical anti-replay for confirmed AI writes. Not CRM truth.
+/// No User FK: actorId is stored for audit + app-level binding only.
+/// Do not store prompts, args, tokens, LLM output, or secrets.
+model AiActionConsumption {
+  id         String   @id @default(cuid())
+  actionId   String   @unique
+  actorId    String
+  toolName   String
+  consumedAt DateTime
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+}

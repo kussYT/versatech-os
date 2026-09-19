@@ -15,6 +15,10 @@ type VersatechAiContextValue = {
   setDraft: (value: string) => void;
   send: (raw?: string) => Promise<void>;
   canSend: boolean;
+  confirmProposal: (messageId: string) => Promise<void>;
+  cancelProposal: (messageId: string) => void;
+  confirmingId: string | null;
+  activityLabel: string | null;
 };
 
 const VersatechAiContext = createContext<VersatechAiContextValue | null>(null);

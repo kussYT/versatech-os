@@ -5,6 +5,8 @@ export const COMPANY_NOT_FOUND_MESSAGE = "Entreprise introuvable.";
 
 export const PROJECT_NOT_FOUND_MESSAGE = "Projet introuvable.";
 
+export const FOLLOW_UP_NOT_FOUND_MESSAGE = "Relance introuvable.";
+
 export const RANGE_TOO_LARGE_MESSAGE = "La plage demandée est trop large.";
 
 export function isCompanyNotFoundError(error: unknown): boolean {
@@ -13,6 +15,10 @@ export function isCompanyNotFoundError(error: unknown): boolean {
 
 export function isProjectNotFoundError(error: unknown): boolean {
   return error instanceof Error && error.message === PROJECT_NOT_FOUND_MESSAGE;
+}
+
+export function isFollowUpNotFoundError(error: unknown): boolean {
+  return error instanceof Error && error.message === FOLLOW_UP_NOT_FOUND_MESSAGE;
 }
 
 export function isRangeTooLargeError(error: unknown): boolean {

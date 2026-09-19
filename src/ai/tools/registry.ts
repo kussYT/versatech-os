@@ -4,6 +4,7 @@ import type { z } from "zod";
 import type { ToolRuntime } from "@/ai/context";
 import {
   getToolPermission,
+  isConfirmableWriteTool,
   isPermissionExecutable,
   refusalCodeForPermission,
   refusalMessageForPermission,
@@ -11,6 +12,9 @@ import {
 } from "@/ai/permissions";
 import { toolFailure, type ToolResult } from "@/ai/result";
 import {
+  completeFollowUpInputSchema,
+  createFollowUpInputSchema,
+  createTaskInputSchema,
   getCompanyInputSchema,
   getFinanceSnapshotInputSchema,
   getPipelineInputSchema,
@@ -21,6 +25,7 @@ import {
   listFollowUpsInputSchema,
   listTasksInputSchema,
   searchCompaniesInputSchema,
+  webSearchInputSchema,
   type GetCompanyInput,
   type GetFinanceSnapshotInput,
   type GetPipelineInput,
@@ -31,6 +36,7 @@ import {
   type ListFollowUpsInput,
   type ListTasksInput,
   type SearchCompaniesInput,
+  type WebSearchInput,
 } from "@/ai/schemas";
 import { executeGetCompany, type GetCompanyFn } from "./get-company";
 import { executeGetFinanceSnapshot, type GetFinanceSnapshotFn } from "./get-finance-snapshot";
@@ -41,7 +47,17 @@ import { executeGetTodayTour, type GetTodayTourFn } from "./get-today-tour";
 import { executeListCalendarItems, type ListCalendarItemsFn } from "./list-calendar-items";
 import { executeListFollowUps, type ListFollowUpsFn } from "./list-follow-ups";
 import { executeListTasks, type ListTasksFn } from "./list-tasks";
+import { proposeConfirmableWrite } from "./propose-write";
 import { executeSearchCompanies, type SearchCompaniesFn } from "./search-companies";
+import { executeWebSearch, type WebSearchFn } from "./web-search";
+
+export { executeConfirmedWrite } from "./execute-confirmed-write";
+export type {
+  CompleteFollowUpFn,
+  ConfirmedWriteDeps,
+  CreateFollowUpFn,
+  CreateTaskFn,
+} from "./execute-confirmed-write";
 
 export type RegisteredTool = {
   name: string;
@@ -72,6 +88,7 @@ export type ProductionToolDeps = {
   getPipeline?: GetPipelineFn;
   getFinanceSnapshot?: GetFinanceSnapshotFn;
   getRecentActivity?: GetRecentActivityFn;
+  webSearch?: WebSearchFn;
 };
 
 function refuseNonRead(permission: PermissionLevel): ToolResult<never> {
@@ -82,6 +99,11 @@ function refuseNonRead(permission: PermissionLevel): ToolResult<never> {
     refusalCodeForPermission(permission),
     refusalMessageForPermission(permission),
   );
+}
+
+/** LLM WRITE execute is never a mutation — even if a later tool object tries. */
+function refuseDirectWriteExecute(): Promise<ToolResult<never>> {
+  return Promise.resolve(toolFailure("FORBIDDEN"));
 }
 
 export function createProductionTools(deps: ProductionToolDeps = {}): RegisteredTool[] {
@@ -156,6 +178,31 @@ export function createProductionTools(deps: ProductionToolDeps = {}): Registered
       execute: (runtime, input) =>
         executeGetRecentActivity(runtime, input as GetRecentActivityInput, deps.getRecentActivity),
     },
+    {
+      name: "webSearch",
+      permission: "READ",
+      inputSchema: webSearchInputSchema,
+      execute: (runtime, input) =>
+        executeWebSearch(runtime, input as WebSearchInput, deps.webSearch),
+    },
+    {
+      name: "createFollowUp",
+      permission: "WRITE",
+      inputSchema: createFollowUpInputSchema,
+      execute: refuseDirectWriteExecute,
+    },
+    {
+      name: "completeFollowUp",
+      permission: "WRITE",
+      inputSchema: completeFollowUpInputSchema,
+      execute: refuseDirectWriteExecute,
+    },
+    {
+      name: "createTask",
+      permission: "WRITE",
+      inputSchema: createTaskInputSchema,
+      execute: refuseDirectWriteExecute,
+    },
   ];
 }
 
@@ -166,12 +213,16 @@ export function getToolCatalog(tools: readonly RegisteredTool[]): ToolCatalogEnt
 /**
  * Fail-closed dispatcher.
  * 1. Unknown name → FORBIDDEN
- * 2. WRITE / CRITICAL → NOT_AVAILABLE / FORBIDDEN (executor is not called)
- * 3. Zod input (strips actorId / now / confirmation)
- * 4. READ executor
+ * 2. CRITICAL → FORBIDDEN (never a proposal, executor is not called)
+ * 3. WRITE confirmable (createFollowUp, completeFollowUp, createTask) →
+ *    Zod then CONFIRMATION_REQUIRED proposal. Never mutates.
+ * 4. Other catalog WRITE → NOT_AVAILABLE
+ * 5. Zod input (strips actorId / now / confirmation)
+ * 6. READ executor
  *
  * Actor for services is `runtime.actor` (SessionUser). Never pass ToolContext
  * into business services. Model-visible metadata is `toToolContext(runtime)`.
+ * Confirmed mutations use {@link executeConfirmedWrite}, not this function.
  */
 export function createExecuteTool(tools: readonly RegisteredTool[]) {
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
@@ -186,6 +237,21 @@ export function createExecuteTool(tools: readonly RegisteredTool[]) {
 
     if (permission === undefined) {
       return toolFailure("FORBIDDEN", "Outil inconnu.");
+    }
+
+    if (permission === "CRITICAL") {
+      return refuseNonRead("CRITICAL");
+    }
+
+    if (permission === "WRITE") {
+      if (!isConfirmableWriteTool(name) || !tool) {
+        return refuseNonRead("WRITE");
+      }
+      const parsed = tool.inputSchema.safeParse(input ?? {});
+      if (!parsed.success) {
+        return toolFailure("VALIDATION_FAILED");
+      }
+      return await proposeConfirmableWrite(runtime, name, parsed.data);
     }
 
     if (!isPermissionExecutable(permission)) {

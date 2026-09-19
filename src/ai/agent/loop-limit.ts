@@ -2,6 +2,7 @@ import "server-only";
 
 import type { RequestContext } from "@mastra/core/request-context";
 
+import { isConfirmableWriteTool, WRITE_CONFIRMABLE_MAX_PER_TURN } from "@/ai/permissions";
 import { toolFailure, type ToolResult } from "@/ai/result";
 
 /**
@@ -9,6 +10,14 @@ import { toolFailure, type ToolResult } from "@/ai/result";
  * One LLM step may call several tools; this counts actual execute attempts.
  */
 export const CHAT_MAX_TOOL_CALLS = 6;
+
+/**
+ * Hard `webSearch` ceiling per chat request (orchestrator, not prompt).
+ * Counts the tool name {@link WEB_SEARCH_TOOL_NAME} only — not query text.
+ */
+export const CHAT_MAX_WEB_SEARCH_CALLS = 2;
+
+export const WEB_SEARCH_TOOL_NAME = "webSearch";
 
 /**
  * Mastra LLM-step ceiling: enough for {@link CHAT_MAX_TOOL_CALLS} sequential
@@ -20,8 +29,14 @@ export const VERSATECH_AI_TOOL_GUARD_CONTEXT_KEY = "versatechToolGuard";
 
 export const TOOL_CALL_LIMIT_MESSAGE = "Limite d'outils atteinte.";
 export const TOOL_CALL_LOOP_MESSAGE = "Boucle d'outil détectée.";
+export const WRITE_CHAIN_MESSAGE = "Une seule mutation peut être proposée à la fois.";
+export const WEB_SEARCH_LIMIT_MESSAGE = "Limite de recherches web atteinte.";
 
-export type ToolCallLimitReason = "limit" | "loop";
+export type ToolCallLimitReason = "limit" | "loop" | "write-chain" | "web-search";
+
+export function isWebSearchTool(name: string): boolean {
+  return name === WEB_SEARCH_TOOL_NAME;
+}
 
 export type ToolCallDecision =
   | { ok: true }
@@ -29,10 +44,20 @@ export type ToolCallDecision =
 
 export class ToolCallGuard {
   #count = 0;
+  #writeCount = 0;
+  #webSearchCount = 0;
   #lastFingerprint: string | undefined;
 
   get count(): number {
     return this.#count;
+  }
+
+  get writeCount(): number {
+    return this.#writeCount;
+  }
+
+  get webSearchCount(): number {
+    return this.#webSearchCount;
   }
 
   inspect(toolName: string, input: unknown): ToolCallDecision {
@@ -43,8 +68,20 @@ export class ToolCallGuard {
     if (this.#count >= CHAT_MAX_TOOL_CALLS) {
       return { ok: false, reason: "limit", message: TOOL_CALL_LIMIT_MESSAGE };
     }
+    if (isConfirmableWriteTool(toolName) && this.#writeCount >= WRITE_CONFIRMABLE_MAX_PER_TURN) {
+      return { ok: false, reason: "write-chain", message: WRITE_CHAIN_MESSAGE };
+    }
+    if (isWebSearchTool(toolName) && this.#webSearchCount >= CHAT_MAX_WEB_SEARCH_CALLS) {
+      return { ok: false, reason: "web-search", message: WEB_SEARCH_LIMIT_MESSAGE };
+    }
     this.#lastFingerprint = fingerprint;
     this.#count += 1;
+    if (isConfirmableWriteTool(toolName)) {
+      this.#writeCount += 1;
+    }
+    if (isWebSearchTool(toolName)) {
+      this.#webSearchCount += 1;
+    }
     return { ok: true };
   }
 }

@@ -11,6 +11,8 @@ import {
 import { Send, X } from "lucide-react";
 import { useVersatechAi } from "@/components/ai/versatech-ai";
 import { CHAT_MESSAGE_MAX_LENGTH } from "@/components/ai/chat-client";
+import { VersatechAiConfirmationCard } from "@/components/ai/versatech-ai-confirmation-card";
+import { VersatechAiSources } from "@/components/ai/versatech-ai-sources";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { controlClassName } from "@/components/ui/field";
@@ -41,6 +43,10 @@ export function VersatechAiPanel() {
     setDraft,
     send,
     canSend,
+    confirmProposal,
+    cancelProposal,
+    confirmingId,
+    activityLabel,
   } = useVersatechAi();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -49,7 +55,8 @@ export function VersatechAiPanel() {
   const inputId = useId();
   const last = messages.at(-1);
   const waiting =
-    status === "thinking" && (!last || last.role === "user" || last.content.trim() === "");
+    status === "thinking" &&
+    (!last || last.role === "user" || (last.content.trim() === "" && !last.proposal));
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -101,7 +108,7 @@ export function VersatechAiPanel() {
       behavior: prefersReducedMotion() ? "auto" : "smooth",
       block: "end",
     });
-  }, [messages, status, error]);
+  }, [messages, status, error, activityLabel]);
 
   function onBackdropPointerDown(event: PointerEvent<HTMLDialogElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -156,7 +163,7 @@ export function VersatechAiPanel() {
                 )}
                 aria-hidden="true"
               />
-              {STATUS_LABEL[status]}
+              {activityLabel ?? STATUS_LABEL[status]}
             </p>
           </div>
         </div>
@@ -176,18 +183,53 @@ export function VersatechAiPanel() {
         ) : (
           <ol className="flex flex-col gap-3">
             {messages
-              .filter((item) => item.content.trim().length > 0)
+              .filter(
+                (item) =>
+                  item.content.trim().length > 0 ||
+                  Boolean(item.proposal) ||
+                  Boolean(item.sources && item.sources.length > 0) ||
+                  item.confirmationStatus === "success",
+              )
               .map((item) => (
               <li key={item.id} className={cn("flex", item.role === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
-                    "max-w-[92%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-body",
-                    item.role === "user"
-                      ? "rounded-br-md border border-border bg-surface-high text-foreground"
-                      : "rounded-bl-md border border-border bg-surface text-foreground card-sheen",
+                    "flex max-w-[92%] flex-col gap-2",
+                    item.role === "user" ? "items-end" : "items-start",
                   )}
                 >
-                  {item.content}
+                  {item.content.trim().length > 0 ? (
+                    <div
+                      className={cn(
+                        "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-body",
+                        item.role === "user"
+                          ? "rounded-br-md border border-border bg-surface-high text-foreground"
+                          : "rounded-bl-md border border-border bg-surface text-foreground card-sheen",
+                      )}
+                    >
+                      {item.content}
+                    </div>
+                  ) : null}
+                  {item.proposal ? (
+                    <VersatechAiConfirmationCard
+                      proposal={item.proposal}
+                      status={
+                        confirmingId === item.id
+                          ? "confirming"
+                          : (item.confirmationStatus ?? "idle")
+                      }
+                      message={item.confirmationMessage}
+                      onConfirm={() => {
+                        void confirmProposal(item.id);
+                      }}
+                      onCancel={() => {
+                        cancelProposal(item.id);
+                      }}
+                    />
+                  ) : null}
+                  {item.role === "assistant" && item.sources && item.sources.length > 0 ? (
+                    <VersatechAiSources sources={item.sources} />
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -199,7 +241,10 @@ export function VersatechAiPanel() {
             <Skeleton className="h-3 w-[88%]" />
             <Skeleton className="h-3 w-[62%]" />
             <Skeleton className="h-3 w-[74%]" />
-            <span className="sr-only">Réflexion en cours</span>
+            {activityLabel ? (
+              <p className="pt-1 text-meta text-muted">{activityLabel}</p>
+            ) : null}
+            <span className="sr-only">{activityLabel ?? "Réflexion en cours"}</span>
           </div>
         ) : null}
 

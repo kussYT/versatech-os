@@ -56,4 +56,26 @@ describe("READ tool wiring (no live LLM)", () => {
       assert.doesNotMatch(source, /now:\s*input\.now/);
     }
   });
+
+  test("WRITE propose modules do not import Business Services or Prisma", () => {
+    for (const file of ["create-follow-up.ts", "complete-follow-up.ts", "create-task.ts", "propose-write.ts"]) {
+      const source = readTool(file);
+      assert.doesNotMatch(source, /from ["']@\/lib\/services/);
+      assert.doesNotMatch(source, /@\/lib\/db\/prisma/);
+      assert.doesNotMatch(source, /@\/actions/);
+    }
+    const confirmed = readTool("execute-confirmed-write.ts");
+    assert.match(confirmed, /FollowUpService/);
+    assert.match(confirmed, /TaskService/);
+    assert.doesNotMatch(confirmed, /@\/lib\/db\/prisma/);
+    assert.doesNotMatch(confirmed, /@\/actions/);
+  });
+
+  test("webSearch imports WebSearchService and never Prisma or Server Actions", () => {
+    const source = readTool("web-search.ts");
+    assert.match(source, /WebSearchService/);
+    assert.doesNotMatch(source, /@\/lib\/db\/prisma/);
+    assert.doesNotMatch(source, /PrismaClient/);
+    assert.doesNotMatch(source, /@\/actions/);
+  });
 });

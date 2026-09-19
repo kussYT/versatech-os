@@ -1,9 +1,12 @@
 import "server-only";
 
+import type { WriteProposal } from "@/ai/confirmation/types";
+
 /**
  * Tool I/O result — distinct from UI `ActionResult`.
  * `success === true` ⇒ `data` is set and `error` is absent.
  * `success === false` ⇒ `error` is set and no business `data`.
+ * CONFIRMATION_REQUIRED may attach a `proposal` (preview, not a mutation).
  * Messages are operator-safe: never stacks, SQL, or secrets.
  */
 export const TOOL_ERROR_CODES = [
@@ -28,7 +31,7 @@ export type ToolError = {
 
 export type ToolResult<T = unknown> =
   | { success: true; data: T }
-  | { success: false; error: ToolError };
+  | { success: false; error: ToolError; proposal?: WriteProposal };
 
 export const TOOL_ERROR_MESSAGES: Record<ToolErrorCode, string> = {
   AUTH_REQUIRED: "Authentification requise.",
@@ -73,6 +76,48 @@ export function toolFailure(code: ToolErrorCode, message?: string): ToolResult<n
     error: {
       code,
       message: safeMessage(code, message),
+    },
+  };
+}
+
+export function toolConfirmationRequired(proposal: WriteProposal): ToolResult<never> {
+  return {
+    success: false,
+    error: {
+      code: "CONFIRMATION_REQUIRED",
+      message: TOOL_ERROR_MESSAGES.CONFIRMATION_REQUIRED,
+    },
+    proposal,
+  };
+}
+
+export function isConfirmationRequiredResult(
+  result: ToolResult,
+): result is { success: false; error: ToolError; proposal: WriteProposal } {
+  return (
+    result.success === false &&
+    result.error.code === "CONFIRMATION_REQUIRED" &&
+    result.proposal !== undefined
+  );
+}
+
+/**
+ * LLM-visible tool result: drop confirmToken so the model cannot replay it.
+ * The full proposal stays on `executeTool` for Agent B's confirm route.
+ */
+export function toModelVisibleToolResult(result: ToolResult): ToolResult {
+  if (!isConfirmationRequiredResult(result)) {
+    return result;
+  }
+  const proposal = result.proposal;
+  return {
+    success: false,
+    error: result.error,
+    proposal: {
+      ...proposal,
+      confirmToken: "",
+      token: "",
+      actorId: "",
     },
   };
 }

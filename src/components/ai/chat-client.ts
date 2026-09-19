@@ -1,13 +1,32 @@
+import {
+  parseConfirmationPayload,
+  type ConfirmationView,
+} from "@/components/ai/confirmation";
+import {
+  extractHttpsSourcesFromMarkdown,
+  isWebSearchErrorText,
+  mergeChatSources,
+  parseSourcesPayload,
+  parseStatusPayload,
+  WEB_SEARCH_UNAVAILABLE_MESSAGE,
+  type ChatSourceLink,
+} from "@/components/ai/sources";
+
 export const CHAT_ENDPOINT = "/api/ai/chat";
 export const CHAT_MESSAGE_MAX_LENGTH = 4000;
 export const CHAT_HISTORY_TURN_CAP = 20;
 export const CHAT_HISTORY_MAX_MESSAGES = 20;
 export const CHAT_HISTORY_MAX_CHARS = 24_000;
 
+export type { ConfirmationView };
+
 export const SESSION_ERROR_MESSAGE = "Session expirée. Reconnectez-vous.";
 export const GENERIC_ERROR_MESSAGE = "Une erreur interne est survenue.";
 export const UNAVAILABLE_ERROR_MESSAGE = "Assistant indisponible.";
+export const WEB_SEARCH_ERROR_MESSAGE = WEB_SEARCH_UNAVAILABLE_MESSAGE;
 export const EMPTY_RESPONSE_MESSAGE = "Aucune réponse.";
+
+export type { ChatSourceLink };
 
 export type ChatRole = "user" | "assistant";
 
@@ -88,6 +107,9 @@ export function safeClientError(raw: string, status?: number) {
   }
 
   const trimmed = raw.trim();
+  if (isWebSearchErrorText(trimmed)) {
+    return WEB_SEARCH_UNAVAILABLE_MESSAGE;
+  }
   if (!trimmed || SECRETISH.test(trimmed) || trimmed.length > 280) {
     if (status === 503) {
       return UNAVAILABLE_ERROR_MESSAGE;
@@ -141,20 +163,61 @@ export type SseToken =
   | { kind: "delta"; value: string }
   | { kind: "replace"; value: string }
   | { kind: "error"; value: string }
+  | { kind: "confirmation"; proposal: ConfirmationView }
+  | { kind: "status"; label: string }
+  | { kind: "sources"; sources: ChatSourceLink[] }
   | { kind: "skip" };
 
+export type ConsumeEventStreamResult = {
+  text: string;
+  proposal: ConfirmationView | null;
+  sources: ChatSourceLink[];
+};
+
+export type ConsumeEventStreamOptions = {
+  onProposal?: (proposal: ConfirmationView) => void;
+  onStatus?: (label: string) => void;
+  onSources?: (sources: ChatSourceLink[]) => void;
+};
+
 export function tokenFromSseData(data: string): SseToken {
+  const tokens = tokensFromSseData(data);
+  return tokens.find((token) => token.kind === "confirmation") ?? tokens[0] ?? { kind: "skip" };
+}
+
+export function tokensFromSseData(data: string): SseToken[] {
   const trimmed = data.trim();
   if (!trimmed || trimmed === "[DONE]") {
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   try {
     const json: unknown = JSON.parse(trimmed);
-    return tokenFromSseJson(json);
+    return tokensFromSseJson(json);
   } catch {
-    return { kind: "delta", value: trimmed };
+    return [{ kind: "delta", value: trimmed }];
   }
+}
+
+function tokensFromSseJson(json: unknown): SseToken[] {
+  const proposal = parseConfirmationPayload(json);
+  const status = parseStatusPayload(json);
+  const sources = parseSourcesPayload(json);
+  const textToken = tokenFromSseJson(json);
+  const tokens: SseToken[] = [];
+  if (status) {
+    tokens.push({ kind: "status", label: status.label });
+  }
+  if (textToken.kind !== "skip") {
+    tokens.push(textToken);
+  }
+  if (sources.length > 0) {
+    tokens.push({ kind: "sources", sources });
+  }
+  if (proposal) {
+    tokens.push({ kind: "confirmation", proposal });
+  }
+  return tokens.length > 0 ? tokens : [{ kind: "skip" }];
 }
 
 function tokenFromSseJson(json: unknown): SseToken {
@@ -167,6 +230,13 @@ function tokenFromSseJson(json: unknown): SseToken {
 
   const record = json as Record<string, unknown>;
   const type = String(record.type ?? record.event ?? "");
+  if (type === "confirmation_required" || type === "proposal" || type === "confirmation") {
+    const complete = firstString(record.message, record.text, record.content);
+    return complete ? { kind: "replace", value: complete } : { kind: "skip" };
+  }
+  if (type === "status" || type === "sources" || type === "tool") {
+    return { kind: "skip" };
+  }
   if (/tool/i.test(type) || typeof record.toolName === "string" || typeof record.tool === "string") {
     return { kind: "skip" };
   }
@@ -216,10 +286,15 @@ function firstString(...values: unknown[]) {
 export async function consumeEventStream(
   response: Response,
   onDelta: (chunk: string) => void,
-): Promise<string> {
+  onProposalOrOptions?: ((proposal: ConfirmationView) => void) | ConsumeEventStreamOptions,
+): Promise<ConsumeEventStreamResult> {
+  const options: ConsumeEventStreamOptions =
+    typeof onProposalOrOptions === "function"
+      ? { onProposal: onProposalOrOptions }
+      : (onProposalOrOptions ?? {});
   const body = response.body;
   if (!body) {
-    return "";
+    return { text: "", proposal: null, sources: [] };
   }
 
   const reader = body.getReader();
@@ -227,9 +302,25 @@ export async function consumeEventStream(
   let buffer = "";
   let assembled = "";
   let usedDeltas = false;
+  let proposal: ConfirmationView | null = null;
+  let sources: ChatSourceLink[] = [];
 
   const apply = (token: SseToken) => {
     if (token.kind === "skip") {
+      return;
+    }
+    if (token.kind === "status") {
+      options.onStatus?.(token.label);
+      return;
+    }
+    if (token.kind === "sources") {
+      sources = mergeChatSources(sources, token.sources);
+      options.onSources?.(sources);
+      return;
+    }
+    if (token.kind === "confirmation") {
+      proposal = token.proposal;
+      options.onProposal?.(token.proposal);
       return;
     }
     if (token.kind === "error") {
@@ -256,7 +347,9 @@ export async function consumeEventStream(
     const parsed = splitSseEvents(buffer);
     buffer = parsed.rest;
     for (const event of parsed.complete) {
-      apply(tokenFromSseData(event));
+      for (const token of tokensFromSseData(event)) {
+        apply(token);
+      }
     }
   }
 
@@ -264,11 +357,19 @@ export async function consumeEventStream(
   if (buffer.trim()) {
     const parsed = splitSseEvents(`${buffer}\n\n`);
     for (const event of parsed.complete) {
-      apply(tokenFromSseData(event));
+      for (const token of tokensFromSseData(event)) {
+        apply(token);
+      }
     }
   }
 
-  return assembled;
+  const markdownSources = extractHttpsSourcesFromMarkdown(assembled);
+  if (sources.length === 0 && markdownSources.length > 0) {
+    sources = markdownSources;
+    options.onSources?.(sources);
+  }
+
+  return { text: assembled, proposal, sources };
 }
 
 export function splitSseEvents(buffer: string) {

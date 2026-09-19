@@ -9,14 +9,26 @@ import type { SessionUser } from "@/lib/auth/types";
 
 export const CHAT_TIMEOUT_MS = 45_000;
 
-export { CHAT_MAX_STEPS, CHAT_MAX_TOOL_CALLS } from "@/ai/agent/loop-limit";
+export {
+  CHAT_MAX_STEPS,
+  CHAT_MAX_TOOL_CALLS,
+  CHAT_MAX_WEB_SEARCH_CALLS,
+} from "@/ai/agent/loop-limit";
 
 export const CHAT_ERROR_MESSAGES = {
   AUTH_REQUIRED: "Authentification requise.",
   INVALID_REQUEST: "Requête invalide.",
   UNAVAILABLE: "Assistant indisponible.",
   INTERNAL: "Une erreur interne est survenue.",
+  WEB_UNAVAILABLE: "Recherche web indisponible.",
 } as const;
+
+export {
+  extractHttpsSources,
+  extractHttpsSourcesFromToolResults,
+  WEB_SEARCH_STATUS_LABEL,
+  WEB_SEARCH_UNAVAILABLE_MESSAGE,
+} from "@/components/ai/sources";
 
 export type ChatGenerateFn = (input: {
   message: string;

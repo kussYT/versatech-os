@@ -13,7 +13,53 @@ export const TASK_DUE_BUCKETS = ["overdue", "today", "upcoming"] as const;
 
 export const OPEN_TASK_STATUSES = ["TODO", "IN_PROGRESS"] as const;
 
+export const TASK_WRITE_STATUSES = ["TODO", "IN_PROGRESS", "DONE", "CANCELED"] as const;
+
 export const PRIORITIES = ["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"] as const;
+
+export const COMPANY_NOT_FOUND_MESSAGE = "Entreprise introuvable.";
+export const PROJECT_NOT_FOUND_MESSAGE = "Projet introuvable.";
+export const TASK_NOT_FOUND_MESSAGE = "Tâche introuvable.";
+export const TASK_ANCHOR_REQUIRED_MESSAGE = "Rattachez la tâche à une entreprise ou un projet.";
+export const TASK_PROJECT_COMPANY_MISMATCH_MESSAGE =
+  "Ce projet n'appartient pas à cette entreprise.";
+export const TASK_TRANSITION_NOT_ALLOWED_MESSAGE = "Cette transition n'est pas autorisée.";
+export const TASK_CREATE_VALIDATION_MESSAGE = "Vérifiez les champs du formulaire.";
+export const TASK_STATUS_VALIDATION_MESSAGE = "Statut de tâche invalide.";
+
+const optionalPersistedId = z.string().min(1).nullable().optional();
+
+/** Object contract (Date / enums) — not FormData strings. */
+export const createTaskInputSchema = z
+  .strictObject({
+    title: z.string().trim().min(1, "Le titre est obligatoire"),
+    priority: z.enum(PRIORITIES).default("NORMAL"),
+    dueAt: z.date().nullable().optional(),
+    description: z.string().nullable().optional(),
+    projectId: optionalPersistedId,
+    companyId: optionalPersistedId,
+  })
+  .superRefine((value, ctx) => {
+    const hasProject = typeof value.projectId === "string" && value.projectId.length > 0;
+    const hasCompany = typeof value.companyId === "string" && value.companyId.length > 0;
+    if (!hasProject && !hasCompany) {
+      ctx.addIssue({
+        code: "custom",
+        message: TASK_ANCHOR_REQUIRED_MESSAGE,
+        path: ["companyId"],
+      });
+      ctx.addIssue({
+        code: "custom",
+        message: TASK_ANCHOR_REQUIRED_MESSAGE,
+        path: ["projectId"],
+      });
+    }
+  });
+
+export const updateTaskStatusInputSchema = z.strictObject({
+  taskId: z.string().min(1, "Tâche introuvable"),
+  status: z.enum(TASK_WRITE_STATUSES, { error: "Statut invalide" }),
+});
 
 const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
@@ -71,7 +117,10 @@ export const taskListSchema = z
 
 export type TaskDueBucket = (typeof TASK_DUE_BUCKETS)[number];
 export type OpenTaskStatus = (typeof OPEN_TASK_STATUSES)[number];
+export type TaskWriteStatus = (typeof TASK_WRITE_STATUSES)[number];
 export type Priority = (typeof PRIORITIES)[number];
+export type CreateTaskParsed = z.output<typeof createTaskInputSchema>;
+export type UpdateTaskStatusParsed = z.output<typeof updateTaskStatusInputSchema>;
 export type TaskAgentDto = z.infer<typeof taskAgentSchema>;
 export type TaskListDto = z.infer<typeof taskListSchema>;
 export type ListOpenTasksParsed = z.output<typeof listOpenTasksInputSchema>;
@@ -97,6 +146,14 @@ export function clampCollection<T>(items: readonly T[], limit: number): T[] {
 
 export function parseListOpenTasksInput(input: unknown): ListOpenTasksParsed {
   return listOpenTasksInputSchema.parse(input);
+}
+
+export function parseCreateTaskInput(input: unknown): CreateTaskParsed {
+  return createTaskInputSchema.parse(input);
+}
+
+export function parseUpdateTaskStatusInput(input: unknown): UpdateTaskStatusParsed {
+  return updateTaskStatusInputSchema.parse(input);
 }
 
 export function parseTaskList(input: unknown): TaskListDto {

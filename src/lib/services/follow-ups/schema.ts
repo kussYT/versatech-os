@@ -81,8 +81,29 @@ export const followUpListSchema = z
     }
   });
 
+export const DEFAULT_FOLLOW_UP_TITLE = "Relance";
+
+export const COMPANY_NOT_FOUND_MESSAGE = "Entreprise introuvable.";
+export const FOLLOW_UP_NOT_FOUND_MESSAGE = "Relance introuvable.";
+export const FOLLOW_UP_NOT_PENDING_MESSAGE = "Cette relance n'est plus en attente.";
+export const FOLLOW_UP_CREATE_VALIDATION_MESSAGE = "Vérifiez les champs du formulaire.";
+
+/** Object contract (Date / enums) — not FormData strings. */
+export const createFollowUpInputSchema = z.strictObject({
+  companyId: z.string().min(1, "Entreprise introuvable"),
+  dueAt: z.date("La date de relance est obligatoire"),
+  title: z.string().nullable().optional(),
+});
+
+export const completeFollowUpInputSchema = z.strictObject({
+  followUpId: z.string().min(1, "Relance introuvable"),
+});
+
 export type FollowUpBucket = (typeof FOLLOW_UP_BUCKETS)[number];
 export type PendingFollowUpBucket = (typeof PENDING_FOLLOW_UP_BUCKETS)[number];
+export type FollowUpStatus = (typeof FOLLOW_UP_STATUSES)[number];
+export type CreateFollowUpParsed = z.output<typeof createFollowUpInputSchema>;
+export type CompleteFollowUpParsed = z.output<typeof completeFollowUpInputSchema>;
 
 /** Services throw this before any Prisma load. Never redirect. */
 export function requireServiceActor(actor: { id?: string } | null | undefined) {
@@ -108,6 +129,14 @@ export function clampCollection<T>(items: readonly T[], limit: number): T[] {
 
 export function parseListFollowUpsInput(input: unknown): ListFollowUpsParsed {
   return listFollowUpsInputSchema.parse(input);
+}
+
+export function parseCreateFollowUpInput(input: unknown): CreateFollowUpParsed {
+  return createFollowUpInputSchema.parse(input);
+}
+
+export function parseCompleteFollowUpInput(input: unknown): CompleteFollowUpParsed {
+  return completeFollowUpInputSchema.parse(input);
 }
 
 export function parseFollowUpList(input: unknown): FollowUpListDto {

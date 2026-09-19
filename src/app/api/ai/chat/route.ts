@@ -2,10 +2,12 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { takePendingConfirmation } from "@/ai/chat/pending-confirmation";
 import { CHAT_ERROR_MESSAGES, isAbortError, prepareVersatechChatRun } from "@/ai/chat/run-chat";
 import { chatRequestSchema, toAgentMessages } from "@/ai/chat/schema";
 import { createChatSseResponse } from "@/ai/chat/sse";
 import { versatechAgent } from "@/ai/index";
+import { extractHttpsSourcesFromToolResults } from "@/components/ai/sources";
 import { isVersatechAiConfigured } from "@/ai/providers/model";
 import { requireRequestActor } from "@/lib/auth/request-actor";
 import { logServerError } from "@/lib/observability/log-error";
@@ -14,10 +16,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Authenticated READ-only chat. Session required; never a public API path.
+ * Authenticated chat. Session required; never a public API path.
  * No GET, no Mastra catch-all, no redirect on missing session.
  *
- * 200 streams real Mastra `textStream` as SSE (`delta` / `done` / `error`).
+ * 200 streams real Mastra `textStream` as SSE (`delta` / `confirmation_required` / `done` / `error`).
+ * Additive `status` / `sources` frames may appear; they do not change those shapes.
+ * WRITE tools never mutate here — they only stash a signed proposal for the confirm route.
  * `@mastra/ai-sdk` is not in the tree — no AI SDK UI protocol.
  * Auth, validation, and unconfigured provider stay JSON 401/400/503.
  */
@@ -59,9 +63,12 @@ export async function POST(request: Request) {
       source: {
         textStream: output.textStream,
         text: output.text,
+        toolStream: output.fullStream,
       },
       abortSignal: prepared.abortSignal,
       onFinally: prepared.stopWatchdog,
+      getConfirmation: () => takePendingConfirmation(prepared.requestContext),
+      getSources: () => extractHttpsSourcesFromToolResults(output._getImmediateToolResults()),
     });
   } catch (error) {
     prepared.stopWatchdog();

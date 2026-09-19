@@ -128,12 +128,55 @@ describe("ADR-014: src/ai must not call Server Actions", () => {
   });
 });
 
-describe("ADR-014: WRITE is not executable this wave", () => {
+describe("ADR-014: WRITE is not auto-executed from executeTool", () => {
   test("policy/registry refuses WRITE, or there is no execute surface yet", async () => {
     const pinned = await assertPinnedPermissionRefusal("WRITE", "createFollowUp");
     if (!pinned) {
       await assertMutationClassBlocked("WRITE", WRITE_TOOL_NAMES);
     }
+  });
+
+  test("confirmed:true on tool input still does not run a WRITE executor", async () => {
+    const registryPath = path.join(AI_ROOT, "tools", "registry.ts");
+    if (!existsSync(registryPath)) {
+      return;
+    }
+    const registry = await importIfPossible(registryPath);
+    const contextPath = path.join(AI_ROOT, "context.ts");
+    const context = existsSync(contextPath) ? await importIfPossible(contextPath) : null;
+    if (!registry || typeof registry.executeTool !== "function" || !context) {
+      return;
+    }
+    if (typeof context.createToolRuntime !== "function") {
+      return;
+    }
+    const created = await Promise.resolve(
+      (
+        context.createToolRuntime as (actor: unknown, requestId: string) => {
+          ok: boolean;
+          runtime?: unknown;
+        }
+      )(SESSION_ACTOR, "req_no_auto_write"),
+    );
+    if (!created.ok) {
+      return;
+    }
+    const result = (await (
+      registry.executeTool as (args: unknown) => Promise<{ success?: boolean; error?: { code?: string } }>
+    )({
+      runtime: created.runtime,
+      name: "createFollowUp",
+      input: {
+        companyId: "co_1",
+        dueAt: "2026-09-20T08:00:00.000Z",
+        confirmed: true,
+        confirmation: { token: "from-model", toolName: "createFollowUp" },
+      },
+    })) as { success?: boolean; error?: { code?: string } };
+    assert.equal(result.success, false);
+    assert.ok(
+      ["FORBIDDEN", "NOT_AVAILABLE", "CONFIRMATION_REQUIRED"].includes(String(result.error?.code)),
+    );
   });
 });
 
@@ -381,6 +424,9 @@ describe("ADR-014: /api/ai is never a public path", () => {
     assert.equal(isPublicPath("/api/ai/chat"), false);
     assert.equal(isPublicPath("/api/ai/chat/"), false);
     assert.equal(isPublicPath("/api/ai/chat/stream"), false);
+    assert.equal(isPublicPath("/api/ai/actions"), false);
+    assert.equal(isPublicPath("/api/ai/actions/confirm"), false);
+    assert.equal(isPublicPath("/api/ai/execute"), false);
     assert.equal(isPublicPath(HEALTH_PATH), true);
     assert.equal(isPublicPath(`${HEALTH_PATH}/ready`), true);
     assert.equal(isPublicPath(LOGIN_PATH), true);
@@ -405,16 +451,37 @@ describe("ADR-014: registered executable tools are READ", () => {
     const catalog = registry.productionToolCatalog as Array<{ name: string; permission: string }>;
     assert.ok(Array.isArray(catalog));
     assert.ok(catalog.length > 0);
+    const confirmableWrite = new Set(["createFollowUp", "completeFollowUp", "createTask"]);
     for (const entry of catalog) {
-      assert.equal(entry.permission, "READ", entry.name);
+      if (entry.permission === "READ") {
+        continue;
+      }
+      assert.equal(entry.permission, "WRITE", entry.name);
+      assert.equal(confirmableWrite.has(entry.name), true, entry.name);
     }
 
     const tools = (
       registry.createProductionTools as () => Array<{ name: string; permission: string }>
     )();
     for (const tool of tools) {
-      assert.equal(tool.permission, "READ", tool.name);
+      if (tool.permission === "READ") {
+        continue;
+      }
+      assert.equal(tool.permission, "WRITE", tool.name);
+      assert.equal(confirmableWrite.has(tool.name), true, tool.name);
     }
+    assert.equal(tools.some((tool) => tool.permission === "CRITICAL"), false);
+  });
+
+  test("no arbitrary URL fetch/browse/crawl tool is registered", async () => {
+    const registryPath = path.join(AI_ROOT, "tools", "registry.ts");
+    const registry = await importIfPossible(registryPath);
+    assert.ok(registry);
+    const catalog = registry.productionToolCatalog as Array<{ name: string }>;
+    const forbidden = /^(fetchUrl|openUrl|browseUrl|downloadUrl|crawlWebsite|crawlUrl|scrapeUrl)$/;
+    assert.equal(catalog.some((entry) => forbidden.test(entry.name)), false);
+    const tools = (registry.createProductionTools as () => Array<{ name: string }>)();
+    assert.equal(tools.some((tool) => forbidden.test(tool.name)), false);
   });
 });
 
@@ -648,7 +715,9 @@ async function assertPinnedPermissionRefusal(
       })) as { success?: boolean; error?: { code?: string } };
       assert.equal(result.success, false);
       assert.ok(
-        ["FORBIDDEN", "NOT_AVAILABLE", "CONFIRMATION_REQUIRED"].includes(String(result.error?.code)),
+        ["FORBIDDEN", "NOT_AVAILABLE", "CONFIRMATION_REQUIRED", "VALIDATION_FAILED"].includes(
+          String(result.error?.code),
+        ),
       );
     }
   }

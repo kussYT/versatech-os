@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { z } from "zod";
 import { createToolRuntime, toToolContext, type ToolRuntime } from "@/ai/context";
-import { getTodayOverviewInputSchema } from "@/ai/schemas/get-today-overview";
+import { isConfirmationRequiredResult } from "@/ai/result";
+import { createFollowUpInputSchema } from "@/ai/schemas/create-follow-up";
 import { searchCompaniesInputSchema } from "@/ai/schemas/search-companies";
+import { getTodayOverviewInputSchema } from "@/ai/schemas/get-today-overview";
+import { webSearchInputSchema } from "@/ai/schemas/web-search";
 import type { SessionUser } from "@/lib/auth/types";
+import { parisDateKey } from "@/lib/dates";
 import { ZERO_MONEY } from "@/lib/money";
 import { emptyCompanySearch, parseCompanyCompact } from "@/lib/services/companies/schema";
 import { emptyFollowUpList } from "@/lib/services/follow-ups/schema";
@@ -17,10 +21,15 @@ import { emptyTodayOverview } from "@/lib/services/today/schema";
 import {
   createExecuteTool,
   createProductionTools,
+  executeConfirmedWrite,
   executeTool,
   productionToolCatalog,
   type RegisteredTool,
 } from "./registry";
+
+if (!process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 32) {
+  process.env.AUTH_SECRET = "unit-test-secret-at-least-32-characters-long";
+}
 
 const actor: SessionUser = {
   id: "user_1",
@@ -46,21 +55,36 @@ function executeWithMocks(deps: Parameters<typeof createProductionTools>[0]) {
   return createExecuteTool(createProductionTools(deps));
 }
 
+const READ_TOOLS = [
+  "getTodayOverview",
+  "searchCompanies",
+  "getCompany",
+  "listFollowUps",
+  "listTasks",
+  "listCalendarItems",
+  "getTodayTour",
+  "getPipeline",
+  "getFinanceSnapshot",
+  "getRecentActivity",
+  "webSearch",
+] as const;
+
+const CONFIRMABLE_WRITE_TOOLS = ["createFollowUp", "completeFollowUp", "createTask"] as const;
+
 describe("tool catalog", () => {
-  test("production catalog lists the ten READ tools", () => {
+  test("production catalog lists READ tools plus the three confirmable WRITE tools", () => {
     const byName = Object.fromEntries(productionToolCatalog.map((entry) => [entry.name, entry]));
-    assert.equal(byName.getTodayOverview.permission, "READ");
-    assert.equal(byName.searchCompanies.permission, "READ");
-    assert.equal(byName.getCompany.permission, "READ");
-    assert.equal(byName.listFollowUps.permission, "READ");
-    assert.equal(byName.listTasks.permission, "READ");
-    assert.equal(byName.listCalendarItems.permission, "READ");
-    assert.equal(byName.getTodayTour.permission, "READ");
-    assert.equal(byName.getPipeline.permission, "READ");
-    assert.equal(byName.getFinanceSnapshot.permission, "READ");
-    assert.equal(byName.getRecentActivity.permission, "READ");
-    assert.equal(productionToolCatalog.length, 10);
-    assert.equal(productionToolCatalog.some((entry) => entry.permission !== "READ"), false);
+    for (const name of READ_TOOLS) {
+      assert.equal(byName[name].permission, "READ");
+    }
+    for (const name of CONFIRMABLE_WRITE_TOOLS) {
+      assert.equal(byName[name].permission, "WRITE");
+    }
+    assert.equal(productionToolCatalog.length, READ_TOOLS.length + CONFIRMABLE_WRITE_TOOLS.length);
+    assert.equal(
+      productionToolCatalog.filter((entry) => entry.permission === "CRITICAL").length,
+      0,
+    );
   });
 });
 
@@ -80,18 +104,54 @@ describe("executeTool fail-closed registry", () => {
     assert.equal("data" in result, false);
   });
 
-  test("catalogued WRITE is refused even without an executor", async () => {
+  test("catalogued confirmable WRITE proposes CONFIRMATION_REQUIRED and does not run execute", async () => {
     const result = await executeTool({
       runtime: runtimeFor(),
       name: "createFollowUp",
-      input: { companyId: "co_1", dueAt: "2026-09-19T10:00:00.000Z" },
+      input: { companyId: "co_1", dueAt: "2026-09-20T08:00:00.000Z" },
+    });
+    assert.equal(result.success, false);
+    if (result.success) {
+      return;
+    }
+    assert.equal(result.error.code, "CONFIRMATION_REQUIRED");
+    assert.equal(isConfirmationRequiredResult(result), true);
+    if (!isConfirmationRequiredResult(result)) {
+      return;
+    }
+    assert.equal(result.proposal.toolName, "createFollowUp");
+    assert.equal(result.proposal.actorId, actor.id);
+    assert.equal(result.proposal.args.companyId, "co_1");
+    assert.match(result.proposal.humanSummary, /2026-09-20/);
+    assert.match(result.proposal.humanSummary, /2026-09-20T08:00:00.000Z/);
+    assert.equal("data" in result, false);
+  });
+
+  test("relative dueAt like « demain » is VALIDATION_FAILED, not a proposal", async () => {
+    const result = await executeTool({
+      runtime: runtimeFor(),
+      name: "createFollowUp",
+      input: { companyId: "co_1", dueAt: "demain" },
+    });
+    assert.equal(result.success, false);
+    if (!result.success) {
+      assert.equal(result.error.code, "VALIDATION_FAILED");
+      assert.equal("proposal" in result, false);
+    }
+  });
+
+  test("other catalogued WRITE remains NOT_AVAILABLE", async () => {
+    const result = await executeTool({
+      runtime: runtimeFor(),
+      name: "createCompany",
+      input: { name: "Atelier" },
     });
     assert.equal(result.success, false);
     if (result.success) {
       return;
     }
     assert.equal(result.error.code, "NOT_AVAILABLE");
-    assert.match(result.error.message, /écriture/);
+    assert.equal("proposal" in result, false);
   });
 
   test("catalogued CRITICAL is refused even without an executor", async () => {
@@ -106,14 +166,15 @@ describe("executeTool fail-closed registry", () => {
     }
     assert.equal(result.error.code, "FORBIDDEN");
     assert.match(result.error.message, /critiques/);
+    assert.equal("proposal" in result, false);
   });
 
-  test("WRITE remains refused even if an executor is registered later", async () => {
+  test("WRITE remains a proposal even if a mutating executor is registered later", async () => {
     let ran = false;
     const writeTool: RegisteredTool = {
       name: "createFollowUp",
       permission: "WRITE",
-      inputSchema: z.object({ followUpId: z.string() }),
+      inputSchema: createFollowUpInputSchema,
       execute: async () => {
         ran = true;
         throw new Error("postgresql://versatech:secret@localhost:5432/versatech_os");
@@ -123,14 +184,14 @@ describe("executeTool fail-closed registry", () => {
     const result = await execute({
       runtime: runtimeFor(),
       name: "createFollowUp",
-      input: { followUpId: "fu_1" },
+      input: { companyId: "co_1", dueAt: "2026-09-20T08:00:00.000Z" },
     });
     assert.equal(ran, false);
     assert.equal(result.success, false);
     if (result.success) {
       return;
     }
-    assert.equal(result.error.code, "NOT_AVAILABLE");
+    assert.equal(result.error.code, "CONFIRMATION_REQUIRED");
     assert.equal(result.error.message.includes("secret"), false);
     assert.equal(result.error.message.includes("postgresql://"), false);
   });
@@ -160,6 +221,7 @@ describe("executeTool fail-closed registry", () => {
     assert.equal(result.error.code, "FORBIDDEN");
     assert.equal(result.error.message.includes("AUTH_SECRET"), false);
     assert.equal(result.error.message.includes("fake.ts"), false);
+    assert.equal("proposal" in result, false);
   });
 });
 
@@ -543,28 +605,34 @@ describe("READ tools wired to business services", () => {
   });
 });
 
-describe("mutation refusal", () => {
-  test("Crée une relance pour demain → createFollowUp is NOT_AVAILABLE and the executor does not run", async () => {
+describe("mutation proposal (LLM path does not persist)", () => {
+  test("Crée une relance pour demain → createFollowUp is CONFIRMATION_REQUIRED and the executor does not run", async () => {
     let ran = false;
     const writeTool: RegisteredTool = {
       name: "createFollowUp",
       permission: "WRITE",
-      inputSchema: z.object({ companyId: z.string(), dueAt: z.string() }),
+      inputSchema: createFollowUpInputSchema,
       execute: async () => {
         ran = true;
         throw new Error("prisma.followUp.create");
       },
     };
     const execute = createExecuteTool([...createProductionTools(), writeTool]);
+    const dueAt = "2026-09-20T08:00:00.000Z";
     const result = await execute({
       runtime: runtimeFor(),
       name: "createFollowUp",
-      input: { companyId: "co_1", dueAt: "2026-09-20T08:00:00.000Z", title: "Relance" },
+      input: { companyId: "co_1", dueAt, title: "Relance" },
     });
     assert.equal(ran, false);
     assert.equal(result.success, false);
     if (!result.success) {
-      assert.equal(result.error.code, "NOT_AVAILABLE");
+      assert.equal(result.error.code, "CONFIRMATION_REQUIRED");
+    }
+    if (isConfirmationRequiredResult(result)) {
+      assert.equal(result.proposal.args.dueAt, dueAt);
+      assert.match(result.proposal.humanSummary, new RegExp(parisDateKey(dueAt)));
+      assert.match(result.proposal.humanSummary, /2026-09-20T08:00:00.000Z/);
     }
   });
 
@@ -594,6 +662,7 @@ describe("mutation refusal", () => {
     assert.equal(result.success, false);
     if (!result.success) {
       assert.equal(result.error.code, "FORBIDDEN");
+      assert.equal("proposal" in result, false);
     }
   });
 
@@ -617,9 +686,226 @@ describe("mutation refusal", () => {
     });
     assert.equal(write.success, false);
     if (!write.success) {
-      assert.equal(write.error.code, "NOT_AVAILABLE");
+      assert.equal(write.error.code, "CONFIRMATION_REQUIRED");
       assert.equal(write.error.message.includes("AUTH_SECRET"), false);
       assert.equal(write.error.message.includes("secret"), false);
+    }
+  });
+});
+
+describe("executeConfirmedWrite (confirm route only)", () => {
+  test("createFollowUp / completeFollowUp / createTask mutate only on the confirmed path", async () => {
+    const runtime = runtimeFor();
+    let createdFollowUp = false;
+    let completedFollowUp = false;
+    let createdTask = false;
+
+    const proposed = await executeTool({
+      runtime,
+      name: "createFollowUp",
+      input: {
+        companyId: "co_1",
+        dueAt: "2026-09-20T08:00:00.000Z",
+        actorId: "attacker",
+      },
+    });
+    assert.equal(createdFollowUp, false);
+    assert.equal(isConfirmationRequiredResult(proposed), true);
+    if (!isConfirmationRequiredResult(proposed)) {
+      return;
+    }
+    assert.equal(proposed.proposal.actorId, actor.id);
+
+    const created = await executeConfirmedWrite(runtime, proposed.proposal, {
+      createFollowUp: async ({ actor: serviceActor, companyId, dueAt, title }) => {
+        createdFollowUp = true;
+        assert.deepEqual(serviceActor, actor);
+        assert.equal(companyId, "co_1");
+        assert.equal(dueAt.toISOString(), "2026-09-20T08:00:00.000Z");
+        assert.equal(title, "Relance");
+        return { followUpId: "fu_1" };
+      },
+    });
+    assert.equal(createdFollowUp, true);
+    assert.equal(created.success, true);
+    if (created.success) {
+      assert.deepEqual(created.data, { followUpId: "fu_1" });
+    }
+
+    const completeProposed = await executeTool({
+      runtime,
+      name: "completeFollowUp",
+      input: { followUpId: "fu_1", actorId: "attacker" },
+    });
+    assert.equal(completedFollowUp, false);
+    if (!isConfirmationRequiredResult(completeProposed)) {
+      assert.equal(isConfirmationRequiredResult(completeProposed), true);
+      return;
+    }
+    const completed = await executeConfirmedWrite(runtime, completeProposed.proposal, {
+      completeFollowUp: async ({ actor: serviceActor, followUpId }) => {
+        completedFollowUp = true;
+        assert.deepEqual(serviceActor, actor);
+        assert.equal(followUpId, "fu_1");
+        return { followUpId };
+      },
+    });
+    assert.equal(completedFollowUp, true);
+    assert.equal(completed.success, true);
+
+    const taskProposed = await executeTool({
+      runtime,
+      name: "createTask",
+      input: { title: "Rappeler Jacques", companyId: "co_1" },
+    });
+    assert.equal(createdTask, false);
+    if (!isConfirmationRequiredResult(taskProposed)) {
+      assert.equal(isConfirmationRequiredResult(taskProposed), true);
+      return;
+    }
+    const tasked = await executeConfirmedWrite(runtime, taskProposed.proposal, {
+      createTask: async ({ actor: serviceActor, title, companyId }) => {
+        createdTask = true;
+        assert.deepEqual(serviceActor, actor);
+        assert.equal(title, "Rappeler Jacques");
+        assert.equal(companyId, "co_1");
+        return { taskId: "task_1" };
+      },
+    });
+    assert.equal(createdTask, true);
+    assert.equal(tasked.success, true);
+    if (tasked.success) {
+      assert.deepEqual(tasked.data, { taskId: "task_1" });
+    }
+  });
+
+  test("actor mismatch and CRITICAL-shaped payloads never mutate", async () => {
+    let ran = false;
+    const runtime = runtimeFor();
+    const proposed = await executeTool({
+      runtime,
+      name: "createFollowUp",
+      input: { companyId: "co_1", dueAt: "2026-09-20T08:00:00.000Z" },
+    });
+    assert.equal(isConfirmationRequiredResult(proposed), true);
+    if (!isConfirmationRequiredResult(proposed)) {
+      return;
+    }
+
+    const spoofed = await executeConfirmedWrite(
+      runtime,
+      { ...proposed.proposal, actorId: "attacker" },
+      {
+        createFollowUp: async () => {
+          ran = true;
+          return { followUpId: "fu_x" };
+        },
+      },
+    );
+    assert.equal(ran, false);
+    assert.equal(spoofed.success, false);
+    if (!spoofed.success) {
+      assert.equal(spoofed.error.code, "FORBIDDEN");
+    }
+
+    const critical = await executeConfirmedWrite(
+      runtime,
+      {
+        toolName: "createPayment",
+        args: { companyId: "co_1" },
+        humanSummary: "Payer",
+        actorId: actor.id,
+      },
+      {
+        createFollowUp: async () => {
+          ran = true;
+          return { followUpId: "fu_x" };
+        },
+      },
+    );
+    assert.equal(ran, false);
+    assert.equal(critical.success, false);
+    if (!critical.success) {
+      assert.equal(critical.error.code, "VALIDATION_FAILED");
+      assert.equal("proposal" in critical, false);
+    }
+  });
+
+  test("missing FollowUpService.createFollowUp maps to SERVICE_UNAVAILABLE", async () => {
+    const runtime = runtimeFor();
+    const proposed = await executeTool({
+      runtime,
+      name: "createFollowUp",
+      input: { companyId: "co_1", dueAt: "2026-09-20T08:00:00.000Z" },
+    });
+    if (!isConfirmationRequiredResult(proposed)) {
+      assert.equal(isConfirmationRequiredResult(proposed), true);
+      return;
+    }
+    const result = await executeConfirmedWrite(runtime, proposed.proposal, {
+      createFollowUp: async () => {
+        throw new Error("SERVICE_UNAVAILABLE");
+      },
+    });
+    assert.equal(result.success, false);
+    if (!result.success) {
+      assert.equal(result.error.code, "SERVICE_UNAVAILABLE");
+    }
+  });
+});
+
+describe("webSearch", () => {
+  test("strips host/url/baseUrl, is READ, and maps WEB_SEARCH_UNAVAILABLE", async () => {
+    const parsed = webSearchInputSchema.parse({
+      query: "  Next.js actuellement  ",
+      baseUrl: "http://127.0.0.1",
+      host: "169.254.169.254",
+      url: "http://evil.example",
+      actorId: "attacker",
+    });
+    assert.equal(parsed.query, "Next.js actuellement");
+    assert.equal(parsed.maxResults, 5);
+    assert.equal("baseUrl" in parsed, false);
+    assert.equal("host" in parsed, false);
+    assert.equal("url" in parsed, false);
+
+    let receivedActor: SessionUser | undefined;
+    const execute = executeWithMocks({
+      webSearch: async ({ actor: serviceActor, query }) => {
+        receivedActor = serviceActor;
+        assert.equal(query, "Next.js actuellement");
+        return {
+          query,
+          results: [{ title: "Ok", url: "https://example.com/ok", snippet: "extrait" }],
+        };
+      },
+    });
+    const ok = await execute({
+      runtime: runtimeFor(),
+      name: "webSearch",
+      input: { query: "Next.js actuellement", baseUrl: "http://127.0.0.1", actorId: "attacker" },
+    });
+    assert.equal(ok.success, true);
+    if (ok.success) {
+      assert.equal((ok.data as { query: string }).query, "Next.js actuellement");
+    }
+    assert.deepEqual(receivedActor, actor);
+
+    const { WebSearchUnavailableError } = await import("@/lib/services/web-search/errors");
+    const unavailable = executeWithMocks({
+      webSearch: async () => {
+        throw new WebSearchUnavailableError();
+      },
+    });
+    const down = await unavailable({
+      runtime: runtimeFor(),
+      name: "webSearch",
+      input: { query: "news" },
+    });
+    assert.equal(down.success, false);
+    if (!down.success) {
+      assert.equal(down.error.code, "SERVICE_UNAVAILABLE");
+      assert.equal("proposal" in down, false);
     }
   });
 });

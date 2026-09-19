@@ -25,6 +25,16 @@ export type InteractionDirection = (typeof INTERACTION_DIRECTIONS)[number];
 export type InteractionResult = (typeof INTERACTION_RESULTS)[number];
 export type FollowUpBucket = (typeof FOLLOW_UP_BUCKETS)[number];
 
+const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+
+/** Instant ISO 8601 (`Date.toISOString()`). Relative words like « demain » are invalid. */
+export const isoDateTimeStringSchema = z.string().refine((value) => {
+  if (!ISO_INSTANT_RE.test(value)) {
+    return false;
+  }
+  return !Number.isNaN(Date.parse(value));
+}, "Date ISO 8601 invalide (attendu Date.toISOString())");
+
 export const truncatedTextSchema = z.strictObject({
   text: z.string().max(UNTRUSTED_TEXT_MAX_CHARS),
   truncated: z.boolean(),

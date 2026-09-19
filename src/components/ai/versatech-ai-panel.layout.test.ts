@@ -17,6 +17,7 @@ import {
   toRequestHistory,
   tokenFromSseData,
 } from "@/components/ai/chat-client";
+import { CONFIRM_ENDPOINT, CONFIRMATION_TITLE } from "@/components/ai/confirmation";
 
 describe("layout du panneau VersaTech AI", () => {
   const root = path.resolve(process.cwd());
@@ -25,10 +26,15 @@ describe("layout du panneau VersaTech AI", () => {
   const orb = readFileSync(path.join(root, "src/components/ai/versatech-ai-orb.tsx"), "utf8");
   const hook = readFileSync(path.join(root, "src/components/ai/use-versatech-chat.ts"), "utf8");
   const client = readFileSync(path.join(root, "src/components/ai/chat-client.ts"), "utf8");
+  const confirmation = readFileSync(path.join(root, "src/components/ai/confirmation.ts"), "utf8");
+  const card = readFileSync(
+    path.join(root, "src/components/ai/versatech-ai-confirmation-card.tsx"),
+    "utf8",
+  );
   const shell = readFileSync(path.join(root, "src/components/layout/app-shell.tsx"), "utf8");
   const topbar = readFileSync(path.join(root, "src/components/layout/app-topbar.tsx"), "utf8");
   const internalToolNames =
-    /getTodayOverview|searchCompanies|getCompany|listFollowUps|listTasks|listCalendarItems|getTodayTour|getPipeline|getFinanceSnapshot|getRecentActivity/;
+    /getTodayOverview|searchCompanies|getCompany|listFollowUps|listTasks|listCalendarItems|getTodayTour|getPipeline|getFinanceSnapshot|getRecentActivity|webSearch|SearXNG/;
 
   test("keeps the header outside the scroll area and docks the composer with pb-safe", () => {
     assert.match(panel, /vt-ai-panel-header/);
@@ -70,6 +76,14 @@ describe("layout du panneau VersaTech AI", () => {
     assert.doesNotMatch(orb, internalToolNames);
     assert.doesNotMatch(topbar, internalToolNames);
     assert.doesNotMatch(shell, internalToolNames);
+    assert.doesNotMatch(card, internalToolNames);
+    const sourcesUi = readFileSync(
+      path.join(root, "src/components/ai/versatech-ai-sources.tsx"),
+      "utf8",
+    );
+    assert.doesNotMatch(sourcesUi, internalToolNames);
+    assert.match(sourcesUi, /noopener noreferrer/);
+    assert.match(sourcesUi, /target="_blank"/);
   });
 
   test("posts only user/assistant history to the authenticated chat route", () => {
@@ -85,6 +99,51 @@ describe("layout du panneau VersaTech AI", () => {
     assert.equal(CHAT_HISTORY_TURN_CAP, 20);
     assert.equal(CHAT_HISTORY_MAX_MESSAGES, 20);
     assert.equal(CHAT_HISTORY_MAX_CHARS, 24_000);
+  });
+
+  test("shows a dedicated confirmation card with explicit date and tap-safe actions", () => {
+    assert.match(panel, /VersatechAiConfirmationCard/);
+    assert.match(panel, /pb-safe/);
+    assert.match(card, /CONFIRMATION_TITLE|Action proposée/);
+    assert.match(card, /Annuler/);
+    assert.match(card, /Confirmer/);
+    assert.match(card, /disabled=\{busy\}/);
+    assert.match(card, /proposal\.dateLabel/);
+    assert.match(css, /\.vt-ai-confirm-card/);
+    assert.match(css, /--vt-ai-confirm-tap/);
+    assert.match(css, /\.vt-ai-confirm-button[\s\S]*min-height:\s*var\(--vt-ai-confirm-tap/);
+    assert.match(card, /vt-ai-confirm-actions[\s\S]*pb-safe/);
+    assert.match(css, /vt-ai-confirm-actions[\s\S]*flex-direction:\s*column/);
+    assert.equal(CONFIRMATION_TITLE, "Action proposée");
+    assert.equal(CONFIRM_ENDPOINT, "/api/ai/actions/confirm");
+  });
+
+  test("shows compact clickable sources and a web-search status without internal names", () => {
+    assert.match(panel, /VersatechAiSources/);
+    assert.match(panel, /activityLabel/);
+    assert.match(css, /\.vt-ai-sources-list/);
+    assert.match(hook, /onStatus/);
+    assert.match(hook, /onSources/);
+    assert.match(client, /type === "status"/);
+    assert.match(client, /type === "sources"/);
+    assert.doesNotMatch(panel, /SearXNG|webSearch/);
+    assert.doesNotMatch(hook, /SearXNG/);
+  });
+
+  test("confirms only after a click, with cookies and the opaque token", () => {
+    assert.match(hook, /confirmProposedAction/);
+    assert.match(hook, /cancelProposedAction\(\)/);
+    assert.match(confirmation, /credentials:\s*["']include["']/);
+    assert.match(confirmation, /\/api\/ai\/actions\/confirm/);
+    assert.match(confirmation, /JSON\.stringify\(body\)/);
+    assert.doesNotMatch(confirmation, /body\.toolName|body\.args|body\.actorId/);
+    const cancelBlock = hook.slice(
+      hook.indexOf("const cancelProposal"),
+      hook.indexOf("const confirmProposal"),
+    );
+    assert.doesNotMatch(cancelBlock, /fetch\(/);
+    assert.doesNotMatch(cancelBlock, /confirmProposedAction/);
+    assert.doesNotMatch(hook, /confirmProposedAction\(\s*\{[^}]*toolName/);
   });
 });
 
@@ -150,7 +209,25 @@ describe("contrat client VersaTech AI", () => {
     const text = await consumeEventStream(response, (chunk) => {
       chunks.push(chunk);
     });
-    assert.equal(text, "Bonjour");
+    assert.equal(text.text, "Bonjour");
+    assert.equal(text.proposal, null);
     assert.deepEqual(chunks, ["Bon", "jour"]);
+  });
+
+  test("parses confirmation_required SSE instead of skipping it as a tool event", () => {
+    const token = tokenFromSseData(
+      JSON.stringify({
+        type: "confirmation_required",
+        token: "opaque-token",
+        toolName: "createFollowUp",
+        dueAt: "2026-09-20T08:00:00.000Z",
+      }),
+    );
+    assert.equal(token.kind, "confirmation");
+    if (token.kind === "confirmation") {
+      assert.equal(token.proposal.token, "opaque-token");
+      assert.equal(token.proposal.label, "Créer une relance");
+      assert.equal(token.proposal.executable, true);
+    }
   });
 });
