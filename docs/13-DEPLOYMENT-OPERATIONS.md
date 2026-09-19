@@ -25,6 +25,15 @@ Sauvegarde automatique production.
 Tester périodiquement la restauration.
 Ne jamais exécuter une migration destructive sans backup/revue.
 
+VERSATECH AI / OLLAMA
+Ollama tourne sur le même VPS que Next.js, en boucle locale uniquement :
+- `VERSATECH_AI_PROVIDER=ollama`
+- `VERSATECH_AI_MODEL=qwen3:1.7b`
+- `OLLAMA_BASE_URL=http://127.0.0.1:11434`
+Ne pas ajouter de route Caddy vers le port 11434. Ne pas ouvrir UFW 11434. L'app Next parle à Ollama en interne ; le navigateur n'atteint jamais Ollama.
+Modèle volontairement petit (1.7b) : 2 vCPU / 4 Go RAM avec PostgreSQL, Caddy, Docker et SearXNG déjà présents. Ne pas précharger plusieurs modèles. Pas de second serveur d'inférence.
+OPENAI_API_KEY n'est pas requis. Ne pas basculer silencieusement vers un LLM payant si Ollama est mal configuré.
+
 SECRETS
 Gérés par plateforme de déploiement, jamais dans Git.
 

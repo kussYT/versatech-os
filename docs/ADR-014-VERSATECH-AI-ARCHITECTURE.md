@@ -39,7 +39,8 @@ VersaTech AI  → Controlled Tools  → Business Services → Prisma → Postgre
 - **UI et IA partagent les mêmes Business Services** (extraction progressive vers `src/lib/services/*`). Les services prennent des objets TypeScript validés par Zod (ids `cuid`, dates ISO, enums, montants alignés sur `src/lib/money.ts`). **Jamais `FormData`.**
 - Les **Server Actions** deviennent des adapters UI (parse FormData → service → `revalidatePath`). Un tool **n’appelle jamais** une Server Action.
 - Les **tools** sont des adapters IA (permissions + confirmation + DTO compact → service). Fail-closed : un tool absent du catalogue est refusé.
-- **Mastra** (quand une phase ultérieure l’installera) = orchestration serveur uniquement, pas le domaine. Le modèle est interchangeable.
+- **Mastra** = orchestration serveur uniquement, pas le domaine. Le modèle est interchangeable.
+- **Runtime d’inférence par défaut : Ollama local** (`VERSATECH_AI_PROVIDER=ollama`, `qwen3:1.7b`, `OLLAMA_BASE_URL=http://127.0.0.1:11434`). Mastra 1.67 n’a pas d’id models.dev `ollama/…` (seulement `ollama-cloud` payant). L’intégration officielle est `OpenAICompatibleConfig` `{ id, url }` : `url` pointe vers le `/v1` OpenAI-compatible **sur la boucle locale**, jamais `api.openai.com`, jamais ollama.com. Aucune clé API. OpenAI / Anthropic / Google restent des choix explicites, **sans bascule automatique** vers un fournisseur payant. `OLLAMA_BASE_URL` est une conf opérateur serveur ; le modèle ne peut ni la lire ni la changer. Ne pas exposer le port 11434 (pas de route Caddy, pas d’ouverture UFW).
 
 ### Auth et journal
 

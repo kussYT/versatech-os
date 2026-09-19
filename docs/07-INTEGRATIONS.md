@@ -44,15 +44,9 @@ V1 : référence, montant, statut, lien externe saisi manuellement.
 Intégration API seulement si disponible, stable et utile.
 
 IA
-Phase tardive.
-Cas d'usage :
-- préparer un appel ;
-- résumer une entreprise/projet ;
-- suggérer priorités ;
-- analyser objections ;
-- résumer semaine ;
-- transformer note libre en champs structurés avec validation utilisateur.
-L'IA ne doit pas modifier silencieusement les données critiques.
+VersaTech AI (ADR-014) : tools contrôlés → services métier → Prisma. Inférence par défaut : Ollama auto-hébergé sur la même machine (`http://127.0.0.1:11434`, modèle `qwen3:1.7b`). Pas de clé API. Le navigateur ne parle qu'à `/api/ai/chat`. Ne pas publier Ollama (pas de reverse-proxy Caddy sur :11434). OpenAI / Anthropic / Google restent optionnels et explicites, sans fallback payant automatique.
+Recherche web : un seul adapter SearXNG (SSRF, budget serveur). Pas de `fetch` arbitraire dans l'agent.
+L'IA ne doit pas modifier silencieusement les données critiques (WRITE avec confirmation serveur ; CRITICAL interdit).
 
 WEB / PROSPECTION
 Éventuelle intégration future pour enrichir un prospect : site, présence web, informations publiques. Toute donnée doit afficher sa provenance et sa date de récupération si automatisée.

@@ -91,7 +91,8 @@ Conséquences :
 - classes READ / WRITE / CRITICAL ; CRITICAL = confirmation serveur explicite, jamais en chaîne autonome ;
 - WRITE par id persisté, plafond d'actions (défaut 3), abort au premier échec, plan visible avant une série de mutations ;
 - pas d'API Mastra catch-all ; future `/api/ai/chat` authentifiée ; `/api/ai` hors `isPublicPath()` ;
-- ne pas lancer `mastra init` / squelette `src/mastra/` / LibSQL en production.
+- ne pas lancer `mastra init` / squelette `src/mastra/` / LibSQL en production ;
+- inférence par défaut : Ollama local (loopback `/v1` via `OpenAICompatibleConfig` Mastra), sans clé API, sans fallback payant automatique.
 Statut : accepté.
 
 AJOUT D'ADR

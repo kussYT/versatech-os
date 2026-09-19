@@ -19,6 +19,7 @@ INTEGRATION TESTS
 - Quote/Payment ;
 - accès BDD ;
 - adapters externes simulés.
+- Ollama live tool-calling : `src/ai/agent/ollama.integration.test.ts`, ignoré sauf `VERSATECH_AI_OLLAMA_LIVE=1`.
 
 E2E
 Parcours critiques :

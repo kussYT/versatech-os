@@ -16,7 +16,7 @@ const SPOOFED_ACTOR_ID = "user_from_model";
 const CHAT_ROUTE = path.join(process.cwd(), "src", "app", "api", "ai", "chat", "route.ts");
 
 const PROVIDER_KEY_LEAK_RE =
-  /OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_GENERATIVE_AI_API_KEY|GOOGLE_API_KEY|sk-proj-|sk-ant-/i;
+  /OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_GENERATIVE_AI_API_KEY|GOOGLE_API_KEY|OLLAMA_BASE_URL|OLLAMA_API_KEY|sk-proj-|sk-ant-/i;
 
 function objectShape(schema: unknown): Record<string, unknown> | undefined {
   if (!schema || typeof schema !== "object") {
@@ -242,6 +242,9 @@ describe("POST /api/ai/chat body schema", () => {
       OPENAI_API_KEY: "sk-proj-should-not-leak",
       ANTHROPIC_API_KEY: "sk-ant-should-not-leak",
       GOOGLE_API_KEY: "AIzaShouldNotLeak",
+      OLLAMA_BASE_URL: "http://evil.example:11434",
+      OLLAMA_API_KEY: "should-not-leak",
+      baseUrl: "http://evil.example:11434",
       AUTH_SECRET: "auth-secret-should-not-leak",
       DATABASE_URL: "postgresql://versatech:secret@localhost:5432/versatech_os",
     });
@@ -257,6 +260,8 @@ describe("POST /api/ai/chat body schema", () => {
     assert.equal(json.includes("sk-proj-should-not-leak"), false);
     assert.equal(json.includes("AUTH_SECRET"), false);
     assert.equal(json.includes("DATABASE_URL"), false);
+    assert.equal(json.includes("OLLAMA_BASE_URL"), false);
+    assert.equal(json.includes("evil.example"), false);
     assert.equal(json.includes("postgresql://"), false);
   });
 });

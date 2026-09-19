@@ -14,10 +14,12 @@ const actor: SessionUser = {
   role: "ADMIN",
 };
 
+const LIVE = process.env.VERSATECH_AI_LIVE === "1";
+
 describe("optional live LLM", () => {
   test(
-    "agent generate for the today briefing question (skipped without API key)",
-    { skip: !isVersatechAiConfigured() },
+    "agent generate for the today briefing question (skipped unless VERSATECH_AI_LIVE=1)",
+    { skip: !LIVE || !isVersatechAiConfigured() },
     async () => {
       const { versatechAgent } = await import("@/ai/index");
       const requestContext = new RequestContext();
@@ -31,6 +33,8 @@ describe("optional live LLM", () => {
       const serialized = JSON.stringify(result.text);
       assert.equal(serialized.includes("DATABASE_URL"), false);
       assert.equal(serialized.includes("AUTH_SECRET"), false);
+      assert.equal(serialized.includes("OLLAMA_BASE_URL"), false);
+      assert.equal(serialized.includes("OPENAI_API_KEY"), false);
     },
   );
 });

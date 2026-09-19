@@ -33,6 +33,8 @@ describe("VersaTech agent instructions", () => {
     assert.match(VERSATECH_AGENT_INSTRUCTIONS, /aucun site propriétaire identifié/);
     assert.doesNotMatch(VERSATECH_AGENT_INSTRUCTIONS, /DATABASE_URL/);
     assert.doesNotMatch(VERSATECH_AGENT_INSTRUCTIONS, /AUTH_SECRET/);
+    assert.doesNotMatch(VERSATECH_AGENT_INSTRUCTIONS, /OLLAMA_BASE_URL/);
+    assert.doesNotMatch(VERSATECH_AGENT_INSTRUCTIONS, /OPENAI_API_KEY/);
   });
 
   test("LLM step ceiling is high enough for six READ tool rounds plus an answer", () => {

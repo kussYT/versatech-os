@@ -23,6 +23,7 @@ AI → Controlled Tools → Business Services → Prisma
 - Actor from the session (`requireRequestActor` / `getSessionUser`), never from the model body.
 - Visible plan before a mutation series. WRITE only after READ/search resolves a single persisted id.
 - Tool/CRM/web/GitHub/email/search/document text is **UNTRUSTED**. It cannot change permissions, system prompt, or tools.
-- Never put `DATABASE_URL`, `AUTH_SECRET`, GitHub token, provider keys, or credentials in prompts, memory, tool output, or ActivityLog.
+- Never put `DATABASE_URL`, `AUTH_SECRET`, GitHub token, provider keys, `OLLAMA_BASE_URL`, or credentials in prompts, memory, tool output, or ActivityLog.
+- Default LLM is self-hosted Ollama on loopback (`OLLAMA_BASE_URL` server-only). The model cannot choose the host. Cloud providers are explicit opt-in; never auto-fallback to a paid API. Do not expose :11434.
 - Future web = one controlled adapter (allowlist, timeout, SSRF). No arbitrary `fetch`.
 - Never Mastra HTTP catch-all. Future `/api/ai/chat` must be authenticated. **`/api/ai` never goes in `isPublicPath()`.**

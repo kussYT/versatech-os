@@ -414,6 +414,8 @@ describe("ADR-014: POST /api/ai/chat is authenticated Node, not a catch-all", ()
     assert.doesNotMatch(source, /@\/actions/);
     assert.doesNotMatch(source, /OPENAI_API_KEY/);
     assert.doesNotMatch(source, /ANTHROPIC_API_KEY/);
+    assert.doesNotMatch(source, /OLLAMA_BASE_URL/);
+    assert.doesNotMatch(source, /OLLAMA_API_KEY/);
   });
 });
 
