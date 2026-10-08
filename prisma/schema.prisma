@@ -145,6 +145,19 @@ enum MilestoneStatus {
   CANCELED
 }
 
+/// Étape de travail déclarée. Distincte des faits (devis, paiement, projet, maintenance).
+enum DeclaredJourneyStep {
+  CONTACT
+  RDV
+  DEVIS
+  SIGNATURE
+  ACOMPTE
+  DEVELOPPEMENT
+  MISE_EN_LIGNE
+  SOLDE
+  MAINTENANCE
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -162,6 +175,8 @@ model User {
   stageChanges        OpportunityStageHistory[]  @relation("StageChangedBy")
   activityLogs        ActivityLog[]              @relation("ActivityLogActor")
   tours               Tour[]                     @relation("TourCreatedBy")
+  journeyCursors      JourneyCursor[]            @relation("JourneyCursorSetBy")
+  journeyCursorEvents JourneyCursorEvent[]       @relation("JourneyCursorChangedBy")
 }
 
 model Company {
@@ -206,6 +221,8 @@ model Company {
   payments              Payment[]
   maintenanceContracts  MaintenanceContract[]
   tourStops             TourStop[]
+  journeyCursors        JourneyCursor[]
+  journeyCursorEvents   JourneyCursorEvent[]
 
   @@index([name])
   @@index([lifecycleStatus])
@@ -303,6 +320,7 @@ model Opportunity {
   tasks          Task[]
   calendarEvents CalendarEvent[]
   documents      Document[]
+  journeyCursors JourneyCursor[]
 
   @@index([stage])
   @@index([companyId])
@@ -367,6 +385,7 @@ model Project {
   documents            Document[]
   payments             Payment[]
   maintenanceContracts MaintenanceContract[]
+  journeyCursors       JourneyCursor[]
 
   @@index([status])
   @@index([dueDate])
@@ -516,6 +535,55 @@ model ActivityLog {
   actor User? @relation("ActivityLogActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
+}
+
+/// Curseur de parcours pour une prestation. `contextKey` identifie le contexte :
+/// `project:{id}`, sinon `opportunity:{id}`, sinon `company:{id}`.
+/// Écrire ce curseur ne change ni devis, ni paiement, ni projet, ni cycle de vie.
+model JourneyCursor {
+  id            String              @id @default(cuid())
+  companyId     String
+  opportunityId String?
+  projectId     String?
+  contextKey    String              @unique
+  step          DeclaredJourneyStep
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  setById       String?
+
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  /// Suppression d'opportunité : les curseurs sans projet partent avec elle (trigger),
+  /// ceux d'un projet perdent seulement le lien. L'historique reste sur JourneyCursorEvent.
+  opportunity Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  /// Suppression de projet : le curseur de cette prestation part avec le projet.
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  setBy       User?                @relation("JourneyCursorSetBy", fields: [setById], references: [id], onDelete: SetNull)
+  events      JourneyCursorEvent[]
+
+  @@index([companyId])
+}
+
+/// Historique conservé après réinitialisation (`cursor` devient nul).
+model JourneyCursorEvent {
+  id            String               @id @default(cuid())
+  cursorId      String?
+  companyId     String
+  opportunityId String?
+  projectId     String?
+  contextKey    String
+  fromStep      DeclaredJourneyStep?
+  toStep        DeclaredJourneyStep?
+  /// `set` ou `reset`.
+  action        String
+  changedAt     DateTime             @default(now())
+  changedById   String
+
+  cursor    JourneyCursor? @relation(fields: [cursorId], references: [id], onDelete: SetNull)
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  changedBy User           @relation("JourneyCursorChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, changedAt])
+  @@index([contextKey])
 }
 
 /// Daily field tour. `date` is the Europe/Paris civil day stored as start-of-day instant.

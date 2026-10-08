@@ -124,6 +124,7 @@ function toCompanyListItem(call: CompanyCallPreview): CompanyListItem {
     lastInteractionType: call.lastInteractionType,
     nextFollowUpAt: call.nextFollowUpAt,
     nextFollowUpTitle: call.nextFollowUpTitle,
+    prestation: null,
   };
 }
 

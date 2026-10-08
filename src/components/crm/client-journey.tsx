@@ -1,12 +1,27 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/crm/form-data";
 import { cn } from "@/lib/cn";
+import { JourneyStepControl } from "@/components/crm/journey-step-control";
 import type { ClientJourney, ClientJourneyStep, JourneyStepStatus } from "@/lib/client-journey";
+import {
+  defaultJourneyContextKey,
+  listJourneyContexts,
+  type JourneyBoard,
+} from "@/lib/crm/journey-cursor";
 
 type ClientJourneySectionProps = {
   journey: ClientJourney;
+  journeyViews: Record<string, ClientJourney>;
+  companyId: string;
+  opportunities: Array<{ id: string; title: string }>;
+  projects: Array<{ id: string; name: string; opportunityId: string | null }>;
+  board: JourneyBoard;
+  principalPrestation?: { projectId: string | null; opportunityId: string | null } | null;
 };
 
 const STEP_TONE: Record<JourneyStepStatus, string> = {
@@ -87,17 +102,34 @@ function StepBody({ step }: { step: ClientJourneyStep }) {
   );
 }
 
-export function ClientJourneySection({ journey }: ClientJourneySectionProps) {
-  const lastIndex = journey.steps.length - 1;
+export function ClientJourneySection({
+  journey,
+  journeyViews,
+  companyId,
+  opportunities,
+  projects,
+  board,
+  principalPrestation = null,
+}: ClientJourneySectionProps) {
+  const contexts = listJourneyContexts(companyId, { opportunities, projects });
+  const [contextKey, setContextKey] = useState(() =>
+    defaultJourneyContextKey(contexts, {
+      projectId: principalPrestation?.projectId ?? journey.principal.project?.id ?? null,
+      opportunityId: principalPrestation?.opportunityId ?? journey.principal.opportunity?.id ?? null,
+    }),
+  );
+  const shown = journeyViews[contextKey] ?? journey;
+  const lastIndex = shown.steps.length - 1;
 
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-section text-foreground">Parcours client</h2>
-          <p className="mt-1 text-meta text-muted">{principalLabel(journey)}</p>
+          <p className="mt-1 text-meta text-muted">{principalLabel(shown)}</p>
+          <p className="mt-1 text-meta text-muted">Les pastilles suivent les faits. L&apos;étape déclarée est séparée.</p>
         </div>
-        {journey.complete ? (
+        {shown.complete ? (
           <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-badge font-semibold tracking-wide text-success uppercase">
             Complet
           </span>
@@ -105,8 +137,8 @@ export function ClientJourneySection({ journey }: ClientJourneySectionProps) {
       </div>
 
       <ol className="mt-5 md:flex md:items-start">
-        {journey.steps.map((step, index) => {
-          const next = journey.steps[index + 1];
+        {shown.steps.map((step, index) => {
+          const next = shown.steps[index + 1];
           const lineComplete =
             step.status === "COMPLETED" &&
             (next?.status === "COMPLETED" || next?.status === "CURRENT");
@@ -133,7 +165,7 @@ export function ClientJourneySection({ journey }: ClientJourneySectionProps) {
                     className={cn(
                       "hidden h-px flex-1 md:block",
                       connectorClass(
-                        journey.steps[index - 1]?.status === "COMPLETED" &&
+                        shown.steps[index - 1]?.status === "COMPLETED" &&
                           (step.status === "COMPLETED" || step.status === "CURRENT"),
                       ),
                     )}
@@ -160,6 +192,15 @@ export function ClientJourneySection({ journey }: ClientJourneySectionProps) {
           );
         })}
       </ol>
+      <JourneyStepControl
+        companyId={companyId}
+        opportunities={opportunities}
+        projects={projects}
+        contextKey={contextKey}
+        onContextKeyChange={setContextKey}
+        factsStep={shown.steps.find((step) => step.status === "CURRENT")?.key ?? null}
+        board={board}
+      />
     </Card>
   );
 }

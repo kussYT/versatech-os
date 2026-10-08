@@ -1,38 +1,35 @@
-import { Card } from "@/components/ui/card";
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FollowUpItem } from "@/components/follow-ups/follow-up-item";
-import { cn } from "@/lib/cn";
 import type { FollowUpBoard, FollowUpBucket } from "@/lib/queries/follow-ups";
 
 const sections: {
   bucket: FollowUpBucket;
   title: string;
   empty: string;
-  accent: string;
 }[] = [
   {
     bucket: "overdue",
     title: "En retard",
     empty: "Aucune relance en retard.",
-    accent: "text-danger",
   },
   {
     bucket: "today",
     title: "Aujourd'hui",
     empty: "Aucune relance prévue aujourd'hui.",
-    accent: "text-cyan",
   },
   {
     bucket: "upcoming",
     title: "À venir",
     empty: "Aucune relance à venir.",
-    accent: "text-muted",
   },
   {
     bucket: "completed",
     title: "Terminées",
     empty: "Aucune relance terminée.",
-    accent: "text-faint",
   },
 ];
 
@@ -41,32 +38,35 @@ type FollowUpBoardViewProps = {
 };
 
 export function FollowUpBoardView({ board }: FollowUpBoardViewProps) {
+  const [bucket, setBucket] = useState<FollowUpBucket>(
+    () => sections.find((item) => board[item.bucket].length > 0)?.bucket ?? "today",
+  );
+  const section = sections.find((item) => item.bucket === bucket) ?? sections[0]!;
+  const items = board[section.bucket];
+
   return (
     <div className="space-y-4">
-      {sections.map((section) => {
-        const items = board[section.bucket];
-        return (
-          <Card key={section.bucket} className="p-4 sm:p-5">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className={cn("text-section", section.accent)}>{section.title}</h2>
-              <p className="text-meta tabular-nums text-muted">{items.length}</p>
-            </div>
-            {items.length === 0 ? (
-              <EmptyState title={section.empty} />
-            ) : (
-              <div className="mt-4 space-y-2">
-                {items.map((followUp) => (
-                  <FollowUpItem
-                    key={followUp.id}
-                    followUp={followUp}
-                    bucket={section.bucket}
-                  />
-                ))}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer les relances">
+        {sections.map((item) => (
+          <Button
+            key={item.bucket}
+            variant={bucket === item.bucket ? "primary" : "secondary"}
+            aria-pressed={bucket === item.bucket}
+            onClick={() => setBucket(item.bucket)}
+          >
+            {item.title} ({board[item.bucket].length})
+          </Button>
+        ))}
+      </div>
+      {items.length === 0 ? (
+        <EmptyState title={section.empty} />
+      ) : (
+        <div className="space-y-2">
+          {items.map((followUp) => (
+            <FollowUpItem key={followUp.id} followUp={followUp} bucket={section.bucket} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

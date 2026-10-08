@@ -4,9 +4,6 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   CalendarClock,
-  FileText,
-  FolderKanban,
-  Kanban,
   Mail,
   MessageSquare,
   NotebookPen,
@@ -53,6 +50,7 @@ import {
   INTERACTION_RESULT_LABELS,
   INTERACTION_TYPE_LABELS,
 } from "@/lib/crm/labels";
+import type { JourneyBoard } from "@/lib/crm/journey-cursor";
 import type { CompanyDetail } from "@/lib/queries/companies";
 import type { PaymentFormOptions } from "@/lib/queries/payments";
 import type { InteractionType } from "@/generated/prisma/client";
@@ -60,12 +58,23 @@ import { projectDraftFromSale } from "@/lib/projects/draft";
 import { parseCommercialBrief } from "@/lib/prospection/brief";
 import { isTerrainVisit } from "@/lib/prospection/visit";
 
+type FicheTab = "overview" | "project" | "documents" | "maintenance" | "history";
+
+const FICHE_TABS: { id: FicheTab; label: string }[] = [
+  { id: "overview", label: "Vue d'ensemble" },
+  { id: "project", label: "Projet" },
+  { id: "documents", label: "Documents" },
+  { id: "maintenance", label: "Maintenance" },
+  { id: "history", label: "Historique" },
+];
+
 type CompanyHubProps = {
   company: CompanyDetail;
   paymentOptions: PaymentFormOptions;
+  journeyBoard: JourneyBoard;
 };
 
-export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
+export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHubProps) {
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickMessage, setQuickMessage] = useState<string | null>(null);
@@ -75,9 +84,12 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectDraft, setProjectDraft] = useState<ReturnType<typeof projectDraftFromSale> | null>(null);
+  const [tab, setTab] = useState<FicheTab>("overview");
   const isClient = company.lifecycleStatus === "CLIENT";
   const location = [company.city, company.postalCode].filter(Boolean).join(" ");
   const brief = parseCommercialBrief(company.commercialBrief);
+  const contact = company.contacts.find((item) => item.isPrimary) ?? company.contacts[0] ?? null;
+  const contactName = contact ? `${contact.firstName} ${contact.lastName}`.trim() : null;
 
   return (
     <div className="space-y-6">
@@ -97,38 +109,38 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
       <PageHeader
         meta="Fiche entreprise"
         title={company.name}
-        description={[company.industry, location || company.city].filter(Boolean).join(" · ") || undefined}
+        description={[
+          isClient ? "Client" : "Prospect",
+          COMPANY_LIFECYCLE_LABELS[company.lifecycleStatus],
+          contactName,
+          company.principalPrestation?.label ?? null,
+          company.nextFollowUp?.title ?? null,
+          location || null,
+        ].filter(Boolean).join(" · ") || undefined}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setQuickOpen(true)}>
               <Plus className="size-4" aria-hidden="true" />
-              + Interaction
+              Interaction
             </Button>
             <Button variant="secondary" onClick={() => setFollowUpOpen(true)}>
               <RotateCcw className="size-4" aria-hidden="true" />
-              Planifier relance
+              Relance
             </Button>
             <Button variant="ghost" onClick={() => setEditOpen(true)}>
               Modifier
             </Button>
-            <Button variant="secondary" onClick={() => setOpportunityOpen(true)}>
-              <Kanban className="size-4" aria-hidden="true" />
-              Créer une opportunité
-            </Button>
-            {company.quoteOpportunities.length > 0 ? (
-              <Button variant="secondary" onClick={() => setQuoteOpen(true)}>
-                <FileText className="size-4" aria-hidden="true" />
-                Créer un devis
-              </Button>
+            {company.phone ? (
+              <a href={`tel:${company.phone}`} className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-body text-foreground">
+                <Phone className="size-4" aria-hidden="true" />
+                Appeler
+              </a>
             ) : null}
-            {isClient ? (
-              <Button variant="secondary" onClick={() => {
-                setProjectDraft(null);
-                setProjectOpen(true);
-              }}>
-                <FolderKanban className="size-4" aria-hidden="true" />
-                Créer un projet
-              </Button>
+            {company.email ? (
+              <a href={`mailto:${company.email}`} className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-body text-foreground">
+                <Mail className="size-4" aria-hidden="true" />
+                E-mail
+              </a>
             ) : null}
           </div>
         }
@@ -160,9 +172,23 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <CompanyInfo company={company} />
-        <Card className="p-5">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Fiche entreprise">
+        {FICHE_TABS.map((item) => (
+          <Button
+            key={item.id}
+            variant={tab === item.id ? "primary" : "secondary"}
+            aria-selected={tab === item.id}
+            role="tab"
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </div>
+
+      {tab === "overview" ? (
+      <>
+      <Card className="p-5">
           <h2 className="text-section text-foreground">Prochaine relance</h2>
           {company.nextFollowUp ? (
             <div className="mt-4">
@@ -185,22 +211,51 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
             />
           )}
         </Card>
-      </div>
 
-      <ClientJourneySection journey={company.journey} />
-
-      <CompanyWebsiteSection model={company.websiteStatus} />
-
-      <CommercialBriefSection
+      <ClientJourneySection
+        journey={company.journey}
         companyId={company.id}
-        industry={company.industry}
-        description={company.description}
-        website={company.website}
-        brief={brief}
+        opportunities={company.opportunities.map((opportunity) => ({
+          id: opportunity.id,
+          title: opportunity.title,
+        }))}
+        projects={company.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          opportunityId: project.opportunityId,
+        }))}
+        board={journeyBoard}
+        journeyViews={company.journeyViews}
+        principalPrestation={company.principalPrestation}
       />
+      {company.timeline[0] ? (
+        <p className="text-meta text-muted">
+          Dernière activité le {formatDateTime(company.timeline[0].at)}
+        </p>
+      ) : null}
+      <details className="rounded-xl border border-border px-4 py-3">
+        <summary className="cursor-pointer text-body text-foreground">Fiche et brief commercial</summary>
+        <div className="mt-4 space-y-4">
+          <CompanyInfo company={company} />
+          <CommercialBriefSection
+            companyId={company.id}
+            industry={company.industry}
+            description={company.description}
+            website={company.website}
+            brief={brief}
+          />
+        </div>
+      </details>
+      </>
+      ) : null}
 
+      {tab === "maintenance" ? (
+        <CompanyWebsiteSection model={company.websiteStatus} />
+      ) : null}
+
+      {tab === "history" ? (
       <Card className="p-5">
-        <h2 className="text-section text-foreground">Timeline</h2>
+        <h2 className="text-section text-foreground">Historique</h2>
         {company.timeline.length === 0 ? (
           <EmptyState
             title="Aucune interaction"
@@ -307,10 +362,13 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
           </ol>
         )}
       </Card>
+      ) : null}
 
+      {tab === "project" ? (
+      <>
       <Card className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-section text-foreground">Parcours</h2>
+          <h2 className="text-section text-foreground">Opportunités</h2>
           <Button size="sm" variant="secondary" onClick={() => setOpportunityOpen(true)}>
             Créer
           </Button>
@@ -337,8 +395,75 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         )}
       </Card>
 
+      {isClient || company.projects.length > 0 ? (
+        <Card className="p-5">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-section text-foreground">Projets</h2>
+            {isClient ? (
+              <Button size="sm" variant="secondary" onClick={() => {
+                setProjectDraft(null);
+                setProjectOpen(true);
+              }}>
+                Créer un projet
+              </Button>
+            ) : null}
+          </div>
+          {company.projects.length === 0 ? (
+            <EmptyState
+              title="Aucun projet"
+              description="Passez du suivi commercial à la production en créant un projet."
+              action={
+                isClient ? (
+                  <Button size="sm" onClick={() => {
+                    setProjectDraft(null);
+                    setProjectOpen(true);
+                  }}>
+                    Créer un projet
+                  </Button>
+                ) : null
+              }
+            />
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {company.projects.map((project) => (
+                <li key={project.id}>
+                  <Link
+                    href={`/projets/${project.id}`}
+                    className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-body font-medium text-foreground">{project.name}</p>
+                        <ProjectStatusBadge status={project.status} />
+                      </div>
+                      <p className="mt-1 font-mono text-meta text-muted">
+                        {project.dueDate ? formatDate(project.dueDate) : "Sans deadline"}
+                      </p>
+                    </div>
+                    <div className="w-full sm:max-w-[12rem]">
+                      <ProjectProgress value={project.progress} />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      ) : null}
+      </>
+      ) : null}
+
+      {tab === "documents" ? (
+      <>
       <Card className="p-5">
-        <h2 className="text-section text-foreground">Devis</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-section text-foreground">Devis</h2>
+          {company.quoteOpportunities.length > 0 ? (
+            <Button size="sm" variant="secondary" onClick={() => setQuoteOpen(true)}>
+              Créer un devis
+            </Button>
+          ) : null}
+        </div>
         {company.quotes.length === 0 ? (
           <EmptyState
             title="Aucun devis"
@@ -409,69 +534,6 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         />
       ) : null}
 
-      {isClient ? (
-        <Card className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="text-section text-foreground">Projets</h2>
-            <Button size="sm" variant="secondary" onClick={() => {
-                setProjectDraft(null);
-                setProjectOpen(true);
-              }}>
-              Créer un projet
-            </Button>
-          </div>
-          {company.projects.length === 0 ? (
-            <EmptyState
-              title="Aucun projet"
-              description="Passez du suivi commercial à la production en créant un projet."
-              action={
-                <Button size="sm" onClick={() => {
-                setProjectDraft(null);
-                setProjectOpen(true);
-              }}>
-                  Créer un projet
-                </Button>
-              }
-            />
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {company.projects.map((project) => (
-                <li key={project.id}>
-                  <Link
-                    href={`/projets/${project.id}`}
-                    className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-body font-medium text-foreground">{project.name}</p>
-                        <ProjectStatusBadge status={project.status} />
-                      </div>
-                      <p className="mt-1 font-mono text-meta text-muted">
-                        {project.dueDate ? formatDate(project.dueDate) : "Sans deadline"}
-                      </p>
-                    </div>
-                    <div className="w-full sm:max-w-[12rem]">
-                      <ProjectProgress value={project.progress} />
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      ) : null}
-
-      <CompanyMaintenanceSection
-        companyId={company.id}
-        companyName={company.name}
-        contracts={company.maintenanceContracts}
-        projects={company.projects.map((project) => ({
-          id: project.id,
-          name: project.name,
-          companyId: company.id,
-        }))}
-      />
-
       <DocumentSection
         documents={company.documents}
         companies={[{ id: company.id, name: company.name }]}
@@ -482,6 +544,21 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         }))}
         defaultCompanyId={company.id}
       />
+      </>
+      ) : null}
+
+      {tab === "maintenance" ? (
+        <CompanyMaintenanceSection
+          companyId={company.id}
+          companyName={company.name}
+          contracts={company.maintenanceContracts}
+          projects={company.projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            companyId: company.id,
+          }))}
+        />
+      ) : null}
 
       <InteractionDialog
         open={interactionOpen}

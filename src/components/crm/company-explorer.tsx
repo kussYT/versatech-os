@@ -7,15 +7,14 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LifecycleBadge } from "@/components/ui/lifecycle-badge";
 import { NewProspectButton } from "@/components/crm/new-prospect-button";
-import { PriorityBadge } from "@/components/ui/priority-badge";
 import { controlClassName } from "@/components/ui/field";
 import type { CompanyLifecycle, Priority } from "@/generated/prisma/client";
 import {
   COMPANY_LIFECYCLE_LABELS,
   PRIORITY_LABELS,
 } from "@/lib/crm/constants";
-import { INTERACTION_TYPE_LABELS } from "@/lib/crm/labels";
-import { formatDateTime } from "@/lib/crm/form-data";
+import { formatDate } from "@/lib/crm/form-data";
+import { dueBucket } from "@/lib/dates";
 import type { CompanyListItem } from "@/lib/queries/companies";
 import { cn } from "@/lib/cn";
 
@@ -31,29 +30,30 @@ function contactLabel(company: CompanyListItem) {
   return `${company.primaryContact.firstName} ${company.primaryContact.lastName}`;
 }
 
-function lastInteractionLabel(company: CompanyListItem) {
-  if (!company.lastInteractionAt) {
-    return "—";
-  }
-  const type = company.lastInteractionType;
-  const typeLabel =
-    type && type in INTERACTION_TYPE_LABELS
-      ? INTERACTION_TYPE_LABELS[type as keyof typeof INTERACTION_TYPE_LABELS]
-      : null;
-  return typeLabel
-    ? `${typeLabel} · ${formatDateTime(company.lastInteractionAt)}`
-    : formatDateTime(company.lastInteractionAt);
+function nextActionLabel(company: CompanyListItem) {
+  return company.nextFollowUpTitle ?? "—";
 }
 
-function nextActionLabel(company: CompanyListItem) {
+function nextActionDate(company: CompanyListItem) {
+  return company.nextFollowUpAt ? formatDate(company.nextFollowUpAt) : "—";
+}
+
+function followUpStatus(company: CompanyListItem) {
   if (!company.nextFollowUpAt) {
     return "—";
   }
-  return formatDateTime(company.nextFollowUpAt);
+  const bucket = dueBucket(new Date(company.nextFollowUpAt));
+  if (bucket === "overdue") {
+    return "En retard";
+  }
+  if (bucket === "today") {
+    return "Aujourd'hui";
+  }
+  return "À venir";
 }
 
-function priorityVariant(priority: Priority) {
-  return priority.toLowerCase() as "low" | "normal" | "medium" | "high" | "urgent";
+function companyKind(company: CompanyListItem) {
+  return company.lifecycleStatus === "CLIENT" ? "Client" : "Prospect";
 }
 
 export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
@@ -98,6 +98,7 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
         company.name,
         company.industry,
         company.city,
+        company.prestation,
         contactLabel(company),
       ]
         .filter(Boolean)
@@ -159,28 +160,33 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
               label: COMPANY_LIFECYCLE_LABELS[value as CompanyLifecycle],
             }))}
           />
-          <FilterSelect
-            label="Secteur"
-            value={industry}
-            onChange={setIndustry}
-            options={industries.map((value) => ({ value, label: value }))}
-          />
-          <FilterSelect
-            label="Ville"
-            value={city}
-            onChange={setCity}
-            options={cities.map((value) => ({ value, label: value }))}
-          />
-          <FilterSelect
-            label="Priorité"
-            value={priority}
-            onChange={setPriority}
-            options={(Object.keys(PRIORITY_LABELS) as Priority[]).map((value) => ({
-              value,
-              label: PRIORITY_LABELS[value],
-            }))}
-          />
         </div>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-meta text-muted">Plus de filtres</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <FilterSelect
+              label="Secteur"
+              value={industry}
+              onChange={setIndustry}
+              options={industries.map((value) => ({ value, label: value }))}
+            />
+            <FilterSelect
+              label="Ville"
+              value={city}
+              onChange={setCity}
+              options={cities.map((value) => ({ value, label: value }))}
+            />
+            <FilterSelect
+              label="Priorité"
+              value={priority}
+              onChange={setPriority}
+              options={(Object.keys(PRIORITY_LABELS) as Priority[]).map((value) => ({
+                value,
+                label: PRIORITY_LABELS[value],
+              }))}
+            />
+          </div>
+        </details>
       </Card>
 
       {filtered.length === 0 ? (
@@ -203,19 +209,23 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">{company.name}</p>
                     <p className="mt-1 text-meta text-muted">
-                      {[company.industry, company.city].filter(Boolean).join(" · ") || "—"}
+                      {[companyKind(company), COMPANY_LIFECYCLE_LABELS[company.lifecycleStatus], company.prestation]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <LifecycleBadge status={company.lifecycleStatus} />
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-meta">
                   <div>
-                    <dt className="text-faint">Contact</dt>
-                    <dd className="text-foreground">{contactLabel(company)}</dd>
-                  </div>
-                  <div>
                     <dt className="text-faint">Prochaine action</dt>
                     <dd className="text-foreground">{nextActionLabel(company)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-faint">Relance</dt>
+                    <dd className="text-foreground">
+                      {nextActionDate(company)} · {followUpStatus(company)}
+                    </dd>
                   </div>
                 </dl>
               </Link>
@@ -228,15 +238,12 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
                 <thead className="border-b border-border bg-surface-high/60 text-meta tracking-[0.08em] text-muted uppercase">
                   <tr>
                     <th className="px-4 py-3 font-medium">Entreprise</th>
-                    <th className="px-4 py-3 font-medium">Secteur</th>
-                    <th className="px-4 py-3 font-medium">Ville</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium">Étape</th>
+                    <th className="px-4 py-3 font-medium">Prestation</th>
+                    <th className="px-4 py-3 font-medium">Prochaine action</th>
+                    <th className="px-4 py-3 font-medium">Date relance</th>
                     <th className="px-4 py-3 font-medium">Statut</th>
-                    <th className="px-4 py-3 font-medium">Contact</th>
-                    <th className="px-4 py-3 font-medium">Dernière interaction</th>
-                    {variant === "prospects" ? (
-                      <th className="px-4 py-3 font-medium">Prochaine action</th>
-                    ) : null}
-                    <th className="px-4 py-3 font-medium">Priorité</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -253,22 +260,14 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
                           {company.name}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-muted">{company.industry ?? "—"}</td>
-                      <td className="px-4 py-3 text-muted">{company.city ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted">{companyKind(company)}</td>
                       <td className="px-4 py-3">
                         <LifecycleBadge status={company.lifecycleStatus} />
                       </td>
-                      <td className="px-4 py-3 text-muted">{contactLabel(company)}</td>
-                      <td className="px-4 py-3 text-muted">{lastInteractionLabel(company)}</td>
-                      {variant === "prospects" ? (
-                        <td className="px-4 py-3 text-muted">{nextActionLabel(company)}</td>
-                      ) : null}
-                      <td className="px-4 py-3">
-                        <PriorityBadge
-                          priority={priorityVariant(company.priority)}
-                          label={PRIORITY_LABELS[company.priority]}
-                        />
-                      </td>
+                      <td className="px-4 py-3 text-muted">{company.prestation ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted">{nextActionLabel(company)}</td>
+                      <td className="px-4 py-3 text-muted">{nextActionDate(company)}</td>
+                      <td className="px-4 py-3 text-muted">{followUpStatus(company)}</td>
                     </tr>
                   ))}
                 </tbody>

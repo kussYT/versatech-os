@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import {
   isNavActive,
   navSections,
+  secondaryNavSections,
   settingsItem,
   todayItem,
 } from "@/lib/navigation";
@@ -43,6 +44,38 @@ export function SidebarNav({ pathname, className, account }: SidebarNavProps) {
             </div>
           </div>
         ))}
+        {secondaryNavSections.map((section) => {
+          const active = section.items.some((item) => isNavActive(pathname, item.href));
+          const items = (
+            <div className="flex flex-col gap-0.5">
+              {section.items.map((item) => (
+                <NavItem
+                  key={item.href}
+                  {...item}
+                  active={isNavActive(pathname, item.href)}
+                />
+              ))}
+            </div>
+          );
+          if (active) {
+            return (
+              <div key={section.id} className="mt-5">
+                <p className="px-2.5 pb-2.5 pt-1 text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">
+                  {section.label}
+                </p>
+                {items}
+              </div>
+            );
+          }
+          return (
+            <details key={section.id} className="mt-5">
+              <summary className="cursor-pointer px-2.5 pb-2.5 pt-1 text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">
+                {section.label}
+              </summary>
+              {items}
+            </details>
+          );
+        })}
       </nav>
       <div className="space-y-3 border-t border-border px-3 py-3">
         {account}

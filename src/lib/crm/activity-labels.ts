@@ -36,4 +36,7 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   "tour.stop_added": "Arrêt ajouté à la tournée",
   "tour.stop_removed": "Arrêt retiré de la tournée",
   "tour.stop_visited": "Visite terrain enregistrée",
+  "journey.step_set": "Étape déclarée enregistrée",
+  "journey.step_reset": "Retour au calcul automatique",
+  "journey.step_adopt": "Étape déclarée reprise sur le projet",
 };

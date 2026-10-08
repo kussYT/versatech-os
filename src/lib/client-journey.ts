@@ -154,6 +154,8 @@ export type BuildClientJourneyOptions = {
   now?: Date;
   /** V2 : choisir un projet. V1 dérive le contexte principal. */
   principalProjectId?: string;
+  /** Parcours d'une opportunité qui n'a pas encore de projet. */
+  principalOpportunityId?: string;
 };
 
 export type ClientJourneyStep = {
@@ -300,8 +302,23 @@ function pickMostRelevantOpportunity(
 
 export function selectPrincipalJourneyContext(
   input: ClientJourneyInput,
-  options: Pick<BuildClientJourneyOptions, "principalProjectId" | "now"> = {},
+  options: Pick<BuildClientJourneyOptions, "principalProjectId" | "principalOpportunityId" | "now"> = {},
 ) {
+  if (options.principalOpportunityId && !options.principalProjectId) {
+    const opportunity =
+      input.opportunities.find((item) => item.id === options.principalOpportunityId) ?? null;
+    const quote = pickMostRelevantQuote(
+      input.quotes.filter((item) => item.opportunityId === options.principalOpportunityId),
+    );
+    return {
+      project: null,
+      quote,
+      opportunity,
+      reason: "Opportunité sélectionnée",
+      source: null,
+    };
+  }
+
   const selected = selectPrincipalProject(input.projects, input.contracts, {
     selectedProjectId: options.principalProjectId,
     now: options.now,

@@ -573,6 +573,7 @@ function loadedFixture(): TodayLoaded {
         lastInteractionType: "CALL",
         nextFollowUpAt: "2026-09-19T08:00:00.000Z",
         nextFollowUpTitle: "Relance devis",
+        prestation: null,
       },
     ],
     interactionCounts: { calls: 2, meetings: 1 },

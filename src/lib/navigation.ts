@@ -58,42 +58,48 @@ export const todayItem: NavItemConfig = {
 
 export const navSections: NavSection[] = [
   {
-    id: "commercial",
-    label: "Commercial",
+    id: "quotidien",
+    label: "Quotidien",
     items: [
-      { href: "/prospection", label: "Prospection", icon: "prospection" },
-      { href: "/carte", label: "Carte", icon: "map" },
-      { href: "/tournee", label: "Tournée", icon: "tour" },
       { href: "/entreprises", label: "Entreprises", icon: "companies" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       { href: "/relances", label: "Relances", icon: "followups" },
-    ],
-  },
-  {
-    id: "travail",
-    label: "Travail",
-    items: [
       { href: "/projets", label: "Projets", icon: "projects" },
-      { href: "/taches", label: "Tâches", icon: "tasks" },
-      { href: "/calendrier", label: "Calendrier", icon: "calendar" },
-      { href: "/github", label: "GitHub", icon: "github" },
     ],
   },
   {
-    id: "business",
-    label: "Business",
+    id: "terrain",
+    label: "Terrain",
     items: [
-      { href: "/clients", label: "Clients", icon: "clients" },
+      { href: "/prospection", label: "Prospection", icon: "prospection" },
+      { href: "/tournee", label: "Tournée", icon: "tour" },
+      { href: "/carte", label: "Carte", icon: "map" },
+    ],
+  },
+  {
+    id: "dossier",
+    label: "Dossier",
+    items: [
       { href: "/devis", label: "Devis", icon: "quotes" },
+      { href: "/documents", label: "Documents", icon: "documents" },
       { href: "/maintenance", label: "Maintenance", icon: "maintenance" },
       { href: "/finances", label: "Finances", icon: "finance" },
-      { href: "/documents", label: "Documents", icon: "documents" },
+      { href: "/taches", label: "Tâches", icon: "tasks" },
+      { href: "/calendrier", label: "Calendrier", icon: "calendar" },
     ],
   },
+];
+
+/** Pages utiles, hors du parcours du jour. */
+export const secondaryNavSections: NavSection[] = [
   {
-    id: "analyse",
-    label: "Analyse",
-    items: [{ href: "/analytics", label: "Analytics", icon: "analytics" }],
+    id: "plus",
+    label: "Plus",
+    items: [
+      { href: "/clients", label: "Clients", icon: "clients" },
+      { href: "/github", label: "GitHub", icon: "github" },
+      { href: "/analytics", label: "Analytics", icon: "analytics" },
+    ],
   },
 ];
 
@@ -105,9 +111,9 @@ export const settingsItem: NavItemConfig = {
 
 export const mobileTabItems: NavItemConfig[] = [
   todayItem,
-  { href: "/prospection", label: "Prospection", icon: "prospection" },
+  { href: "/entreprises", label: "Entreprises", icon: "companies" },
   { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
-  { href: "/taches", label: "Tâches", icon: "tasks" },
+  { href: "/projets", label: "Projets", icon: "projects" },
 ];
 
 export function isNavActive(pathname: string, href: NavHref) {

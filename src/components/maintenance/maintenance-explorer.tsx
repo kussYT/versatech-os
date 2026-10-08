@@ -90,25 +90,29 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
       </section>
 
       {overview.upcomingDues.length > 0 ? (
-        <Card className="p-5">
-          <h2 className="text-section text-foreground">Prochaines échéances</h2>
-          <ul className="mt-4 space-y-2">
-            {overview.upcomingDues.map((due) => (
-              <li
-                key={due.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/60 px-4 py-3"
-              >
-                <div>
-                  <p className="text-body font-medium text-foreground">{due.companyName}</p>
-                  <p className="mt-1 font-sans text-meta tabular-nums text-muted">
-                    {formatMoney(due.monthlyAmount)}
-                  </p>
-                </div>
-                <p className="font-mono text-meta text-muted">{formatDate(due.nextDueDate)}</p>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <table className="w-full min-w-[32rem] text-left">
+            <caption className="px-3 py-2 text-left text-body font-medium text-foreground">
+              Prochaines échéances
+            </caption>
+            <thead>
+              <tr className="border-b border-border text-meta text-muted">
+                <th className="px-3 py-2 font-medium">Entreprise</th>
+                <th className="px-3 py-2 font-medium">Montant</th>
+                <th className="px-3 py-2 font-medium">Échéance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.upcomingDues.map((due) => (
+                <tr key={due.id} className="border-b border-border">
+                  <td className="px-3 py-3 text-body text-foreground">{due.companyName}</td>
+                  <td className="px-3 py-3 text-body tabular-nums text-foreground">{formatMoney(due.monthlyAmount)}</td>
+                  <td className="px-3 py-3 text-meta text-muted">{formatDate(due.nextDueDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       {overview.contracts.length === 0 ? (
@@ -123,8 +127,7 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
         </Card>
       ) : (
         <div className="space-y-4">
-          <Card className="p-4">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer les contrats">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer les contrats">
               <FilterButton current={filter} value="all" onSelect={setFilter}>
                 Tous ({overview.totalCount})
               </FilterButton>
@@ -134,69 +137,72 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
               <FilterButton current={filter} value="inactive" onSelect={setFilter}>
                 Suspendus / terminés ({overview.totalCount - overview.activeStatusCount})
               </FilterButton>
-            </div>
-          </Card>
+          </div>
 
           {filtered.length === 0 ? (
             <Card className="px-5">
               <EmptyState title="Aucun contrat pour ce filtre" />
             </Card>
           ) : (
-            <div className="space-y-2">
-              {filtered.map((contract) => (
-                <article
-                  key={contract.id}
-                  className="rounded-xl border border-border bg-background/90 p-4"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full min-w-[760px] text-left">
+                <thead>
+                  <tr className="border-b border-border text-meta text-muted">
+                    <th className="px-3 py-2 font-medium">Entreprise</th>
+                    <th className="px-3 py-2 font-medium">Projet</th>
+                    <th className="px-3 py-2 font-medium">Montant</th>
+                    <th className="px-3 py-2 font-medium">Dates</th>
+                    <th className="px-3 py-2 font-medium">Statut</th>
+                    <th className="px-3 py-2 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((contract) => (
+                    <tr key={contract.id} className="border-b border-border align-top">
+                      <td className="px-3 py-3">
                         <Link
                           href={`/entreprises/${contract.company.id}`}
                           className="text-body font-medium text-primary hover:text-primary-hover"
                         >
                           {contract.company.name}
                         </Link>
-                        <MaintenanceStatusBadge status={contract.status} />
-                      </div>
-                      {contract.project ? (
-                        <Link
-                          href={`/projets/${contract.project.id}`}
-                          className="mt-1 inline-block text-meta text-muted hover:text-foreground"
-                        >
-                          {contract.project.name}
-                        </Link>
-                      ) : (
-                        <p className="mt-1 text-meta text-muted">Sans projet</p>
-                      )}
-                      <p className="mt-2 font-sans text-body font-semibold tabular-nums text-foreground">
+                        {contract.description ? (
+                          <p className="mt-1 text-meta text-muted">{contract.description}</p>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-3 text-meta text-muted">
+                        {contract.project ? (
+                          <Link href={`/projets/${contract.project.id}`} className="hover:text-foreground">
+                            {contract.project.name}
+                          </Link>
+                        ) : (
+                          "Sans projet"
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-body tabular-nums text-foreground">
                         {formatMoney(contract.monthlyAmount)}
-                        <span className="ml-1 text-meta font-normal text-muted">/ mois</span>
-                      </p>
-                      <p className="mt-1 text-meta text-faint">
+                        <span className="text-meta text-muted"> / mois</span>
+                      </td>
+                      <td className="px-3 py-3 text-meta text-muted">
                         Début {formatDate(contract.startDate)}
                         {contract.endDate ? ` · Fin ${formatDate(contract.endDate)}` : ""}
-                        {contract.nextDueDate
-                          ? ` · Prochaine échéance ${formatDate(contract.nextDueDate)}`
-                          : ""}
-                      </p>
-                      {contract.description ? (
-                        <p className="mt-2 text-body text-muted">{contract.description}</p>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-col items-start gap-2 lg:items-end">
-                      <MaintenanceStatusActions contractId={contract.id} status={contract.status} />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditing(contract)}
-                      >
-                        Modifier
-                      </Button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                        {contract.nextDueDate ? ` · Échéance ${formatDate(contract.nextDueDate)}` : ""}
+                      </td>
+                      <td className="px-3 py-3">
+                        <MaintenanceStatusBadge status={contract.status} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col items-start gap-2">
+                          <MaintenanceStatusActions contractId={contract.id} status={contract.status} />
+                          <Button variant="ghost" size="sm" onClick={() => setEditing(contract)}>
+                            Modifier
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

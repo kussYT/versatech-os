@@ -21,6 +21,8 @@ import {
   projectProgress,
 } from "@/lib/crm/constants";
 import { buildCompanyTimeline, type CompanyTimelineItem } from "@/lib/crm/company-timeline";
+import { listJourneyContexts } from "@/lib/crm/journey-cursor";
+import { selectPrincipalPrestation } from "@/lib/crm/principal-prestation";
 import { allowedManualLifecycles, type CompanyLifecycleFacts } from "@/lib/crm/lifecycle";
 import { endOfToday } from "@/lib/crm/form-data";
 import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
@@ -61,6 +63,30 @@ const listInclude = {
     take: 1,
     select: { dueAt: true, title: true },
   },
+  projects: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      startDate: true,
+      completedAt: true,
+      opportunityId: true,
+    },
+  },
+  opportunities: {
+    select: {
+      id: true,
+      title: true,
+      stage: true,
+      updatedAt: true,
+      createdAt: true,
+    },
+  },
+  maintenanceContracts: {
+    select: { status: true, startDate: true, projectId: true },
+  },
 };
 
 export type CompanyListItem = {
@@ -80,6 +106,7 @@ export type CompanyListItem = {
   lastInteractionType: InteractionType | null;
   nextFollowUpAt: string | null;
   nextFollowUpTitle: string | null;
+  prestation: string | null;
 };
 
 export type CompanyDetail = {
@@ -173,6 +200,12 @@ export type CompanyDetail = {
     source: PrincipalProjectSource;
   } | null;
   journey: ClientJourney;
+  journeyViews: Record<string, ClientJourney>;
+  principalPrestation: {
+    projectId: string | null;
+    opportunityId: string | null;
+    label: string;
+  } | null;
   websiteStatus: WebsiteStatusView;
   acceptedQuotes: {
     id: string;
@@ -213,7 +246,40 @@ function toListItem(
     lastInteractionType: lastInteraction?.type ?? null,
     nextFollowUpAt: nextFollowUp?.dueAt.toISOString() ?? null,
     nextFollowUpTitle: nextFollowUp?.title ?? null,
+    prestation:
+      selectPrincipalPrestation({
+        projects: company.projects,
+        opportunities: company.opportunities,
+        contracts: company.maintenanceContracts,
+      })?.label ?? null,
   };
+}
+
+export async function loadPrincipalPrestationLabels(companyIds: readonly string[]) {
+  await requireAuthenticatedUser();
+  const ids = [...new Set(companyIds.filter((id) => id.length > 0))];
+  if (ids.length === 0) {
+    return {} as Record<string, string | null>;
+  }
+  const companies = await prisma.company.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      projects: listInclude.projects,
+      opportunities: listInclude.opportunities,
+      maintenanceContracts: listInclude.maintenanceContracts,
+    },
+  });
+  return Object.fromEntries(
+    companies.map((company) => [
+      company.id,
+      selectPrincipalPrestation({
+        projects: company.projects,
+        opportunities: company.opportunities,
+        contracts: company.maintenanceContracts,
+      })?.label ?? null,
+    ]),
+  );
 }
 
 export async function listProspectCompanies() {
@@ -525,7 +591,14 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
         take: 1,
       },
       opportunities: {
-        select: { id: true, title: true, stage: true, estimatedValue: true, updatedAt: true },
+        select: {
+          id: true,
+          title: true,
+          stage: true,
+          estimatedValue: true,
+          updatedAt: true,
+          createdAt: true,
+        },
         orderBy: { updatedAt: "desc" },
       },
       quotes: {
@@ -677,7 +750,60 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
     opportunities: company.opportunities,
   });
   const principal = selectPrincipalProject(journeyInput.projects, journeyInput.contracts, { now });
-  const journey = buildClientJourney(journeyInput, { now });
+  const principalPrestation = selectPrincipalPrestation({
+    projects: company.projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      startDate: project.startDate,
+      completedAt: project.completedAt,
+      opportunityId: project.opportunityId,
+    })),
+    opportunities: company.opportunities.map((opportunity) => ({
+      id: opportunity.id,
+      title: opportunity.title,
+      stage: opportunity.stage,
+      updatedAt: opportunity.updatedAt,
+      createdAt: opportunity.createdAt,
+    })),
+    contracts: maintenanceContracts.map((contract) => ({
+      status: contract.status,
+      startDate: contract.startDate,
+      projectId: contract.project?.id ?? null,
+    })),
+    now,
+  });
+  const journey = buildClientJourney(journeyInput, {
+    now,
+    ...(principalPrestation?.projectId ? { principalProjectId: principalPrestation.projectId } : {}),
+    ...(principalPrestation?.opportunityId && !principalPrestation.projectId
+      ? { principalOpportunityId: principalPrestation.opportunityId }
+      : {}),
+  });
+  const journeyViews = Object.fromEntries(
+    listJourneyContexts(company.id, {
+      opportunities: company.opportunities.map((opportunity) => ({
+        id: opportunity.id,
+        title: opportunity.title,
+      })),
+      projects: company.projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        opportunityId: project.opportunityId,
+      })),
+    }).map((context) => [
+      context.contextKey,
+      buildClientJourney(journeyInput, {
+        now,
+        ...(context.projectId ? { principalProjectId: context.projectId } : {}),
+        ...(context.opportunityId && !context.projectId
+          ? { principalOpportunityId: context.opportunityId }
+          : {}),
+      }),
+    ]),
+  );
   const websiteStatus = buildWebsiteStatus({
     website: company.website,
     projects: journeyInput.projects,
@@ -810,6 +936,14 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
         }
       : null,
     journey,
+    journeyViews,
+    principalPrestation: principalPrestation
+      ? {
+          projectId: principalPrestation.projectId,
+          opportunityId: principalPrestation.opportunityId,
+          label: principalPrestation.label,
+        }
+      : null,
     websiteStatus,
     allowedLifecycleStatuses: allowedManualLifecycles({
       current: company.lifecycleStatus,

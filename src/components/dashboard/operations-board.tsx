@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition, type ReactNode } from "react";
+import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { completeFollowUp } from "@/actions/follow-ups";
@@ -9,42 +9,45 @@ import { QuickInteractionPanel } from "@/components/crm/quick-interaction-panel"
 import { RescheduleFollowUpDialog } from "@/components/follow-ups/reschedule-follow-up-dialog";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { idleActionResult } from "@/lib/crm/action-result";
-import { formatMoney } from "@/lib/crm/form-data";
-import type {
-  AcceptedQuoteCard,
-  FollowUpCard,
-  OperationsDashboard,
-  StaleOpportunityCard,
-  WaitingQuoteCard,
-  WorkAction,
-} from "@/lib/dashboard/operations";
+import { formatDateTime } from "@/lib/crm/form-data";
+import type { OperationsDashboard } from "@/lib/dashboard/operations";
 import type { ProjectSaleDraft } from "@/lib/projects/draft";
+import { buildTodayRows, type TodayFilter, type TodayRow } from "@/lib/dashboard/today-rows";
+import type { CalendarItem } from "@/lib/calendar/types";
+import type { DashboardTaskItem } from "@/lib/queries/projects";
 import { cn } from "@/lib/cn";
 
 type OperationsBoardProps = {
   dashboard: OperationsDashboard;
+  agenda?: CalendarItem[];
+  tasks?: DashboardTaskItem[];
+  prestations?: Record<string, string | null>;
 };
+
+const FILTERS: { id: TodayFilter; label: string }[] = [
+  { id: "today", label: "Aujourd'hui" },
+  { id: "overdue", label: "En retard" },
+  { id: "upcoming", label: "À venir" },
+];
 
 const ACTION_CLASS = "min-h-12 w-full sm:w-auto";
 
-export function OperationsBoard({ dashboard }: OperationsBoardProps) {
+export function OperationsBoard({
+  dashboard,
+  agenda = [],
+  tasks = [],
+  prestations = {},
+}: OperationsBoardProps) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const [interactionCompanyId, setInteractionCompanyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<TodayFilter>("today");
   const [project, setProject] = useState<{
     companyId: string;
     draft: ProjectSaleDraft;
     reference: string;
   } | null>(null);
-
-  const todayFollowUpIds = new Set(
-    dashboard.today.flatMap((action) => (action.followUpId ? [action.followUpId] : [])),
-  );
-  const todayQuoteIds = new Set(
-    dashboard.today.flatMap((action) => (action.quoteId ? [action.quoteId] : [])),
-  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -54,157 +57,49 @@ export function OperationsBoard({ dashboard }: OperationsBoardProps) {
         </p>
       ) : null}
 
-      <Section title="À faire aujourd'hui" hint="Les actions commerciales, avant les chiffres.">
-        {dashboard.today.length === 0 && dashboard.moreProspects.length === 0 ? (
-          <QuietEmpty>Rien à traiter aujourd&apos;hui.</QuietEmpty>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {[...dashboard.today, ...dashboard.moreProspects].map((action) => (
-              <li key={action.id}>
-                <ActionCard
-                  action={action}
-                  onInteract={() => setInteractionCompanyId(action.companyId)}
-                  onCreateProject={() => {
-                    if (!action.projectDraft) {
-                      return;
-                    }
-                    setProject({
-                      companyId: action.companyId,
-                      draft: action.projectDraft,
-                      reference: action.context,
-                    });
-                  }}
-                  onDone={setNotice}
-                />
-                {interactionCompanyId === action.companyId ? (
-                  <div className="mt-2">
-                    <QuickInteractionPanel
-                      companyId={action.companyId}
-                      onClose={() => setInteractionCompanyId(null)}
-                      onOpenFullForm={() => router.push(`/entreprises/${action.companyId}`)}
-                      onSaved={(message) => {
-                        setNotice(message);
-                        setInteractionCompanyId(null);
-                      }}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Relances" hint="Extrait des relances. Les compteurs plus bas couvrent tout le CRM. La liste complète est sur Relances.">
-        <div className="mb-4">
-          <Link href="/relances" className={cn(buttonVariants({ variant: "secondary" }), "min-h-12 px-4")}>
-            Ouvrir toutes les relances
-          </Link>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <FollowUpBucket
-            title="En retard"
-            empty="Aucune relance en retard."
-            covered="Les relances en retard sont dans À faire aujourd'hui."
-            {...preview(dashboard.followUps.overdue.filter((item) => !todayFollowUpIds.has(item.id)))}
-            coveredCount={dashboard.followUps.overdue.filter((item) => todayFollowUpIds.has(item.id)).length}
-            tone="overdue"
-          />
-          <FollowUpBucket
-            title="Aujourd'hui"
-            empty="Aucune relance prévue aujourd'hui."
-            covered="Les relances du jour sont dans À faire aujourd'hui."
-            {...preview(dashboard.followUps.today.filter((item) => !todayFollowUpIds.has(item.id)))}
-            coveredCount={dashboard.followUps.today.filter((item) => todayFollowUpIds.has(item.id)).length}
-            tone="today"
-          />
-          <FollowUpBucket
-            title="À venir"
-            empty="Aucune relance à venir."
-            covered=""
-            {...preview(dashboard.followUps.upcoming)}
-            coveredCount={0}
-            tone="upcoming"
-          />
-        </div>
-      </Section>
-
-      <Section title="Devis en attente" hint="Envoyés ou consultés. Une relance sur l'entreprise, sans opportunité, couvre tous ses devis : ce n'est pas une relance par devis.">
-        {dashboard.waitingQuotes.length === 0 ? (
-          <QuietEmpty>Aucun devis en attente.</QuietEmpty>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {dashboard.waitingQuotes.map((quote) => (
-              <li key={quote.id}>
-                <WaitingQuoteRow quote={quote} alreadyQueued={todayQuoteIds.has(quote.id)} onDone={setNotice} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Devis acceptés sans projet" hint="Le projet n'est jamais créé tout seul.">
-        <AcceptedList
-          items={dashboard.acceptedWithoutProject.filter((quote) => !todayQuoteIds.has(quote.id))}
-          hiddenCount={dashboard.acceptedWithoutProject.filter((quote) => todayQuoteIds.has(quote.id)).length}
-          onCreate={setProject}
-        />
-      </Section>
-
-      <Section title="Opportunités à suivre" hint="Inactivité affichée en jours. Ce n'est pas un retard : il n'y a pas d'échéance.">
-        {dashboard.staleOpportunities.length === 0 ? (
-          <QuietEmpty>Aucune opportunité ouverte sans activité récente.</QuietEmpty>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {dashboard.staleOpportunities.map((opportunity) => (
-              <li key={opportunity.id}>
-                <OpportunityRow opportunity={opportunity} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <Kpi label="Prospects actifs" value={String(dashboard.kpis.activeProspects)} hint="Leads, contactés, qualifiés, opportunités" />
-        <Kpi label="Relances en retard" value={String(dashboard.kpis.overdueFollowUps)} hint="Échéance avant aujourd'hui, heure de Paris" />
-        <Kpi label="Relances aujourd'hui" value={String(dashboard.kpis.todayFollowUps)} hint="Échéance dans la journée de Paris" />
-        <Kpi label="Devis en attente" value={String(dashboard.kpis.waitingQuotes)} hint="Envoyés ou consultés" />
-        <Kpi label="Opportunités ouvertes" value={String(dashboard.kpis.openOpportunities)} hint="Hors gagné et perdu" />
-        <Kpi label="Pipeline estimé" value={formatMoney(dashboard.kpis.pipelineEstimated)} hint="Somme des estimations, pas l'encaissé" />
-      </section>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer les actions">
+        {FILTERS.map((item) => (
+          <Button
+            key={item.id}
+            variant={filter === item.id ? "primary" : "secondary"}
+            className="min-h-12"
+            aria-pressed={filter === item.id}
+            onClick={() => setFilter(item.id)}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </div>
+      <TodayRows
+        rows={buildTodayRows({ dashboard, agenda, tasks, prestations }).filter((row) => row.filter === filter)}
+        onInteract={setInteractionCompanyId}
+        onCreateProject={(row) => {
+          if (!row.projectDraft) {
+            return;
+          }
+          setProject({
+            companyId: row.companyId,
+            draft: row.projectDraft,
+            reference: row.status,
+          });
+        }}
+        onDone={setNotice}
+        interactionCompanyId={interactionCompanyId}
+        onCloseInteraction={() => setInteractionCompanyId(null)}
+        onOpenCompany={(companyId) => router.push(`/entreprises/${companyId}`)}
+      />
       <p className="text-meta text-muted">
-        Les compteurs ci-dessus portent sur l&apos;ensemble du CRM. Les listes n&apos;en montrent qu&apos;un extrait.
+        Les compteurs détaillés sont dans{" "}
+        <Link href="/analytics" className="text-primary">Analytics</Link>
+        {" · "}
+        <Link href="/relances" className="text-primary">Relances</Link>
+        {" · "}
+        <Link href="/calendrier" className="text-primary">Calendrier</Link>
+        {" · "}
+        <Link href="/taches" className="text-primary">Tâches</Link>
+        {" · "}
+        <Link href="/pipeline" className="text-primary">Pipeline</Link>
       </p>
-
-      <Card className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-section text-foreground">Pipeline</h2>
-            <p className="mt-1 text-meta text-muted">Étapes ouvertes. Valeur estimée.</p>
-          </div>
-          <Link href="/pipeline" className={cn(buttonVariants({ variant: "secondary" }), "min-h-12 px-4")}>
-            Ouvrir
-          </Link>
-        </div>
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {dashboard.pipeline.map((column) => (
-            <li key={column.stage}>
-              <Link
-                href="/pipeline"
-                className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 hover:border-primary/40"
-              >
-                <span className="text-body text-foreground">{column.label}</span>
-                <span className="text-right text-meta text-muted">
-                  {column.count}
-                  <span className="mt-0.5 block">{formatMoney(column.estimatedValue)}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Card>
-
       <CreateProjectDialog
         open={project !== null}
         onClose={() => setProject(null)}
@@ -220,77 +115,96 @@ export function OperationsBoard({ dashboard }: OperationsBoardProps) {
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
-  return (
-    <Card className="p-4 sm:p-5">
-      <h2 className="text-section text-foreground">{title}</h2>
-      <p className="mt-1 text-meta text-muted">{hint}</p>
-      <div className="mt-4">{children}</div>
-    </Card>
-  );
+function dueLabel(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T/.test(value) ? formatDateTime(value) : value;
 }
 
-function QuietEmpty({ children }: { children: string }) {
-  return <p className="text-body text-muted">{children}</p>;
-}
-
-function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <Card className="p-4">
-      <p className="text-meta font-medium tracking-[0.08em] text-muted uppercase">{label}</p>
-      <p className="mt-2 text-h2 text-foreground">{value}</p>
-      <p className="mt-1 text-meta text-muted">{hint}</p>
-    </Card>
-  );
-}
-
-function ActionCard({
-  action,
+function TodayRows({
+  rows,
   onInteract,
   onCreateProject,
   onDone,
+  interactionCompanyId,
+  onCloseInteraction,
+  onOpenCompany,
 }: {
-  action: WorkAction;
-  onInteract: () => void;
-  onCreateProject: () => void;
+  rows: TodayRow[];
+  onInteract: (companyId: string) => void;
+  onCreateProject: (row: TodayRow) => void;
   onDone: (message: string) => void;
+  interactionCompanyId: string | null;
+  onCloseInteraction: () => void;
+  onOpenCompany: (companyId: string) => void;
 }) {
+  if (rows.length === 0) {
+    return <p className="text-body text-muted">Rien dans ce filtre.</p>;
+  }
+
   return (
-    <article
-      className={cn(
-        "rounded-xl border border-border bg-background/80 p-4",
-        action.urgency === "overdue" && "border-danger/40",
-        action.urgency === "today" && "border-primary/40",
-      )}
-    >
-      <div className="flex flex-col gap-3">
-        <div className="min-w-0">
-          <p className="text-body font-medium text-foreground">{action.companyName}</p>
-          <p className="mt-1 text-body text-foreground">{action.title}</p>
-          <p className="mt-1 text-meta text-muted">{action.context}</p>
-          <p className="mt-1 text-meta text-muted">{action.kind === "accepted_quote" ? formatMoney(action.whenLabel) : action.whenLabel}</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <CompanyLink companyId={action.companyId} />
-          {action.kind === "follow_up" || action.kind === "new_prospect" ? (
-            <Button variant="secondary" className={ACTION_CLASS} onClick={onInteract}>
-              Interaction
-            </Button>
-          ) : null}
-          {action.kind === "follow_up" && action.followUpId ? (
-            <CompleteFollowUpButton followUpId={action.followUpId} />
-          ) : null}
-          {action.kind === "waiting_quote" && action.quoteId ? (
-            <QuoteReminderButton quoteId={action.quoteId} onDone={onDone} />
-          ) : null}
-          {action.kind === "accepted_quote" && action.projectDraft ? (
-            <Button className={ACTION_CLASS} onClick={onCreateProject}>
-              Créer le projet
-            </Button>
-          ) : null}
-        </div>
-      </div>
-    </article>
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full min-w-[760px] border-collapse text-left">
+        <thead>
+          <tr className="border-b border-border text-meta text-muted">
+            <th className="px-3 py-2 font-medium">Priorité</th>
+            <th className="px-3 py-2 font-medium">Entreprise</th>
+            <th className="px-3 py-2 font-medium">Prestation</th>
+            <th className="px-3 py-2 font-medium">Action</th>
+            <th className="px-3 py-2 font-medium">Échéance</th>
+            <th className="px-3 py-2 font-medium">Statut</th>
+            <th className="px-3 py-2 font-medium">Action rapide</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-b border-border align-top">
+              <td className="px-3 py-3 text-body text-foreground">{row.priority}</td>
+              <td className="px-3 py-3 text-body font-medium text-foreground">{row.companyName}</td>
+              <td className="px-3 py-3 text-body text-foreground">{row.prestation ?? "—"}</td>
+              <td className="px-3 py-3 text-body text-foreground">{row.action}</td>
+              <td className="px-3 py-3 text-meta text-muted">{dueLabel(row.due)}</td>
+              <td className="px-3 py-3 text-meta text-muted">{row.status}</td>
+              <td className="px-3 py-3">
+                <div className="flex flex-col gap-2">
+                  {row.companyId ? <CompanyLink companyId={row.companyId} /> : (
+                    <Link href={row.href} className={cn(buttonVariants({ variant: "secondary" }), ACTION_CLASS, "px-4")}>
+                      Ouvrir
+                    </Link>
+                  )}
+                  {row.kind === "follow_up" || row.kind === "new_prospect" ? (
+                    <Button variant="secondary" className={ACTION_CLASS} onClick={() => onInteract(row.companyId)}>
+                      Interaction
+                    </Button>
+                  ) : null}
+                  {row.followUpId ? <CompleteFollowUpButton followUpId={row.followUpId} /> : null}
+                  {row.followUpId && row.followUpDueAt ? (
+                    <RescheduleButton followUpId={row.followUpId} dueAt={row.followUpDueAt} />
+                  ) : null}
+                  {row.kind === "waiting_quote" && row.quoteId ? (
+                    <QuoteReminderButton quoteId={row.quoteId} onDone={onDone} />
+                  ) : null}
+                  {row.kind === "accepted_quote" && row.projectDraft ? (
+                    <Button className={ACTION_CLASS} onClick={() => onCreateProject(row)}>
+                      Créer le projet
+                    </Button>
+                  ) : null}
+                  {interactionCompanyId === row.companyId && (row.kind === "follow_up" || row.kind === "new_prospect") ? (
+                    <QuickInteractionPanel
+                      companyId={row.companyId}
+                      onClose={onCloseInteraction}
+                      onOpenFullForm={() => onOpenCompany(row.companyId)}
+                      onSaved={(message) => {
+                        onDone(message);
+                        onCloseInteraction();
+                      }}
+                    />
+                  ) : null}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -299,6 +213,23 @@ function CompanyLink({ companyId, label = "Ouvrir" }: { companyId: string; label
     <Link href={`/entreprises/${companyId}`} className={cn(buttonVariants({ variant: "secondary" }), ACTION_CLASS, "px-4")}>
       {label}
     </Link>
+  );
+}
+
+function RescheduleButton({ followUpId, dueAt }: { followUpId: string; dueAt: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" className={ACTION_CLASS} onClick={() => setOpen(true)}>
+        Reporter
+      </Button>
+      <RescheduleFollowUpDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        followUpId={followUpId}
+        dueAt={dueAt}
+      />
+    </>
   );
 }
 
@@ -375,182 +306,5 @@ function QuoteReminderButton({ quoteId, onDone }: { quoteId: string; onDone: (me
         </p>
       ) : null}
     </div>
-  );
-}
-
-function preview<T>(items: T[], limit = 8) {
-  return { items: items.slice(0, limit), omitted: Math.max(0, items.length - limit) };
-}
-
-function FollowUpBucket({
-  title,
-  empty,
-  covered,
-  items,
-  omitted,
-  coveredCount,
-  tone,
-}: {
-  title: string;
-  empty: string;
-  covered: string;
-  items: FollowUpCard[];
-  omitted: number;
-  coveredCount: number;
-  tone: "overdue" | "today" | "upcoming";
-}) {
-  return (
-    <div>
-      <h3 className="text-body font-medium text-foreground">{title}</h3>
-      {items.length === 0 ? (
-        <p className="mt-2 text-meta text-muted">{coveredCount > 0 ? covered : empty}</p>
-      ) : (
-        <ul className="mt-2 flex flex-col gap-2">
-          {items.map((item) => (
-            <li key={item.id}>
-              <FollowUpRow item={item} tone={tone} />
-            </li>
-          ))}
-        </ul>
-      )}
-      {omitted > 0 ? (
-        <p className="mt-2 text-meta text-muted">{omitted} autre{omitted > 1 ? "s" : ""} sur la page Relances.</p>
-      ) : null}
-    </div>
-  );
-}
-
-function FollowUpRow({
-  item,
-  tone,
-}: {
-  item: FollowUpCard;
-  tone: "overdue" | "today" | "upcoming";
-}) {
-  const [reschedule, setReschedule] = useState(false);
-  return (
-    <article
-      className={cn(
-        "rounded-xl border border-border p-3",
-        tone === "overdue" && "border-danger/40",
-        tone === "today" && "border-primary/40",
-      )}
-    >
-      <p className="text-body font-medium text-foreground">{item.companyName}</p>
-      <p className="mt-1 text-meta text-muted">{item.title}</p>
-      {item.opportunityTitle ? <p className="mt-1 text-meta text-muted">{item.opportunityTitle}</p> : null}
-      <p className="mt-1 text-meta text-muted">{item.whenLabel}</p>
-      <p className="mt-1 text-meta text-muted">En attente</p>
-      <div className="mt-3 flex flex-col gap-2">
-        <CompanyLink companyId={item.companyId} />
-        <Button variant="secondary" className={ACTION_CLASS} onClick={() => setReschedule(true)}>
-          Reporter
-        </Button>
-        <CompleteFollowUpButton followUpId={item.id} />
-      </div>
-      <RescheduleFollowUpDialog
-        open={reschedule}
-        onClose={() => setReschedule(false)}
-        followUpId={item.id}
-        dueAt={item.dueAt}
-      />
-    </article>
-  );
-}
-
-function WaitingQuoteRow({
-  quote,
-  alreadyQueued,
-  onDone,
-}: {
-  quote: WaitingQuoteCard;
-  alreadyQueued: boolean;
-  onDone: (message: string) => void;
-}) {
-  return (
-    <article className="rounded-xl border border-border p-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-body font-medium text-foreground">{quote.companyName}</p>
-        <p className="font-mono text-meta text-muted">{quote.reference}</p>
-        <p className="text-body text-foreground">{formatMoney(quote.amountIncTax)}</p>
-        <p className="text-meta text-muted">{quote.ageLabel}</p>
-        <p className={cn("text-meta", quote.missingFollowUp ? "text-danger" : "text-muted")}>
-          {quote.missingFollowUp ? "Pas de relance programmée" : quote.followUpLabel}
-        </p>
-      </div>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <CompanyLink companyId={quote.companyId} />
-        <Link href="/devis" className={cn(buttonVariants({ variant: "secondary" }), ACTION_CLASS, "px-4")}>
-          Voir les devis
-        </Link>
-        {quote.missingFollowUp && !alreadyQueued ? <QuoteReminderButton quoteId={quote.id} onDone={onDone} /> : null}
-      </div>
-    </article>
-  );
-}
-
-function AcceptedList({
-  items,
-  hiddenCount,
-  onCreate,
-}: {
-  items: AcceptedQuoteCard[];
-  hiddenCount: number;
-  onCreate: (project: { companyId: string; draft: ProjectSaleDraft; reference: string }) => void;
-}) {
-  if (items.length === 0) {
-    return (
-      <QuietEmpty>
-        {hiddenCount > 0
-          ? "Ces devis sont dans À faire aujourd'hui."
-          : "Aucun devis accepté sans projet."}
-      </QuietEmpty>
-    );
-  }
-
-  return (
-    <ul className="flex flex-col gap-3">
-      {items.map((quote) => (
-        <li key={quote.id}>
-          <article className="rounded-xl border border-border p-4">
-            <p className="text-body font-medium text-foreground">{quote.companyName}</p>
-            <p className="mt-1 font-mono text-meta text-muted">{quote.reference}</p>
-            <p className="mt-1 text-body text-foreground">{formatMoney(quote.amountIncTax)}</p>
-            <div className="mt-3">
-              <Button
-                className={ACTION_CLASS}
-                onClick={() =>
-                  onCreate({
-                    companyId: quote.companyId,
-                    draft: quote.projectDraft,
-                    reference: quote.reference,
-                  })
-                }
-              >
-                Créer le projet
-              </Button>
-            </div>
-          </article>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function OpportunityRow({ opportunity }: { opportunity: StaleOpportunityCard }) {
-  return (
-    <article className="rounded-xl border border-border p-4">
-      <p className="text-body font-medium text-foreground">{opportunity.title}</p>
-      <p className="mt-1 text-meta text-muted">{opportunity.companyName}</p>
-      <p className="mt-1 text-meta text-muted">Étape : {opportunity.stageLabel}</p>
-      <p className="mt-1 text-meta text-muted">
-        Dernière activité : il y a {opportunity.daysSinceActivity} jour
-        {opportunity.daysSinceActivity > 1 ? "s" : ""}
-      </p>
-      <p className="mt-1 text-meta text-muted">Estimation {formatMoney(opportunity.estimatedValue)}</p>
-      <div className="mt-3">
-        <CompanyLink companyId={opportunity.companyId} label="Voir l'opportunité" />
-      </div>
-    </article>
   );
 }

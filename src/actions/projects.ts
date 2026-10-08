@@ -8,6 +8,11 @@ import { readString } from "@/lib/crm/form-data";
 import { revalidateProjects } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import {
+  adoptDeclaredJourneyForProject,
+  isMissingJourneySchema,
+  type JourneyWriteTx,
+} from "@/lib/services/journey/write";
+import {
   createProjectSchema,
   fieldErrorsFromZod,
   updateProjectStatusSchema,
@@ -102,6 +107,21 @@ export async function createProject(
           },
         },
       });
+
+      if (created.opportunityId) {
+        try {
+          await adoptDeclaredJourneyForProject(tx as unknown as JourneyWriteTx, {
+            actorId: actor.id,
+            companyId: company.id,
+            opportunityId: created.opportunityId,
+            projectId: created.id,
+          });
+        } catch (error) {
+          if (!isMissingJourneySchema(error)) {
+            throw error;
+          }
+        }
+      }
 
       return created;
     });

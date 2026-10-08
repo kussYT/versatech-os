@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CompanyHub } from "@/components/crm/company-hub";
 import { getCompanyDetail } from "@/lib/queries/companies";
+import { loadJourneyBoard } from "@/lib/queries/journey";
 import { listPaymentFormOptions } from "@/lib/queries/payments";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +19,15 @@ export default async function CompanyPage({
   params,
 }: PageProps<"/entreprises/[id]">) {
   const { id } = await params;
-  const [company, paymentOptions] = await Promise.all([
+  const [company, paymentOptions, journeyBoard] = await Promise.all([
     getCompanyDetail(id),
     listPaymentFormOptions({ companyId: id }),
+    loadJourneyBoard(id),
   ]);
 
   if (!company) {
     notFound();
   }
 
-  return <CompanyHub company={company} paymentOptions={paymentOptions} />;
+  return <CompanyHub company={company} paymentOptions={paymentOptions} journeyBoard={journeyBoard} />;
 }
