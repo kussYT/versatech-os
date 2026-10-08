@@ -10,7 +10,8 @@ import {
 } from "@/lib/crm/constants";
 import { effectiveProbability, weightedValue } from "@/lib/crm/probability";
 import { prisma } from "@/lib/db/prisma";
-import { centsToMoneyString, tryParseMoneyToCents, weightedMoney } from "@/lib/money";
+import { centsToMoneyString, sumMoney, tryParseMoneyToCents, weightedMoney, ZERO_MONEY } from "@/lib/money";
+import { KANBAN_PAGE_SIZE } from "@/lib/pipeline/kanban";
 
 export type PipelineOpportunityCard = {
   id: string;
@@ -131,10 +132,11 @@ const opportunityCardInclude = {
   },
 } as const;
 
-function loadOpportunities(options?: { stage?: OpportunityStage; take?: number }) {
+function loadOpportunities(options?: { stage?: OpportunityStage; take?: number; skip?: number }) {
   return prisma.opportunity.findMany({
     where: options?.stage ? { stage: options.stage } : undefined,
     ...(options?.take != null ? { take: options.take } : {}),
+    ...(options?.skip ? { skip: options.skip } : {}),
     orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
     include: opportunityCardInclude,
   });
@@ -258,6 +260,134 @@ export async function loadPipelineOverview(): Promise<PipelineOverviewLoad> {
     weightedTotal,
     brutTotalMoney: centsToMoneyString(brutCents),
     weightedTotalMoney: centsToMoneyString(weightedCents),
+  };
+}
+
+export type KanbanColumnLoad = {
+  stage: OpportunityStage;
+  count: number;
+  estimatedValue: string;
+  opportunities: PipelineOpportunityCard[];
+};
+
+export type KanbanBoardLoad = {
+  columns: KanbanColumnLoad[];
+  openEstimated: string;
+};
+
+function moneyString(value: { toString(): string } | null | undefined) {
+  const raw = value ? value.toString() : ZERO_MONEY;
+  const cents = tryParseMoneyToCents(raw);
+  return cents === null ? ZERO_MONEY : centsToMoneyString(cents);
+}
+
+export async function loadKanbanBoard(): Promise<KanbanBoardLoad> {
+  await requireAuthenticatedUser();
+  const [grouped, ...pages] = await Promise.all([
+    prisma.opportunity.groupBy({
+      by: ["stage"],
+      _count: { _all: true },
+      _sum: { estimatedValue: true },
+    }),
+    ...OPPORTUNITY_STAGES.map((stage) => loadOpportunities({ stage, take: KANBAN_PAGE_SIZE })),
+  ]);
+
+  const totals = new Map(grouped.map((row) => [row.stage, row]));
+  const columns = OPPORTUNITY_STAGES.map((stage, index) => {
+    const row = totals.get(stage);
+    return {
+      stage,
+      count: row?._count._all ?? 0,
+      estimatedValue: moneyString(row?._sum.estimatedValue),
+      opportunities: (pages[index] ?? []).map(toCard),
+    };
+  });
+
+  return {
+    columns,
+    openEstimated: sumMoney(
+      columns.filter((column) => isOpenOpportunityStage(column.stage)).map((column) => column.estimatedValue),
+    ),
+  };
+}
+
+export async function loadKanbanColumnPage(stage: OpportunityStage, skip: number) {
+  await requireAuthenticatedUser();
+  const opportunities = await loadOpportunities({
+    stage,
+    take: KANBAN_PAGE_SIZE,
+    skip: Math.max(0, skip),
+  });
+  return opportunities.map(toCard);
+}
+
+export async function loadOpportunityQuickView(opportunityId: string) {
+  await requireAuthenticatedUser();
+  const opportunity = await prisma.opportunity.findUnique({
+    where: { id: opportunityId },
+    select: {
+      id: true,
+      title: true,
+      stage: true,
+      estimatedValue: true,
+      company: {
+        select: {
+          id: true,
+          name: true,
+          lifecycleStatus: true,
+          phone: true,
+          email: true,
+          instagram: true,
+        },
+      },
+      quotes: {
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+        select: { id: true, reference: true, status: true, amountIncTax: true },
+      },
+      interactions: {
+        orderBy: { occurredAt: "desc" },
+        take: 1,
+        select: { type: true, occurredAt: true, subject: true },
+      },
+      followUps: {
+        where: { status: "PENDING" },
+        orderBy: { dueAt: "asc" },
+        take: 1,
+        select: { title: true, dueAt: true },
+      },
+    },
+  });
+  if (!opportunity) {
+    return null;
+  }
+  const quote = opportunity.quotes[0] ?? null;
+  const interaction = opportunity.interactions[0] ?? null;
+  const followUp = opportunity.followUps[0] ?? null;
+  return {
+    opportunityId: opportunity.id,
+    title: opportunity.title,
+    stage: opportunity.stage,
+    estimatedValue: moneyString(opportunity.estimatedValue),
+    company: opportunity.company,
+    latestQuote: quote
+      ? {
+          id: quote.id,
+          reference: quote.reference,
+          status: quote.status,
+          amountIncTax: moneyString(quote.amountIncTax),
+        }
+      : null,
+    lastInteraction: interaction
+      ? {
+          type: interaction.type,
+          occurredAt: interaction.occurredAt.toISOString(),
+          subject: interaction.subject,
+        }
+      : null,
+    nextFollowUp: followUp
+      ? { title: followUp.title, dueAt: followUp.dueAt.toISOString() }
+      : null,
   };
 }
 

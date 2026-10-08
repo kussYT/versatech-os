@@ -8,6 +8,7 @@ import { Field, controlClassName } from "@/components/ui/field";
 import { idleActionResult } from "@/lib/crm/action-result";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUSES } from "@/lib/crm/constants";
 import { formatMoney } from "@/lib/crm/form-data";
+import type { ProjectSaleDraft } from "@/lib/projects/draft";
 
 type AcceptedQuoteOption = {
   id: string;
@@ -20,6 +21,7 @@ type CreateProjectDialogProps = {
   onClose: () => void;
   companyId: string;
   quotes: AcceptedQuoteOption[];
+  defaults?: ProjectSaleDraft | null;
 };
 
 export function CreateProjectDialog({
@@ -27,6 +29,7 @@ export function CreateProjectDialog({
   onClose,
   companyId,
   quotes,
+  defaults = null,
 }: CreateProjectDialogProps) {
   return (
     <AppDialog
@@ -36,7 +39,13 @@ export function CreateProjectDialog({
       description="Suivi de production — le devis accepté peut être associé s'il existe."
     >
       {open ? (
-        <CreateProjectForm companyId={companyId} quotes={quotes} onClose={onClose} />
+        <CreateProjectForm
+          key={defaults?.quoteId ?? "manual"}
+          companyId={companyId}
+          quotes={quotes}
+          defaults={defaults}
+          onClose={onClose}
+        />
       ) : null}
     </AppDialog>
   );
@@ -45,10 +54,12 @@ export function CreateProjectDialog({
 function CreateProjectForm({
   companyId,
   quotes,
+  defaults,
   onClose,
 }: {
   companyId: string;
   quotes: AcceptedQuoteOption[];
+  defaults: ProjectSaleDraft | null;
   onClose: () => void;
 }) {
   const [state, formAction, pending] = useActionState(createProject, idleActionResult);
@@ -75,6 +86,7 @@ function CreateProjectForm({
           name="name"
           required
           disabled={pending}
+          defaultValue={defaults?.name ?? ""}
           className={controlClassName}
         />
       </Field>
@@ -129,6 +141,7 @@ function CreateProjectForm({
           inputMode="decimal"
           disabled={pending}
           placeholder="14500"
+          defaultValue={defaults?.amount ?? ""}
           className={controlClassName}
         />
       </Field>
@@ -144,7 +157,7 @@ function CreateProjectForm({
             id="project-quote"
             name="quoteId"
             disabled={pending}
-            defaultValue=""
+            defaultValue={defaults?.quoteId ?? ""}
             className={controlClassName}
           >
             <option value="">Aucun</option>
@@ -163,6 +176,7 @@ function CreateProjectForm({
           name="description"
           rows={3}
           disabled={pending}
+          defaultValue={defaults?.description ?? ""}
           className={controlClassName}
         />
       </Field>

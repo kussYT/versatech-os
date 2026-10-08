@@ -38,7 +38,13 @@ function createStore(seed: {
     },
     opportunity: {
       findFirst: async ({ where }) => {
-        const allowed = new Set(where.stage.in);
+        if (where.id) {
+          const row = (seed.opportunities ?? []).find(
+            (item) => item.id === where.id && item.companyId === where.companyId,
+          );
+          return row ? { id: row.id } : null;
+        }
+        const allowed = new Set(where.stage?.in ?? []);
         const matches = (seed.opportunities ?? [])
           .filter((row) => row.companyId === where.companyId && allowed.has(row.stage))
           .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime());
@@ -156,6 +162,22 @@ describe("FollowUpService.createFollowUp", () => {
     assert.equal(result.ok, true);
     assert.equal(created[0]?.title, "Relance");
     assert.equal(created[0]?.opportunityId, null);
+  });
+
+  test("works on a name-only prospect (no address, email, phone, contact)", async () => {
+    const { store, created, logs } = createStore({
+      companies: { co_maro: { id: "co_maro", priority: "NORMAL" } },
+    });
+    const result = await createFollowUp(
+      { actor, companyId: "co_maro", dueAt, title: "Envoyer exemples site vitrine" },
+      { store },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(created.length, 1);
+    assert.equal(created[0]?.companyId, "co_maro");
+    assert.equal(created[0]?.opportunityId, null);
+    assert.equal(logs[0]?.action, "followup.created");
+    assert.deepEqual(logs[0]?.metadata, { companyId: "co_maro" });
   });
 
   test("unknown company is NOT_FOUND without writing", async () => {

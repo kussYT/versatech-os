@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 
 export const SENSITIVE_ACTION_CONFIRMS = {
   quoteAccepted:
-    "Accepter ce devis ? Le CA signé sera mis à jour et l'opportunité liée pourra passer en Gagné.",
+    "Accepter ce devis ? L'opportunité sera gagnée et l'entreprise deviendra cliente. Le projet ne sera pas créé automatiquement.",
   quoteRejected:
     "Refuser ce devis ? Cette décision clôt le devis dans le workflow actuel.",
   paymentPaid:

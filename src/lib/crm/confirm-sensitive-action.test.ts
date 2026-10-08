@@ -9,7 +9,7 @@ import {
 describe("confirmations UX des mutations sensibles", () => {
   test("covers the audited financial, cancel, unlink and strong workflow actions", () => {
     assert.match(SENSITIVE_ACTION_CONFIRMS.quoteAccepted, /Accepter ce devis/);
-    assert.match(SENSITIVE_ACTION_CONFIRMS.quoteAccepted, /CA signé/);
+    assert.match(SENSITIVE_ACTION_CONFIRMS.quoteAccepted, /cliente/);
     assert.match(SENSITIVE_ACTION_CONFIRMS.quoteRejected, /Refuser ce devis/);
     assert.match(SENSITIVE_ACTION_CONFIRMS.paymentPaid, /encaissé/);
     assert.match(SENSITIVE_ACTION_CONFIRMS.paymentCanceled, /Annuler ce paiement/);

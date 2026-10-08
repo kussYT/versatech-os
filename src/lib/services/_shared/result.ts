@@ -14,6 +14,7 @@ export const SERVICE_ERROR_CODES = [
   "CONFLICT",
   "FORBIDDEN",
   "DEPENDENCY",
+  "CONFIRMATION_REQUIRED",
 ] as const;
 
 export type ServiceErrorCode = (typeof SERVICE_ERROR_CODES)[number];

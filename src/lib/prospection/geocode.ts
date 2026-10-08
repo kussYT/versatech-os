@@ -93,6 +93,44 @@ export function shouldSkipGeocode(
   return hasUsableCoordinates(company) && (company.geocodedAddress ?? "") === currentAddress;
 }
 
+/** Street, postal code, and city are the inputs `formatCompanyAddress` sends to Nominatim. */
+export const GEOCODE_INPUT_FIELDS = ["address", "city", "postalCode"] as const;
+
+export function addressPartsChanged(
+  previous: { address?: string | null; city?: string | null; postalCode?: string | null },
+  next: { address?: string | null; city?: string | null; postalCode?: string | null },
+) {
+  return GEOCODE_INPUT_FIELDS.some(
+    (field) => (previous[field] ?? null) !== (next[field] ?? null),
+  );
+}
+
+/**
+ * Null status is already "pending" for the batch. A company with coordinates is
+ * skipped before status is read, so clearing OK/MANUAL there would only drop the
+ * marker state. MANUAL (or FAILED/OK) without coordinates is cleared so the next
+ * batch pass re-plans the new address.
+ */
+export function geocodeStatusResetForAddressChange(
+  previous: {
+    address?: string | null;
+    city?: string | null;
+    postalCode?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    geocodeStatus?: GeocodeStatusValue | null;
+  },
+  next: { address?: string | null; city?: string | null; postalCode?: string | null },
+): { geocodeStatus: null } | null {
+  if (!addressPartsChanged(previous, next) || previous.geocodeStatus == null) {
+    return null;
+  }
+  if (hasUsableCoordinates(previous)) {
+    return null;
+  }
+  return { geocodeStatus: null };
+}
+
 export function planCompanyGeocode(company: GeocodeCompanySnapshot): GeocodePlan {
   if (company.id === PROTECTED_GEOCODE_COMPANY_ID) {
     return { action: "skip", reason: "protected" };

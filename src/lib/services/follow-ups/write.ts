@@ -27,6 +27,8 @@ export type CreateFollowUpInput = {
   dueAt: Date;
   title?: string | null;
   source?: ActivitySource;
+  opportunityId?: string;
+  activityMetadata?: Record<string, string | number | boolean | null>;
 };
 
 export type CompleteFollowUpInput = {
@@ -87,7 +89,7 @@ export type FollowUpWriteStore = {
   };
   opportunity: {
     findFirst: (args: {
-      where: { companyId: string; stage: { in: string[] } };
+      where: { companyId: string; id?: string; stage?: { in: readonly string[] } };
       orderBy: { updatedAt: "desc" };
       select: { id: true };
     }) => Promise<{ id: string } | null>;
@@ -180,14 +182,23 @@ export async function createFollowUp(
   }
 
   const title = resolveFollowUpTitle(parsed.data.title);
-  const openOpportunity = await read.opportunity.findFirst({
-    where: {
-      companyId: company.id,
-      stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
-    },
-    orderBy: { updatedAt: "desc" },
-    select: { id: true },
-  });
+  const openOpportunity = input.opportunityId
+    ? await read.opportunity.findFirst({
+        where: { companyId: company.id, id: input.opportunityId },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      })
+    : await read.opportunity.findFirst({
+        where: {
+          companyId: company.id,
+          stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+  if (input.opportunityId && !openOpportunity) {
+    return serviceFail("NOT_FOUND", "Opportunité introuvable pour cette entreprise.");
+  }
 
   const followUp = await runWrite(async (tx) => {
     const created = await tx.followUp.create({
@@ -207,7 +218,10 @@ export async function createFollowUp(
         entityType: "FollowUp",
         entityId: created.id,
         action: "followup.created",
-        metadata: withActivitySource({ companyId: company.id }, input.source),
+        metadata: withActivitySource(
+          { companyId: company.id, ...input.activityMetadata },
+          input.source,
+        ),
       },
     });
 

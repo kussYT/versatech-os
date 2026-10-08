@@ -1214,6 +1214,39 @@ summary,
   background: rgb(5 8 20 / 0.72);
 }
 
+.vt-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(28rem, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  padding: 0;
+  color: var(--foreground);
+  box-shadow: var(--shadow-soft);
+}
+
+.vt-drawer[open],
+.vt-drawer:modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.vt-drawer::backdrop {
+  background: rgb(5 8 20 / 0.55);
+}
+
+.vt-drawer:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 .vt-dialog-header {
   display: flex;
   flex-shrink: 0;
@@ -1270,6 +1303,13 @@ summary,
 }
 
 @media (max-width: 639px) {
+  .vt-drawer {
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    border-left: 0;
+  }
+
   .vt-dialog,
   .vt-command {
     inset: max(0.5rem, env(safe-area-inset-top, 0px)) 0 0;
@@ -1313,6 +1353,21 @@ summary,
   }
 }
 
+@keyframes vt-inline-saved {
+  0%,
+  60% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.vt-inline-saved {
+  animation: vt-inline-saved 2.2s ease forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .foil:hover,
   .foil-premium:hover {
@@ -1338,5 +1393,9 @@ summary,
   .vt-ai-orb,
   .vt-ai-orb-thinking {
     transition: none;
+  }
+
+  .vt-inline-saved {
+    animation: none;
   }
 }

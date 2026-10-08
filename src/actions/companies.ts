@@ -1,22 +1,45 @@
 "use server";
 
+import type { CompanyLifecycle } from "@/generated/prisma/client";
 import { logServerError } from "@/lib/observability/log-error";
+import { COMPANY_LIFECYCLE_LABELS } from "@/lib/crm/constants";
 
 import type { ActionResult } from "@/lib/crm/action-result";
+import { getAuthSecret } from "@/lib/auth/config";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
-import { validateManualLifecycle } from "@/lib/crm/lifecycle";
-import { countCompanyLifecycleFacts } from "@/lib/crm/lifecycle-db";
 import { revalidateCrm } from "@/lib/crm/revalidate";
-import { prisma } from "@/lib/db/prisma";
+import { toActionResult } from "@/lib/services/_shared/result";
+import * as CompanyWriteService from "@/lib/services/companies/write";
 import {
   createCompanySchema,
   fieldErrorsFromZod,
+  updateCompanyFieldActionSchema,
   updateCompanySchema,
 } from "@/lib/validations/company";
 
 function userFacingDbError() {
   return "Impossible d'enregistrer l'entreprise. Réessayez.";
+}
+
+function readCompanyProfile(formData: FormData) {
+  return {
+    name: readString(formData, "name"),
+    industry: readString(formData, "industry"),
+    address: readString(formData, "address"),
+    city: readString(formData, "city"),
+    postalCode: readString(formData, "postalCode"),
+    phone: readString(formData, "phone"),
+    email: readString(formData, "email"),
+    website: readString(formData, "website"),
+    instagram: readString(formData, "instagram"),
+    linkedin: readString(formData, "linkedin"),
+    source: readString(formData, "source"),
+    description: readString(formData, "description"),
+    contactFirstName: readString(formData, "contactFirstName"),
+    contactLastName: readString(formData, "contactLastName"),
+    contactRole: readString(formData, "contactRole"),
+  };
 }
 
 export async function createCompany(
@@ -27,22 +50,7 @@ export async function createCompany(
   if (!auth.ok) {
     return auth.result;
   }
-  const { actor } = auth;
-  const parsed = createCompanySchema.safeParse({
-    name: readString(formData, "name"),
-    industry: readString(formData, "industry"),
-    address: readString(formData, "address"),
-    city: readString(formData, "city"),
-    postalCode: readString(formData, "postalCode"),
-    phone: readString(formData, "phone"),
-    email: readString(formData, "email"),
-    website: readString(formData, "website"),
-    source: readString(formData, "source"),
-    description: readString(formData, "description"),
-    contactFirstName: readString(formData, "contactFirstName"),
-    contactLastName: readString(formData, "contactLastName"),
-    contactRole: readString(formData, "contactRole"),
-  });
+  const parsed = createCompanySchema.safeParse(readCompanyProfile(formData));
 
   if (!parsed.success) {
     return {
@@ -52,55 +60,12 @@ export async function createCompany(
     };
   }
 
-  const input = parsed.data;
-
   try {
-    const company = await prisma.$transaction(async (tx) => {
-      const created = await tx.company.create({
-        data: {
-          name: input.name,
-          lifecycleStatus: "LEAD",
-          industry: input.industry,
-          address: input.address,
-          city: input.city,
-          postalCode: input.postalCode,
-          phone: input.phone,
-          email: input.email,
-          website: input.website,
-          source: input.source,
-          description: input.description,
-          priority: "NORMAL",
-          country: "FR",
-        },
-      });
-
-      if (input.contactFirstName && input.contactLastName) {
-        await tx.contact.create({
-          data: {
-            companyId: created.id,
-            firstName: input.contactFirstName,
-            lastName: input.contactLastName,
-            role: input.contactRole,
-            isPrimary: true,
-          },
-        });
-      }
-
-      await tx.activityLog.create({
-        data: {
-          actorId: actor.id,
-          entityType: "Company",
-          entityId: created.id,
-          action: "company.created",
-          metadata: { name: created.name },
-        },
-      });
-
-      return created;
-    });
-
-    revalidateCrm(company.id);
-    return { ok: true, data: { companyId: company.id, name: company.name } };
+    const result = await CompanyWriteService.createCompany(parsed.data, auth.actor);
+    if (result.ok) {
+      revalidateCrm(result.data.companyId);
+    }
+    return toActionResult(result);
   } catch (error) {
     logServerError("companies", error);
     return { ok: false, message: userFacingDbError() };
@@ -115,24 +80,11 @@ export async function updateCompany(
   if (!auth.ok) {
     return auth.result;
   }
-  const { actor } = auth;
   const parsed = updateCompanySchema.safeParse({
+    ...readCompanyProfile(formData),
     id: readString(formData, "id"),
-    name: readString(formData, "name"),
-    industry: readString(formData, "industry"),
-    address: readString(formData, "address"),
-    city: readString(formData, "city"),
-    postalCode: readString(formData, "postalCode"),
-    phone: readString(formData, "phone"),
-    email: readString(formData, "email"),
-    website: readString(formData, "website"),
-    source: readString(formData, "source"),
-    description: readString(formData, "description"),
     lifecycleStatus: readString(formData, "lifecycleStatus"),
     priority: readString(formData, "priority"),
-    contactFirstName: readString(formData, "contactFirstName"),
-    contactLastName: readString(formData, "contactLastName"),
-    contactRole: readString(formData, "contactRole"),
     contactPhone: readString(formData, "contactPhone"),
     contactEmail: readString(formData, "contactEmail"),
   });
@@ -145,115 +97,106 @@ export async function updateCompany(
     };
   }
 
-  const input = parsed.data;
-
   try {
-    const existing = await prisma.company.findUnique({
-      where: { id: input.id },
-      include: {
-        contacts: {
-          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-          take: 1,
-        },
-      },
+    const sensitive =
+      parsed.data.lifecycleStatus === "CLIENT" || parsed.data.lifecycleStatus === "LOST";
+    const secret = sensitive ? getAuthSecret() : "";
+    const result = await CompanyWriteService.updateCompany(parsed.data, auth.actor, {
+      secret,
+      confirmationToken: readString(formData, "confirmationToken").trim() || null,
     });
-
-    if (!existing) {
-      return { ok: false, message: "Entreprise introuvable." };
-    }
-
-    const primaryContact = existing.contacts[0] ?? null;
-    const facts = await countCompanyLifecycleFacts(
-      prisma,
-      existing.id,
-      existing.lifecycleStatus,
-    );
-    const lifecycleCheck = validateManualLifecycle(input.lifecycleStatus, facts);
-
-    if (!lifecycleCheck.ok) {
+    if (
+      !result.ok &&
+      result.code === "CONFIRMATION_REQUIRED" &&
+      (parsed.data.lifecycleStatus === "CLIENT" || parsed.data.lifecycleStatus === "LOST")
+    ) {
+      const { signSensitiveIntent } = await import("@/lib/crm/sensitive-confirmation");
       return {
         ok: false,
-        message: lifecycleCheck.message,
-        fieldErrors: { lifecycleStatus: [lifecycleCheck.message] },
+        message: result.message,
+        data: {
+          companyId: parsed.data.id,
+          confirmationToken: signSensitiveIntent(
+            {
+              kind: "company-lifecycle",
+              actorId: auth.actor.id,
+              companyId: parsed.data.id,
+              lifecycle: parsed.data.lifecycleStatus,
+              exp: Date.now() + 10 * 60 * 1000,
+            },
+            secret,
+          ),
+        },
       };
     }
+    if (result.ok) {
+      revalidateCrm(result.data.companyId);
+    }
+    return toActionResult(result);
+  } catch (error) {
+    logServerError("companies", error);
+    return { ok: false, message: userFacingDbError() };
+  }
+}
 
-    await prisma.$transaction(async (tx) => {
-      await tx.company.update({
-        where: { id: existing.id },
-        data: {
-          name: input.name,
-          industry: input.industry,
-          address: input.address,
-          city: input.city,
-          postalCode: input.postalCode,
-          phone: input.phone,
-          email: input.email,
-          website: input.website,
-          source: input.source,
-          description: input.description,
-          lifecycleStatus: input.lifecycleStatus,
-          priority: input.priority,
-        },
-      });
+export async function updateCompanyField(input: {
+  companyId: string;
+  field: string;
+  value: string;
+}): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
 
-      if (input.lifecycleStatus !== existing.lifecycleStatus) {
-        await tx.activityLog.create({
-          data: {
-            actorId: actor.id,
-            entityType: "Company",
-            entityId: existing.id,
-            action: "company.lifecycle_changed",
-            metadata: {
-              from: existing.lifecycleStatus,
-              to: input.lifecycleStatus,
-              reason: "company.updated",
-            },
-          },
-        });
-      }
+  const parsed = updateCompanyFieldActionSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Vérifiez les champs du formulaire.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
 
-      if (input.contactFirstName && input.contactLastName) {
-        if (primaryContact) {
-          await tx.contact.update({
-            where: { id: primaryContact.id },
-            data: {
-              firstName: input.contactFirstName,
-              lastName: input.contactLastName,
-              role: input.contactRole,
-              phone: input.contactPhone,
-              email: input.contactEmail,
-              isPrimary: true,
-            },
-          });
-        } else {
-          await tx.contact.create({
-            data: {
-              companyId: existing.id,
-              firstName: input.contactFirstName,
-              lastName: input.contactLastName,
-              role: input.contactRole,
-              phone: input.contactPhone,
-              email: input.contactEmail,
-              isPrimary: true,
-            },
-          });
-        }
-      }
+  try {
+    const result = await CompanyWriteService.updateCompanyField(
+      parsed.data.companyId,
+      parsed.data.field,
+      parsed.data.value,
+      auth.actor,
+    );
+    if (result.ok) {
+      revalidateCrm(result.data.companyId);
+    }
+    return toActionResult(result);
+  } catch (error) {
+    logServerError("companies", error);
+    return { ok: false, message: userFacingDbError() };
+  }
+}
 
-      await tx.activityLog.create({
-        data: {
-          actorId: actor.id,
-          entityType: "Company",
-          entityId: existing.id,
-          action: "company.updated",
-          metadata: { name: input.name },
-        },
-      });
-    });
+export async function changeCompanyLifecycle(input: {
+  companyId: string;
+  lifecycleStatus: CompanyLifecycle;
+}): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
 
-    revalidateCrm(existing.id);
-    return { ok: true, data: { companyId: existing.id } };
+  try {
+    const result = await CompanyWriteService.changeCompanyLifecycle(input, auth.actor);
+    if (!result.ok) {
+      return toActionResult(result);
+    }
+    revalidateCrm(result.data.companyId);
+    return {
+      ok: true,
+      message: result.data.unchanged
+        ? "Statut inchangé."
+        : `Statut mis à jour : ${COMPANY_LIFECYCLE_LABELS[input.lifecycleStatus]}`,
+      data: { companyId: result.data.companyId },
+    };
   } catch (error) {
     logServerError("companies", error);
     return { ok: false, message: userFacingDbError() };

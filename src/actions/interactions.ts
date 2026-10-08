@@ -4,12 +4,11 @@ import { logServerError } from "@/lib/observability/log-error";
 
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
-import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
-import { lifecycleAfterInteraction } from "@/lib/crm/lifecycle";
-import { applyCompanyLifecycleChange } from "@/lib/crm/lifecycle-db";
 import { revalidateCrm } from "@/lib/crm/revalidate";
-import { prisma } from "@/lib/db/prisma";
+import { toActionResult } from "@/lib/services/_shared/result";
+import type { QuickInteractionInput } from "@/lib/services/interactions/quick";
+import * as InteractionWriteService from "@/lib/services/interactions/write";
 import { fieldErrorsFromZod } from "@/lib/validations/company";
 import { createInteractionSchema } from "@/lib/validations/interaction";
 
@@ -21,7 +20,6 @@ export async function createInteraction(
   if (!auth.ok) {
     return auth.result;
   }
-  const { actor } = auth;
   const parsed = createInteractionSchema.safeParse({
     companyId: readString(formData, "companyId"),
     type: readString(formData, "type"),
@@ -39,68 +37,45 @@ export async function createInteraction(
     };
   }
 
-  const input = parsed.data;
-
   try {
-    const company = await prisma.company.findUnique({
-      where: { id: input.companyId },
-    });
-
-    if (!company) {
-      return { ok: false, message: "Entreprise introuvable." };
+    const result = await InteractionWriteService.createInteraction(parsed.data, auth.actor);
+    if (!result.ok) {
+      return toActionResult(result);
     }
-
-    const nextLifecycle = lifecycleAfterInteraction(company.lifecycleStatus, input.type);
-
-    const openOpportunity = await prisma.opportunity.findFirst({
-      where: {
-        companyId: company.id,
-        stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
-      },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true },
-    });
-
-    const interaction = await prisma.$transaction(async (tx) => {
-      const created = await tx.interaction.create({
-        data: {
-          companyId: company.id,
-          opportunityId: openOpportunity?.id ?? null,
-          type: input.type,
-          direction: input.direction,
-          result: input.result,
-          notes: input.notes,
-          occurredAt: input.occurredAt,
-          createdById: actor.id,
-        },
-      });
-
-      await applyCompanyLifecycleChange(tx, {
-        companyId: company.id,
-        from: company.lifecycleStatus,
-        to: nextLifecycle,
-        actorId: actor.id,
-        reason: "interaction.created",
-        metadata: { type: created.type },
-      });
-
-      await tx.activityLog.create({
-        data: {
-          actorId: actor.id,
-          entityType: "Interaction",
-          entityId: created.id,
-          action: "interaction.created",
-          metadata: { type: created.type, companyId: company.id },
-        },
-      });
-
-      return created;
-    });
-
-    revalidateCrm(company.id);
-    return { ok: true, data: { interactionId: interaction.id } };
+    revalidateCrm(result.data.companyId);
+    return { ok: true, data: { interactionId: result.data.interactionId } };
   } catch (error) {
     logServerError("interactions", error);
+    return {
+      ok: false,
+      message: "Impossible d'enregistrer l'interaction. Réessayez.",
+    };
+  }
+}
+
+export async function recordQuickInteraction(input: QuickInteractionInput): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+
+  try {
+    const result = await InteractionWriteService.recordQuickInteraction(input, auth.actor);
+    if (!result.ok) {
+      return toActionResult(result);
+    }
+    revalidateCrm(result.data.companyId);
+    return {
+      ok: true,
+      message: result.data.message,
+      data: {
+        interactionId: result.data.interactionId,
+        followUpId: result.data.followUpId ?? undefined,
+        companyId: result.data.companyId,
+      },
+    };
+  } catch (error) {
+    logServerError("interactions.quick", error);
     return {
       ok: false,
       message: "Impossible d'enregistrer l'interaction. Réessayez.",

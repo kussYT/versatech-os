@@ -10,7 +10,11 @@ export type ActionResult = {
     interactionId?: string;
     followUpId?: string;
     opportunityId?: string;
+    confirmationToken?: string;
     quoteId?: string;
+    companyName?: string;
+    proposeFollowUp?: boolean;
+    offerProject?: boolean;
     projectId?: string;
     taskId?: string;
     milestoneId?: string;
@@ -20,6 +24,7 @@ export type ActionResult = {
     paymentId?: string;
     maintenanceContractId?: string;
     tourId?: string;
+    savedValue?: string | null;
   };
 };
 

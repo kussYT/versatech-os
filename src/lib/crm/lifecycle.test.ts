@@ -26,8 +26,15 @@ function facts(overrides: Partial<CompanyLifecycleFacts> = {}): CompanyLifecycle
 describe("lifecycle auto", () => {
   it("passe LEAD → CONTACTED sur interaction commerciale", () => {
     assert.equal(lifecycleAfterInteraction("LEAD", "CALL"), "CONTACTED");
+    assert.equal(lifecycleAfterInteraction("LEAD", "CALL", null), "CONTACTED");
+    assert.equal(lifecycleAfterInteraction("LEAD", "CALL", "INTERESTED"), "CONTACTED");
+    assert.equal(lifecycleAfterInteraction("LEAD", "CALL", "NO_ANSWER"), null);
+    assert.equal(lifecycleAfterInteraction("LEAD", "EMAIL"), null);
+    assert.equal(lifecycleAfterInteraction("LEAD", "MESSAGE"), null);
+    assert.equal(lifecycleAfterInteraction("LEAD", "MEETING"), "CONTACTED");
     assert.equal(lifecycleAfterInteraction("LEAD", "NOTE"), null);
     assert.equal(lifecycleAfterInteraction("CLIENT", "CALL"), null);
+    assert.equal(lifecycleAfterInteraction("CLIENT", "CALL", "NO_ANSWER"), null);
   });
 
   it("passe un prospect en OPPORTUNITY à la création", () => {

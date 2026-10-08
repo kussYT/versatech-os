@@ -2,43 +2,26 @@
 
 import { logServerError } from "@/lib/observability/log-error";
 
-import type { QuoteStatus } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { isOpenOpportunityStage } from "@/lib/crm/constants";
 import { readString } from "@/lib/crm/form-data";
-import { lifecycleAfterWon } from "@/lib/crm/lifecycle";
-import { applyCompanyLifecycleChange } from "@/lib/crm/lifecycle-db";
-import { probabilityForWrite } from "@/lib/crm/probability";
 import { parisParts } from "@/lib/dates";
-import { revalidateQuotes } from "@/lib/crm/revalidate";
+import { revalidateFollowUps, revalidateQuotes } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
+import { applyOpportunityStageChange, type OpportunityStageTx } from "@/lib/services/opportunities/stage";
+import {
+  QuoteWorkflowAbort,
+  scheduleQuoteFollowUp,
+  updateQuoteStatus as updateQuoteStatusService,
+  type QuoteFollowUpPreset,
+} from "@/lib/services/quotes/status";
+import { toActionResult } from "@/lib/services/_shared/result";
 import {
   createQuoteSchema,
   fieldErrorsFromZod,
   updateQuoteStatusSchema,
 } from "@/lib/validations/quote";
-
-const ALLOWED_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
-  DRAFT: ["SENT"],
-  SENT: ["VIEWED", "ACCEPTED", "REJECTED"],
-  VIEWED: ["ACCEPTED", "REJECTED"],
-  ACCEPTED: [],
-  REJECTED: [],
-  EXPIRED: [],
-};
-
-function quoteStatusDates(status: QuoteStatus) {
-  if (status === "SENT") {
-    return { sentAt: new Date() };
-  }
-
-  if (status === "ACCEPTED") {
-    return { acceptedAt: new Date() };
-  }
-
-  return {};
-}
 
 async function nextQuoteReference() {
   const year = parisParts(new Date()).year;
@@ -100,37 +83,17 @@ export async function createQuote(
       });
 
       if (shouldMoveToQuote) {
-        await tx.opportunity.update({
-          where: { id: opportunity.id },
-          data: {
-            stage: "QUOTE",
-            probability: probabilityForWrite("QUOTE"),
-          },
+        const stageResult = await applyOpportunityStageChange(tx as unknown as OpportunityStageTx, {
+          opportunityId: opportunity.id,
+          stage: "QUOTE",
+          lostReason: null,
+          actorId: actor.id,
+          now: new Date(),
+          metadata: { quoteId: created.id },
         });
-
-        await tx.opportunityStageHistory.create({
-          data: {
-            opportunityId: opportunity.id,
-            fromStage: opportunity.stage,
-            toStage: "QUOTE",
-            changedById: actor.id,
-          },
-        });
-
-        await tx.activityLog.create({
-          data: {
-            actorId: actor.id,
-            entityType: "Opportunity",
-            entityId: opportunity.id,
-            action: "opportunity.stage_changed",
-            metadata: {
-              companyId: opportunity.companyId,
-              fromStage: opportunity.stage,
-              toStage: "QUOTE",
-              quoteId: created.id,
-            },
-          },
-        });
+        if (!stageResult.ok) {
+          throw new QuoteWorkflowAbort(stageResult.message);
+        }
       }
 
       await tx.activityLog.create({
@@ -161,6 +124,9 @@ export async function createQuote(
       },
     };
   } catch (error) {
+    if (error instanceof QuoteWorkflowAbort) {
+      return { ok: false, message: error.message };
+    }
     logServerError("quotes", error);
     return { ok: false, message: "Impossible de créer le devis. Réessayez." };
   }
@@ -191,116 +157,66 @@ export async function updateQuoteStatus(
   const input = parsed.data;
 
   try {
-    const existing = await prisma.quote.findUnique({
-      where: { id: input.quoteId },
-      include: {
-        opportunity: true,
-        company: true,
-      },
-    });
-
-    if (!existing) {
-      return { ok: false, message: "Devis introuvable." };
+    const result = await updateQuoteStatusService(input, actor);
+    if (!result.ok) {
+      return toActionResult(result);
     }
-
-    if (existing.status === input.status) {
-      return {
-        ok: true,
-        data: { quoteId: existing.id, companyId: existing.companyId },
-      };
-    }
-
-    if (!ALLOWED_TRANSITIONS[existing.status].includes(input.status)) {
-      return { ok: false, message: "Cette transition n'est pas autorisée." };
-    }
-
-    const shouldWinOpportunity = input.status === "ACCEPTED" && existing.opportunity.stage !== "WON";
-    const nextLifecycle = shouldWinOpportunity
-      ? lifecycleAfterWon(existing.company.lifecycleStatus)
-      : null;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.quote.update({
-        where: { id: existing.id },
-        data: {
-          status: input.status,
-          ...quoteStatusDates(input.status),
-        },
-      });
-
-      await tx.activityLog.create({
-        data: {
-          actorId: actor.id,
-          entityType: "Quote",
-          entityId: existing.id,
-          action: "quote.status_changed",
-          metadata: {
-            companyId: existing.companyId,
-            opportunityId: existing.opportunityId,
-            fromStatus: existing.status,
-            toStatus: input.status,
-          },
-        },
-      });
-
-      if (shouldWinOpportunity) {
-        await tx.opportunity.update({
-          where: { id: existing.opportunityId },
-          data: {
-            stage: "WON",
-            probability: probabilityForWrite("WON"),
-            wonAt: existing.opportunity.wonAt ?? new Date(),
-            lostAt: null,
-          },
-        });
-
-        await tx.opportunityStageHistory.create({
-          data: {
-            opportunityId: existing.opportunityId,
-            fromStage: existing.opportunity.stage,
-            toStage: "WON",
-            changedById: actor.id,
-          },
-        });
-
-        await tx.activityLog.create({
-          data: {
-            actorId: actor.id,
-            entityType: "Opportunity",
-            entityId: existing.opportunityId,
-            action: "opportunity.stage_changed",
-            metadata: {
-              companyId: existing.companyId,
-              fromStage: existing.opportunity.stage,
-              toStage: "WON",
-              quoteId: existing.id,
-              probability: probabilityForWrite("WON"),
-            },
-          },
-        });
-      }
-
-      await applyCompanyLifecycleChange(tx, {
-        companyId: existing.companyId,
-        from: existing.company.lifecycleStatus,
-        to: nextLifecycle,
-        actorId: actor.id,
-        reason: "quote.accepted",
-        metadata: { quoteId: existing.id },
-      });
-    });
-
-    revalidateQuotes(existing.companyId);
+    revalidateQuotes(result.data.companyId);
+    const message = result.data.unchanged
+      ? "Devis inchangé."
+      : input.status === "ACCEPTED"
+        ? result.data.becameClient
+          ? `Devis accepté · ${result.data.companyName} est maintenant cliente`
+          : "Devis accepté"
+        : input.status === "SENT"
+          ? "Devis envoyé"
+          : input.status === "REJECTED"
+            ? "Devis refusé"
+            : "Devis mis à jour";
     return {
       ok: true,
+      message,
       data: {
-        quoteId: existing.id,
-        companyId: existing.companyId,
-        opportunityId: existing.opportunityId,
+        quoteId: result.data.quoteId,
+        companyId: result.data.companyId,
+        opportunityId: result.data.opportunityId,
+        companyName: result.data.companyName,
+        proposeFollowUp: result.data.proposeFollowUp,
+        offerProject: result.data.offerProject,
       },
     };
   } catch (error) {
     logServerError("quotes", error);
     return { ok: false, message: "Impossible de mettre à jour le devis. Réessayez." };
+  }
+}
+
+export async function scheduleQuoteReminder(
+  input: { quoteId: string; preset: QuoteFollowUpPreset; customDueDate?: string | null },
+): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+
+  try {
+    const result = await scheduleQuoteFollowUp(input, auth.actor);
+    if (!result.ok) {
+      return toActionResult(result);
+    }
+    revalidateFollowUps(result.data.companyId);
+    const due = new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "Europe/Paris",
+    }).format(new Date(result.data.dueAt));
+    return {
+      ok: true,
+      message: `Relance le ${due}`,
+      data: { followUpId: result.data.followUpId, companyId: result.data.companyId, quoteId: input.quoteId },
+    };
+  } catch (error) {
+    logServerError("quotes", error);
+    return { ok: false, message: "Impossible de programmer la relance. Réessayez." };
   }
 }

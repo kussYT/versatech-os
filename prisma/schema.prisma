@@ -172,6 +172,10 @@ model Company {
   website             String?
   phone               String?
   email               String?
+  /// Instagram handle without "@" (e.g. "maro.crea").
+  instagram           String?
+  /// Full https LinkedIn URL.
+  linkedin            String?
   address             String?
   city                String?
   postalCode          String?

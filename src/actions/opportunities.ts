@@ -5,18 +5,17 @@ import { logServerError } from "@/lib/observability/log-error";
 import type { OpportunityStage } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
+import { getAuthSecret } from "@/lib/auth/config";
 import { readString } from "@/lib/crm/form-data";
-import {
-  applyCompanyLifecycleChange,
-  countCompanyLifecycleFacts,
-} from "@/lib/crm/lifecycle-db";
-import {
-  lifecycleAfterOpportunityCreated,
-  nextLifecycleAfterOpportunityStageChange,
-} from "@/lib/crm/lifecycle";
+import { applyCompanyLifecycleChange } from "@/lib/crm/lifecycle-db";
+import { lifecycleAfterOpportunityCreated } from "@/lib/crm/lifecycle";
 import { probabilityForWrite } from "@/lib/crm/probability";
 import { revalidatePipeline } from "@/lib/crm/revalidate";
+import { OPPORTUNITY_STAGE_LABELS } from "@/lib/crm/constants";
+import { signSensitiveIntent } from "@/lib/crm/sensitive-confirmation";
 import { prisma } from "@/lib/db/prisma";
+import { changeOpportunityStage } from "@/lib/services/opportunities/stage";
+import { toActionResult } from "@/lib/services/_shared/result";
 import {
   createOpportunitySchema,
   fieldErrorsFromZod,
@@ -159,86 +158,46 @@ export async function updateOpportunityStage(
   }
 
   const input = parsed.data;
+  const confirmationToken = readString(formData, "confirmationToken").trim() || null;
 
   try {
-    const existing = await prisma.opportunity.findUnique({
-      where: { id: input.opportunityId },
-      include: { company: true },
+    const sensitive = input.stage === "WON" || input.stage === "LOST";
+    const secret = sensitive ? getAuthSecret() : "";
+    const result = await changeOpportunityStage(input, actor, {
+      secret,
+      confirmationToken,
     });
-
-    if (!existing) {
-      return { ok: false, message: "Opportunité introuvable." };
-    }
-
-    if (existing.stage === input.stage) {
-      return { ok: true, data: { opportunityId: existing.id, companyId: existing.companyId } };
-    }
-
-    const probability = probabilityForWrite(input.stage);
-
-    await prisma.$transaction(async (tx) => {
-      await tx.opportunity.update({
-        where: { id: existing.id },
-        data: {
-          stage: input.stage,
-          probability,
-          ...stageTimestamps(input.stage),
-          lostReason: input.stage === "LOST" ? input.lostReason : existing.lostReason,
-        },
-      });
-
-      await tx.opportunityStageHistory.create({
-        data: {
-          opportunityId: existing.id,
-          fromStage: existing.stage,
-          toStage: input.stage,
-          changedById: actor.id,
-        },
-      });
-
-      const facts = await countCompanyLifecycleFacts(
-        tx,
-        existing.companyId,
-        existing.company.lifecycleStatus,
-      );
-      const nextLifecycle = nextLifecycleAfterOpportunityStageChange({
-        currentCompany: existing.company.lifecycleStatus,
-        fromStage: existing.stage,
-        toStage: input.stage,
-        factsAfterChange: facts,
-      });
-
-      await applyCompanyLifecycleChange(tx, {
-        companyId: existing.companyId,
-        from: existing.company.lifecycleStatus,
-        to: nextLifecycle,
-        actorId: actor.id,
-        reason: "opportunity.stage_changed",
-        metadata: {
-          opportunityId: existing.id,
-          fromStage: existing.stage,
-          toStage: input.stage,
-        },
-      });
-
-      await tx.activityLog.create({
-        data: {
+    if (!result.ok && result.code === "CONFIRMATION_REQUIRED" && (input.stage === "WON" || input.stage === "LOST")) {
+      const issuedToken = signSensitiveIntent(
+        {
+          kind: "opportunity-stage",
           actorId: actor.id,
-          entityType: "Opportunity",
-          entityId: existing.id,
-          action: "opportunity.stage_changed",
-          metadata: {
-            companyId: existing.companyId,
-            fromStage: existing.stage,
-            toStage: input.stage,
-            probability,
-          },
+          opportunityId: input.opportunityId,
+          stage: input.stage,
+          lostReason: input.stage === "LOST" ? input.lostReason : null,
+          exp: Date.now() + 10 * 60 * 1000,
         },
-      });
-    });
-
-    revalidatePipeline(existing.companyId);
-    return { ok: true, data: { opportunityId: existing.id, companyId: existing.companyId } };
+        secret,
+      );
+      return {
+        ok: false,
+        message: result.message,
+        data: { confirmationToken: issuedToken, opportunityId: input.opportunityId },
+      };
+    }
+    if (!result.ok) {
+      return toActionResult(result);
+    }
+    revalidatePipeline(result.data.companyId);
+    return {
+      ok: true,
+      message: result.data.unchanged
+        ? "Étape inchangée."
+        : input.stage === "WON"
+          ? "Opportunité gagnée. L'entreprise est cliente."
+          : `Étape mise à jour : ${OPPORTUNITY_STAGE_LABELS[input.stage]}`,
+      data: { opportunityId: result.data.opportunityId, companyId: result.data.companyId },
+    };
   } catch (error) {
     logServerError("opportunities", error);
     return { ok: false, message: userFacingDbError() };

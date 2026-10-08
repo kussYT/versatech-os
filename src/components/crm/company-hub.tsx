@@ -23,6 +23,7 @@ import { CreateOpportunityDialog } from "@/components/crm/create-opportunity-dia
 import { EditCompanyDialog } from "@/components/crm/edit-company-dialog";
 import { FollowUpDialog } from "@/components/crm/follow-up-dialog";
 import { InteractionDialog } from "@/components/crm/interaction-dialog";
+import { QuickInteractionPanel } from "@/components/crm/quick-interaction-panel";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { ProjectProgress } from "@/components/projects/project-progress";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
@@ -38,8 +39,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LifecycleBadge } from "@/components/ui/lifecycle-badge";
 import { PriorityBadge } from "@/components/ui/priority-badge";
 import { PageHeader } from "@/components/layout/page-header";
-import { PRIORITY_LABELS, OPPORTUNITY_STAGE_LABELS } from "@/lib/crm/constants";
+import {
+  COMPANY_LIFECYCLE_LABELS,
+  OPPORTUNITY_STAGE_LABELS,
+  PRIORITY_LABELS,
+} from "@/lib/crm/constants";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/crm/form-data";
+import { CompanyCommercial } from "@/components/crm/company-commercial";
+import { CompanyInlineFields } from "@/components/crm/company-inline-fields";
+import { companyProfileCompleteness } from "@/lib/crm/company-profile";
 import {
   INTERACTION_DIRECTION_LABELS,
   INTERACTION_RESULT_LABELS,
@@ -48,6 +56,7 @@ import {
 import type { CompanyDetail } from "@/lib/queries/companies";
 import type { PaymentFormOptions } from "@/lib/queries/payments";
 import type { InteractionType } from "@/generated/prisma/client";
+import { projectDraftFromSale } from "@/lib/projects/draft";
 import { parseCommercialBrief } from "@/lib/prospection/brief";
 import { isTerrainVisit } from "@/lib/prospection/visit";
 
@@ -58,11 +67,14 @@ type CompanyHubProps = {
 
 export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
   const [interactionOpen, setInteractionOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickMessage, setQuickMessage] = useState<string | null>(null);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [opportunityOpen, setOpportunityOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
+  const [projectDraft, setProjectDraft] = useState<ReturnType<typeof projectDraftFromSale> | null>(null);
   const isClient = company.lifecycleStatus === "CLIENT";
   const location = [company.city, company.postalCode].filter(Boolean).join(" ");
   const brief = parseCommercialBrief(company.commercialBrief);
@@ -76,9 +88,9 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
           if (company.phone) {
             window.location.href = `tel:${company.phone}`;
           }
-          setInteractionOpen(true);
+          setQuickOpen(true);
         }}
-        onInteraction={() => setInteractionOpen(true)}
+        onInteraction={() => setQuickOpen(true)}
         onFollowUp={() => setFollowUpOpen(true)}
         onOpportunity={() => setOpportunityOpen(true)}
       />
@@ -88,9 +100,9 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         description={[company.industry, location || company.city].filter(Boolean).join(" · ") || undefined}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setInteractionOpen(true)}>
+            <Button onClick={() => setQuickOpen(true)}>
               <Plus className="size-4" aria-hidden="true" />
-              Ajouter interaction
+              + Interaction
             </Button>
             <Button variant="secondary" onClick={() => setFollowUpOpen(true)}>
               <RotateCcw className="size-4" aria-hidden="true" />
@@ -110,7 +122,10 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
               </Button>
             ) : null}
             {isClient ? (
-              <Button variant="secondary" onClick={() => setProjectOpen(true)}>
+              <Button variant="secondary" onClick={() => {
+                setProjectDraft(null);
+                setProjectOpen(true);
+              }}>
                 <FolderKanban className="size-4" aria-hidden="true" />
                 Créer un projet
               </Button>
@@ -118,6 +133,24 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
           </div>
         }
       />
+
+      {quickMessage ? (
+        <p className="text-meta text-muted" role="status">
+          {quickMessage}
+        </p>
+      ) : null}
+
+      {quickOpen ? (
+        <QuickInteractionPanel
+          companyId={company.id}
+          onClose={() => setQuickOpen(false)}
+          onOpenFullForm={() => {
+            setQuickOpen(false);
+            setInteractionOpen(true);
+          }}
+          onSaved={setQuickMessage}
+        />
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <LifecycleBadge status={company.lifecycleStatus} />
@@ -168,63 +201,122 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
 
       <Card className="p-5">
         <h2 className="text-section text-foreground">Timeline</h2>
-        {company.interactions.length === 0 ? (
+        {company.timeline.length === 0 ? (
           <EmptyState
             title="Aucune interaction"
             description="Enregistrez un appel, un e-mail ou une note."
             action={
-              <Button size="sm" onClick={() => setInteractionOpen(true)}>
-                Ajouter interaction
+              <Button size="sm" onClick={() => setQuickOpen(true)}>
+                + Interaction
               </Button>
             }
           />
         ) : (
           <ol className="mt-4 space-y-3">
-            {company.interactions.map((interaction) => (
-              <li
-                key={interaction.id}
-                className="rounded-xl border border-border bg-background/60 px-4 py-3"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-muted" aria-hidden="true">
-                    <InteractionIcon type={interaction.type} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="text-body font-medium text-foreground">
-                        {isTerrainVisit(interaction)
-                          ? "Visite terrain"
-                          : interactionLabel(interaction.type)}
-                      </p>
-                      <span className="text-meta text-muted">
-                        {INTERACTION_DIRECTION_LABELS[interaction.direction]}
-                      </span>
-                      {interaction.result && !isTerrainVisit(interaction) ? (
+            {company.timeline.map((item) =>
+              item.kind === "interaction" ? (
+                <li
+                  key={item.interaction.id}
+                  className="rounded-xl border border-border bg-background/60 px-4 py-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-muted" aria-hidden="true">
+                      <InteractionIcon type={item.interaction.type} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="text-body font-medium text-foreground">
+                          {isTerrainVisit(item.interaction)
+                            ? "Visite terrain"
+                            : interactionLabel(item.interaction.type)}
+                        </p>
                         <span className="text-meta text-muted">
-                          · {INTERACTION_RESULT_LABELS[interaction.result]}
+                          {INTERACTION_DIRECTION_LABELS[item.interaction.direction]}
                         </span>
+                        {item.interaction.subject ? (
+                          <span className="text-meta text-muted">· {item.interaction.subject}</span>
+                        ) : null}
+                        {item.interaction.result && !isTerrainVisit(item.interaction) ? (
+                          <span className="text-meta text-muted">
+                            · {INTERACTION_RESULT_LABELS[item.interaction.result]}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 font-mono text-meta text-faint">
+                        {formatDateTime(item.at)}
+                      </p>
+                      {item.interaction.followUpDueAt ? (
+                        <p className="mt-1 text-meta text-muted">
+                          Relance prévue le {formatDate(item.interaction.followUpDueAt)}
+                        </p>
+                      ) : null}
+                      {item.interaction.notes ? (
+                        <p className="mt-2 text-body text-muted">{item.interaction.notes}</p>
                       ) : null}
                     </div>
-                    <p className="mt-1 font-mono text-meta text-faint">
-                      {formatDateTime(interaction.occurredAt)}
-                    </p>
-                    {interaction.notes ? (
-                      <p className="mt-2 text-body text-muted">{interaction.notes}</p>
-                    ) : null}
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              ) : item.kind === "quote" ? (
+                <li key={item.id} className="rounded-xl border border-border bg-background/60 px-4 py-3">
+                  <p className="text-body font-medium text-foreground">
+                    {item.toStatus === "SENT"
+                      ? "Devis envoyé"
+                      : item.toStatus === "ACCEPTED"
+                        ? "Devis accepté"
+                        : "Devis refusé"}
+                  </p>
+                  <p className="mt-1 text-meta text-muted">
+                    {item.reference}
+                    {item.amount && Number(item.amount) > 0 ? ` · ${formatMoney(item.amount)}` : ""}
+                  </p>
+                  <p className="mt-1 font-mono text-meta text-faint">{formatDateTime(item.at)}</p>
+                </li>
+              ) : item.kind === "followUp" ? (
+                <li key={item.id} className="rounded-xl border border-border bg-background/60 px-4 py-3">
+                  <p className="text-body font-medium text-foreground">Relance prévue</p>
+                  <p className="mt-1 text-meta text-muted">
+                    {item.title} · {formatDate(item.dueAt)}
+                  </p>
+                </li>
+              ) : (
+                <li
+                  key={item.id}
+                  className="rounded-xl border border-border bg-background/60 px-4 py-3"
+                >
+                  <p className="text-body font-medium text-foreground">
+                    {item.kind === "stage"
+                      ? item.toStage === "WON"
+                        ? "Opportunité gagnée"
+                        : item.toStage === "LOST"
+                          ? "Opportunité perdue"
+                          : "Étape commerciale"
+                      : "Statut entreprise"}
+                  </p>
+                  <p className="mt-1 text-meta text-muted">
+                    {item.kind === "stage"
+                      ? `${item.title} · ${OPPORTUNITY_STAGE_LABELS[item.fromStage]} → ${OPPORTUNITY_STAGE_LABELS[item.toStage]}`
+                      : `${COMPANY_LIFECYCLE_LABELS[item.from]} → ${COMPANY_LIFECYCLE_LABELS[item.to]}`}
+                  </p>
+                  {item.kind === "stage" && item.value && Number(item.value) > 0 ? (
+                    <p className="mt-1 text-meta text-muted">{formatMoney(item.value)}</p>
+                  ) : null}
+                  <p className="mt-1 font-mono text-meta text-faint">{formatDateTime(item.at)}</p>
+                </li>
+              ),
+            )}
           </ol>
         )}
       </Card>
 
       <Card className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-section text-foreground">Opportunités</h2>
+          <h2 className="text-section text-foreground">Parcours</h2>
           <Button size="sm" variant="secondary" onClick={() => setOpportunityOpen(true)}>
             Créer
           </Button>
+        </div>
+        <div className="mt-4">
+          <CompanyCommercial company={company} onMessage={setQuickMessage} />
         </div>
         {company.opportunities.length === 0 ? (
           <EmptyState
@@ -237,27 +329,11 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
             }
           />
         ) : (
-          <ul className="mt-4 space-y-2">
-            {company.opportunities.map((opportunity) => (
-              <li
-                key={opportunity.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/60 px-4 py-3"
-              >
-                <div>
-                  <p className="text-body font-medium text-foreground">{opportunity.title}</p>
-                  <p className="mt-1 text-meta text-muted">
-                    {OPPORTUNITY_STAGE_LABELS[opportunity.stage]}
-                    {Number(opportunity.estimatedValue) > 0
-                      ? ` · ${formatMoney(opportunity.estimatedValue)}`
-                      : ""}
-                  </p>
-                </div>
-                <Link href="/pipeline" className="text-meta text-primary hover:text-primary-hover">
-                  Pipeline
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <p className="mt-3 text-meta text-muted">
+            <Link href="/pipeline" className="text-primary hover:text-primary-hover">
+              Voir le pipeline
+            </Link>
+          </p>
         )}
       </Card>
 
@@ -284,13 +360,36 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
               >
                 <div>
                   <p className="font-mono text-body text-foreground">{quote.reference}</p>
+                  <p className="mt-1 text-meta text-muted">{quote.opportunityTitle}</p>
                   <p className="mt-1 font-sans text-meta tabular-nums text-muted">
                     {formatMoney(quote.amountIncTax)}
+                    {quote.sentAt ? ` · Envoyé ${formatDate(quote.sentAt)}` : ""}
+                    {quote.acceptedAt ? ` · Accepté ${formatDate(quote.acceptedAt)}` : ""}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <QuoteStatusBadge status={quote.status} />
-                  <QuoteStatusActions quoteId={quote.id} status={quote.status} />
+                  <QuoteStatusActions
+                    quoteId={quote.id}
+                    status={quote.status}
+                    projectId={quote.projectId}
+                    onCreateProject={
+                      quote.status === "ACCEPTED" && !quote.projectId
+                        ? () => {
+                            setProjectDraft(
+                              projectDraftFromSale({
+                                companyId: company.id,
+                                companyName: company.name,
+                                opportunityTitle: quote.opportunityTitle,
+                                quoteAmountIncTax: quote.amountIncTax,
+                                quoteId: quote.id,
+                              }),
+                            );
+                            setProjectOpen(true);
+                          }
+                        : undefined
+                    }
+                  />
                 </div>
               </li>
             ))}
@@ -314,7 +413,10 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         <Card className="p-5">
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-section text-foreground">Projets</h2>
-            <Button size="sm" variant="secondary" onClick={() => setProjectOpen(true)}>
+            <Button size="sm" variant="secondary" onClick={() => {
+                setProjectDraft(null);
+                setProjectOpen(true);
+              }}>
               Créer un projet
             </Button>
           </div>
@@ -323,7 +425,10 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
               title="Aucun projet"
               description="Passez du suivi commercial à la production en créant un projet."
               action={
-                <Button size="sm" onClick={() => setProjectOpen(true)}>
+                <Button size="sm" onClick={() => {
+                setProjectDraft(null);
+                setProjectOpen(true);
+              }}>
                   Créer un projet
                 </Button>
               }
@@ -409,6 +514,7 @@ export function CompanyHub({ company, paymentOptions }: CompanyHubProps) {
         onClose={() => setProjectOpen(false)}
         companyId={company.id}
         quotes={company.acceptedQuotes}
+        defaults={projectDraft}
       />
     </div>
   );
@@ -419,41 +525,26 @@ function CompanyInfo({ company }: { company: CompanyDetail }) {
 
   return (
     <Card className="p-5">
-      <h2 className="text-section text-foreground">Informations</h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-section text-foreground">Informations</h2>
+        <p className="text-meta text-faint">Profil {companyProfileCompleteness(company)} %</p>
+      </div>
       <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-        <InfoItem label="Téléphone">
-          {company.phone ? (
-            <a href={`tel:${company.phone}`} className="text-primary hover:text-primary-hover">
-              {company.phone}
-            </a>
-          ) : (
-            "—"
-          )}
-        </InfoItem>
-        <InfoItem label="E-mail">
-          {company.email ? (
-            <a href={`mailto:${company.email}`} className="text-primary hover:text-primary-hover">
-              {company.email}
-            </a>
-          ) : (
-            "—"
-          )}
-        </InfoItem>
-        <InfoItem label="Site">
-          {company.website ? (
-            <a
-              href={company.website}
-              target="_blank"
-              rel="noreferrer"
-              className="break-all text-primary hover:text-primary-hover"
-            >
-              {company.website}
-            </a>
-          ) : (
-            "—"
-          )}
-        </InfoItem>
-        <InfoItem label="Source">{company.source ?? "—"}</InfoItem>
+        <CompanyInlineFields
+          companyId={company.id}
+          values={{
+            email: company.email,
+            phone: company.phone,
+            website: company.website,
+            address: company.address,
+            city: company.city,
+            postalCode: company.postalCode,
+            instagram: company.instagram,
+            linkedin: company.linkedin,
+            industry: company.industry,
+            source: company.source,
+          }}
+        />
         <InfoItem label="Contact">
           {contact
             ? `${contact.firstName} ${contact.lastName}${contact.role ? ` · ${contact.role}` : ""}`
@@ -476,9 +567,6 @@ function CompanyInfo({ company }: { company: CompanyDetail }) {
           ) : (
             "—"
           )}
-        </InfoItem>
-        <InfoItem label="Adresse">
-          {[company.address, company.city, company.postalCode].filter(Boolean).join(", ") || "—"}
         </InfoItem>
       </dl>
       {company.description ? (

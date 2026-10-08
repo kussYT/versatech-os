@@ -39,11 +39,13 @@ export async function createFollowUp(
   }
 
   try {
+    const opportunityId = readString(formData, "opportunityId").trim();
     const result = await FollowUpService.createFollowUp({
       actor: auth.actor,
       companyId: parsed.data.companyId,
       dueAt: parsed.data.dueAt,
       title: parsed.data.note,
+      ...(opportunityId ? { opportunityId } : {}),
     });
     if (!result.ok) {
       return toActionResult(result);

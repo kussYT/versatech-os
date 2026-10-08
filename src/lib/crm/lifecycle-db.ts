@@ -1,9 +1,9 @@
 import type { CompanyLifecycle } from "@/generated/prisma/client";
 import { OPEN_OPPORTUNITY_STAGES } from "@/lib/crm/constants";
 import type { CompanyLifecycleFacts } from "@/lib/crm/lifecycle";
-import { prisma } from "@/lib/db/prisma";
+import type { prisma } from "@/lib/db/prisma";
 
-type LifecycleDb = Pick<
+export type LifecycleDb = Pick<
   typeof prisma,
   "opportunity" | "quote" | "project" | "company" | "activityLog"
 >;

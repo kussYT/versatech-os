@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   NOMINATIM_TIMEOUT_MS,
   PROTECTED_GEOCODE_COMPANY_ID,
+  addressPartsChanged,
+  geocodeStatusResetForAddressChange,
   hasGeocodableStreetAddress,
   isNominatimConfigured,
   nominatimRequestInit,
@@ -108,6 +110,88 @@ describe("geocodage idempotent sans coordonnées inventées", () => {
     if (plan.action === "skip") {
       assert.equal(plan.reason, "already_failed");
     }
+  });
+
+  it("skips MANUAL even after a street address exists, until status is cleared", () => {
+    const manual = planCompanyGeocode({
+      ...base,
+      address: "48 Avenue Villars",
+      geocodeStatus: "MANUAL",
+    });
+    assert.equal(manual.action, "skip");
+    if (manual.action === "skip") {
+      assert.equal(manual.reason, "manual");
+    }
+
+    const queued = planCompanyGeocode({
+      ...base,
+      address: "48 Avenue Villars",
+      geocodeStatus: null,
+    });
+    assert.equal(queued.action, "fetch");
+  });
+
+  it("still skips a company that already has coordinates after status is cleared", () => {
+    const plan = planCompanyGeocode({
+      ...base,
+      latitude: 50.35,
+      longitude: 3.52,
+      geocodeStatus: null,
+    });
+    assert.equal(plan.action, "skip");
+    if (plan.action === "skip") {
+      assert.equal(plan.reason, "has_coords");
+    }
+  });
+
+  it("clears a coordinate-less status after an address change and keeps a placed pin", () => {
+    const manual = {
+      address: null as string | null,
+      city: null as string | null,
+      postalCode: null as string | null,
+      latitude: null as number | null,
+      longitude: null as number | null,
+      geocodeStatus: "MANUAL" as const,
+    };
+    assert.deepEqual(
+      geocodeStatusResetForAddressChange(manual, { ...manual, address: "12 rue des Lilas" }),
+      { geocodeStatus: null },
+    );
+    assert.equal(
+      geocodeStatusResetForAddressChange(manual, {
+        address: null,
+        city: null,
+        postalCode: null,
+      }),
+      null,
+    );
+    assert.equal(
+      geocodeStatusResetForAddressChange(
+        { ...manual, geocodeStatus: null },
+        { address: "12 rue des Lilas", city: null, postalCode: null },
+      ),
+      null,
+    );
+    assert.equal(
+      geocodeStatusResetForAddressChange(
+        { ...manual, latitude: 50.35, longitude: 3.52, geocodeStatus: "OK" },
+        { address: "99 rue Nouvelle", city: null, postalCode: null },
+      ),
+      null,
+    );
+  });
+
+  it("detects a change of address, city or postal code only", () => {
+    const previous = { address: "12 rue des Lilas", city: "Lyon", postalCode: "69001" };
+    assert.equal(addressPartsChanged(previous, previous), false);
+    assert.equal(addressPartsChanged(previous, { ...previous, city: "Paris" }), true);
+    assert.equal(
+      addressPartsChanged(
+        { address: null, city: null, postalCode: null },
+        { address: "12 rue des Lilas", city: null, postalCode: null },
+      ),
+      true,
+    );
   });
 
   it("never geocodes the protected ALEX company", () => {

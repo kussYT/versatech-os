@@ -34,7 +34,9 @@ export const updateOpportunityStageSchema = z
   .object({
     opportunityId: z.string().min(1, "Opportunité introuvable"),
     stage: z.enum(OPPORTUNITY_STAGES, { error: "Stage invalide" }),
-    lostReason: z.string().transform((value) => emptyToNull(value)),
+    lostReason: z
+      .union([z.string(), z.null(), z.undefined()])
+      .transform((value) => (value == null ? null : emptyToNull(value))),
   })
   .superRefine((value, ctx) => {
     if (value.stage === "LOST" && !value.lostReason) {

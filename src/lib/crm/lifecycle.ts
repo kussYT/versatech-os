@@ -1,4 +1,9 @@
-import type { CompanyLifecycle, InteractionType, OpportunityStage } from "@/generated/prisma/client";
+import type {
+  CompanyLifecycle,
+  InteractionResult,
+  InteractionType,
+  OpportunityStage,
+} from "@/generated/prisma/client";
 import { isOpenOpportunityStage } from "@/lib/crm/constants";
 
 export type CompanyLifecycleFacts = {
@@ -19,11 +24,14 @@ const ALL_LIFECYCLES: CompanyLifecycle[] = [
   "LOST",
 ];
 
+/**
+ * Seuls un appel abouti et un rendez-vous comptent comme un vrai contact.
+ * Un e-mail ou un message envoyé est une tentative : le modèle n'a pas de
+ * « réponse reçue » pour ces types, donc ils ne font pas passer LEAD → CONTACTED.
+ */
 const INTERACTION_MARKS_CONTACTED: ReadonlySet<InteractionType> = new Set([
   "CALL",
-  "EMAIL",
   "MEETING",
-  "MESSAGE",
 ]);
 
 export function isClientJustified(facts: Pick<
@@ -37,15 +45,26 @@ export function isClientJustified(facts: Pick<
   );
 }
 
+/**
+ * LEAD → CONTACTED seulement s'il y a eu un vrai contact.
+ * Un appel `NO_ANSWER` est une tentative : le prospect reste LEAD.
+ * Un appel sans résultat (formulaire complet) reste traité comme un contact.
+ * Un e-mail ou un message, rapide ou via le formulaire complet, reste une tentative.
+ */
 export function lifecycleAfterInteraction(
   current: CompanyLifecycle,
   type: InteractionType,
+  result?: InteractionResult | null,
 ): CompanyLifecycle | null {
   if (current !== "LEAD") {
     return null;
   }
 
   if (!INTERACTION_MARKS_CONTACTED.has(type)) {
+    return null;
+  }
+
+  if (type === "CALL" && result === "NO_ANSWER") {
     return null;
   }
 

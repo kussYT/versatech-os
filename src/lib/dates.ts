@@ -163,9 +163,27 @@ export function dueBucket(dueAt: Date, now = new Date()): DueBucket {
 }
 
 export function defaultFollowUpDueAt(now = new Date()) {
+  return followUpDueAtAfterCivilDays(1, now);
+}
+
+/** Relance à 09:00 Europe/Paris, N jours civils après aujourd'hui (mois et année inclus). */
+export function followUpDueAtAfterCivilDays(days: number, now = new Date()) {
+  if (!Number.isInteger(days) || days < 1 || days > 366) {
+    throw new Error("Le décalage de relance doit être un nombre de jours entre 1 et 366.");
+  }
   const parts = parisParts(now);
-  const next = addCivilDays(parts.year, parts.month, parts.day, 1);
+  const next = addCivilDays(parts.year, parts.month, parts.day, days);
   return fromParisDateTime(next.year, next.month, next.day, 9, 0, 0, 0);
+}
+
+/** `YYYY-MM-DD` interprété comme jour civil Paris, échéance à 09:00. */
+export function followUpDueAtOnCivilDate(isoDate: string): Date | null {
+  const parsed = parseDate(isoDate);
+  if (!parsed) {
+    return null;
+  }
+  const parts = parisParts(parsed);
+  return fromParisDateTime(parts.year, parts.month, parts.day, 9, 0, 0, 0);
 }
 
 export function parseDate(value: string) {

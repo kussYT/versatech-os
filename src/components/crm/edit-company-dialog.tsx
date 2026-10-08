@@ -1,17 +1,26 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { updateCompany } from "@/actions/companies";
+import {
+  CompanySelect,
+  CompanyTextArea,
+  CompanyTextInput,
+} from "@/components/crm/company-form-controls";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { Button } from "@/components/ui/button";
-import { Field, controlClassName } from "@/components/ui/field";
+import { Field } from "@/components/ui/field";
 import { idleActionResult } from "@/lib/crm/action-result";
 import {
   COMPANY_LIFECYCLE_LABELS,
   PRIORITY_LABELS,
 } from "@/lib/crm/constants";
+import {
+  editCompanyFormState,
+  patchCompanyForm,
+  type EditCompanyFormState,
+} from "@/lib/crm/company-form-state";
 import type { CompanyDetail } from "@/lib/queries/companies";
-import { cn } from "@/lib/cn";
 
 type EditCompanyDialogProps = {
   open: boolean;
@@ -47,8 +56,11 @@ function EditCompanyForm({
     updateCompany,
     idleActionResult,
   );
-  const contact = company.contacts[0];
+  const [form, setForm] = useState(() => editCompanyFormState(company));
   const firstError = (key: string) => state.fieldErrors?.[key]?.[0];
+  const setField = (key: keyof EditCompanyFormState) => (value: string) => {
+    setForm((current) => patchCompanyForm(current, key, value));
+  };
 
   useEffect(() => {
     if (state.ok) {
@@ -66,13 +78,13 @@ function EditCompanyForm({
       ) : null}
 
       <Field label="Nom de l'entreprise" htmlFor="edit-name" error={firstError("name")}>
-        <input
+        <CompanyTextInput
           id="edit-name"
           name="name"
           required
-          defaultValue={company.name}
           disabled={pending}
-          className={controlClassName}
+          value={form.name}
+          onValue={setField("name")}
         />
       </Field>
 
@@ -88,92 +100,156 @@ function EditCompanyForm({
               : "Le statut Client n'est pas saisissable sans opportunité gagnée, devis accepté ou projet."
           }
         >
-          <select
+          <CompanySelect
             id="edit-lifecycle"
             name="lifecycleStatus"
-            defaultValue={company.lifecycleStatus}
             disabled={pending}
-            className={controlClassName}
+            value={form.lifecycleStatus}
+            onValue={setField("lifecycleStatus")}
           >
             {company.allowedLifecycleStatuses.map((value) => (
               <option key={value} value={value}>
                 {COMPANY_LIFECYCLE_LABELS[value]}
               </option>
             ))}
-          </select>
+          </CompanySelect>
         </Field>
         <Field label="Priorité" htmlFor="edit-priority" error={firstError("priority")}>
-          <select
+          <CompanySelect
             id="edit-priority"
             name="priority"
-            defaultValue={company.priority}
             disabled={pending}
-            className={controlClassName}
+            value={form.priority}
+            onValue={setField("priority")}
           >
             {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </CompanySelect>
         </Field>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Secteur" htmlFor="edit-industry">
-          <input id="edit-industry" name="industry" defaultValue={company.industry ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-industry"
+            name="industry"
+            disabled={pending}
+            value={form.industry}
+            onValue={setField("industry")}
+          />
         </Field>
         <Field label="Ville" htmlFor="edit-city">
-          <input id="edit-city" name="city" defaultValue={company.city ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-city"
+            name="city"
+            disabled={pending}
+            value={form.city}
+            onValue={setField("city")}
+          />
         </Field>
       </div>
 
       <Field label="Adresse" htmlFor="edit-address" error={firstError("address")}>
-        <input
+        <CompanyTextInput
           id="edit-address"
           name="address"
-          required
-          defaultValue={company.address ?? ""}
           disabled={pending}
-          className={controlClassName}
+          value={form.address}
+          onValue={setField("address")}
         />
       </Field>
       <Field label="Code postal" htmlFor="edit-postal">
-        <input
+        <CompanyTextInput
           id="edit-postal"
           name="postalCode"
-          defaultValue={company.postalCode ?? ""}
           disabled={pending}
-          className={controlClassName}
+          value={form.postalCode}
+          onValue={setField("postalCode")}
         />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Téléphone" htmlFor="edit-phone">
-          <input id="edit-phone" name="phone" type="tel" defaultValue={company.phone ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-phone"
+            name="phone"
+            type="tel"
+            disabled={pending}
+            value={form.phone}
+            onValue={setField("phone")}
+          />
         </Field>
         <Field label="E-mail" htmlFor="edit-email" error={firstError("email")}>
-          <input id="edit-email" name="email" type="email" defaultValue={company.email ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-email"
+            name="email"
+            type="email"
+            disabled={pending}
+            value={form.email}
+            onValue={setField("email")}
+          />
         </Field>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Site internet" htmlFor="edit-website" error={firstError("website")}>
-          <input id="edit-website" name="website" defaultValue={company.website ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-website"
+            name="website"
+            disabled={pending}
+            value={form.website}
+            onValue={setField("website")}
+          />
         </Field>
         <Field label="Source" htmlFor="edit-source">
-          <input id="edit-source" name="source" defaultValue={company.source ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-source"
+            name="source"
+            disabled={pending}
+            value={form.source}
+            onValue={setField("source")}
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Instagram" htmlFor="edit-instagram" error={firstError("instagram")}>
+          <CompanyTextInput
+            id="edit-instagram"
+            name="instagram"
+            placeholder="@compte"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={pending}
+            value={form.instagram}
+            onValue={setField("instagram")}
+          />
+        </Field>
+        <Field label="LinkedIn" htmlFor="edit-linkedin" error={firstError("linkedin")}>
+          <CompanyTextInput
+            id="edit-linkedin"
+            name="linkedin"
+            inputMode="url"
+            placeholder="linkedin.com/company/…"
+            disabled={pending}
+            value={form.linkedin}
+            onValue={setField("linkedin")}
+          />
         </Field>
       </div>
 
       <Field label="Notes" htmlFor="edit-notes">
-        <textarea
+        <CompanyTextArea
           id="edit-notes"
           name="description"
           rows={3}
-          defaultValue={company.description ?? ""}
           disabled={pending}
-          className={cn(controlClassName, "min-h-24 resize-y")}
+          value={form.description}
+          onValue={setField("description")}
         />
       </Field>
 
@@ -183,32 +259,72 @@ function EditCompanyForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Prénom" htmlFor="edit-contact-first" error={firstError("contactFirstName")}>
-          <input id="edit-contact-first" name="contactFirstName" defaultValue={contact?.firstName ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-contact-first"
+            name="contactFirstName"
+            disabled={pending}
+            value={form.contactFirstName}
+            onValue={setField("contactFirstName")}
+          />
         </Field>
         <Field label="Nom" htmlFor="edit-contact-last" error={firstError("contactLastName")}>
-          <input id="edit-contact-last" name="contactLastName" defaultValue={contact?.lastName ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-contact-last"
+            name="contactLastName"
+            disabled={pending}
+            value={form.contactLastName}
+            onValue={setField("contactLastName")}
+          />
         </Field>
       </div>
 
       <Field label="Fonction" htmlFor="edit-contact-role">
-        <input id="edit-contact-role" name="contactRole" defaultValue={contact?.role ?? ""} disabled={pending} className={controlClassName} />
+        <CompanyTextInput
+          id="edit-contact-role"
+          name="contactRole"
+          disabled={pending}
+          value={form.contactRole}
+          onValue={setField("contactRole")}
+        />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Téléphone du contact" htmlFor="edit-contact-phone">
-          <input id="edit-contact-phone" name="contactPhone" type="tel" defaultValue={contact?.phone ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-contact-phone"
+            name="contactPhone"
+            type="tel"
+            disabled={pending}
+            value={form.contactPhone}
+            onValue={setField("contactPhone")}
+          />
         </Field>
         <Field label="E-mail du contact" htmlFor="edit-contact-email" error={firstError("contactEmail")}>
-          <input id="edit-contact-email" name="contactEmail" type="email" defaultValue={contact?.email ?? ""} disabled={pending} className={controlClassName} />
+          <CompanyTextInput
+            id="edit-contact-email"
+            name="contactEmail"
+            type="email"
+            disabled={pending}
+            value={form.contactEmail}
+            onValue={setField("contactEmail")}
+          />
         </Field>
       </div>
+
+      {state.data?.confirmationToken ? (
+        <input type="hidden" name="confirmationToken" value={state.data.confirmationToken} />
+      ) : null}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose} disabled={pending}>
           Annuler
         </Button>
         <Button type="submit" disabled={pending}>
-          {pending ? "Enregistrement…" : "Enregistrer"}
+          {pending
+            ? "Enregistrement…"
+            : state.data?.confirmationToken
+              ? "Confirmer"
+              : "Enregistrer"}
         </Button>
       </div>
     </form>

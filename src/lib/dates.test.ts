@@ -9,6 +9,8 @@ import {
 } from "./calendar/dates";
 import {
   defaultFollowUpDueAt,
+  followUpDueAtAfterCivilDays,
+  followUpDueAtOnCivilDate,
   dueBucket,
   endOfToday,
   formatDate,
@@ -166,6 +168,33 @@ describe("relance par défaut", () => {
     const due = defaultFollowUpDueAt(now);
     assert.equal(due.toISOString(), "2026-09-18T07:00:00.000Z");
     assert.equal(toDateTimeLocalValue(due), "2026-09-18T09:00");
+    assert.equal(followUpDueAtAfterCivilDays(1, now).toISOString(), due.toISOString());
+  });
+
+  it("ajoute des jours civils Paris, y compris au changement de mois et d'année", () => {
+    const endOfJanuary = new Date("2026-01-30T12:00:00.000Z");
+    const february = followUpDueAtAfterCivilDays(3, endOfJanuary);
+    assert.equal(parisParts(february).year, 2026);
+    assert.equal(parisParts(february).month, 2);
+    assert.equal(parisParts(february).day, 2);
+    assert.equal(parisParts(february).hour, 9);
+
+    const endOfYear = new Date("2026-12-30T12:00:00.000Z");
+    const nextYear = followUpDueAtAfterCivilDays(3, endOfYear);
+    assert.equal(parisParts(nextYear).year, 2027);
+    assert.equal(parisParts(nextYear).month, 1);
+    assert.equal(parisParts(nextYear).day, 2);
+    assert.equal(parisParts(nextYear).hour, 9);
+  });
+
+  it("place une date choisie à 09:00 Paris", () => {
+    const due = followUpDueAtOnCivilDate("2026-10-08");
+    assert.ok(due);
+    assert.equal(parisParts(due).year, 2026);
+    assert.equal(parisParts(due).month, 10);
+    assert.equal(parisParts(due).day, 8);
+    assert.equal(parisParts(due).hour, 9);
+    assert.equal(followUpDueAtOnCivilDate("08/10/2026"), null);
   });
 });
 

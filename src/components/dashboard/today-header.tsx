@@ -6,7 +6,7 @@ export function TodayHeader() {
     <PageHeader
       meta={formatLongDate()}
       title="Aujourd'hui"
-      description="Les priorités du jour apparaîtront ici."
+      description="Qui appeler, qui relancer, quels devis suivre."
     />
   );
 }

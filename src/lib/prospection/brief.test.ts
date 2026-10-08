@@ -11,7 +11,7 @@ import { prospectionTourIntent } from "./tour-intent";
 import { VISIT_INTERACTION_TYPE, buildVisitInteractionFields } from "./visit";
 
 describe("quick create validation", () => {
-  it("requires name and address", () => {
+  it("requires only the name (address is optional)", () => {
     const missingAddress = createCompanySchema.safeParse({
       name: "Atelier Lumière",
       address: "",
@@ -27,7 +27,14 @@ describe("quick create validation", () => {
       contactLastName: "",
       contactRole: "",
     });
-    assert.equal(missingAddress.success, false);
+    assert.equal(missingAddress.success, true);
+    assert.equal(missingAddress.data?.address, null);
+
+    const missingName = createCompanySchema.safeParse({
+      name: "  ",
+      address: "12 rue des Fleurs",
+    });
+    assert.equal(missingName.success, false);
 
     const ok = createCompanySchema.safeParse({
       name: "Atelier Lumière",

@@ -20,6 +20,7 @@ import {
   PROSPECT_LIFECYCLES,
   projectProgress,
 } from "@/lib/crm/constants";
+import { buildCompanyTimeline, type CompanyTimelineItem } from "@/lib/crm/company-timeline";
 import { allowedManualLifecycles, type CompanyLifecycleFacts } from "@/lib/crm/lifecycle";
 import { endOfToday } from "@/lib/crm/form-data";
 import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
@@ -89,6 +90,8 @@ export type CompanyDetail = {
   website: string | null;
   phone: string | null;
   email: string | null;
+  instagram: string | null;
+  linkedin: string | null;
   address: string | null;
   city: string | null;
   postalCode: string | null;
@@ -117,7 +120,9 @@ export type CompanyDetail = {
     notes: string | null;
     subject: string | null;
     occurredAt: string;
+    followUpDueAt: string | null;
   }[];
+  timeline: CompanyTimelineItem[];
   nextFollowUp: {
     id: string;
     title: string;
@@ -142,6 +147,7 @@ export type CompanyDetail = {
     acceptedAt: string | null;
     projectId: string | null;
     opportunityId: string;
+    opportunityTitle: string;
   }[];
   quoteOpportunities: {
     id: string;
@@ -504,6 +510,14 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
       },
       interactions: {
         orderBy: { occurredAt: "desc" },
+        include: {
+          followUps: {
+            where: { status: "PENDING" },
+            orderBy: { dueAt: "asc" },
+            take: 1,
+            select: { dueAt: true },
+          },
+        },
       },
       followUps: {
         where: { status: "PENDING" },
@@ -526,6 +540,7 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
           acceptedAt: true,
           projectId: true,
           opportunityId: true,
+          opportunity: { select: { title: true } },
         },
       },
       payments: {
@@ -551,6 +566,79 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
     return null;
   }
 
+  const opportunityIds = company.opportunities.map((opportunity) => opportunity.id);
+  const quoteIds = company.quotes.map((quote) => quote.id);
+  const [commercialLogs, quoteFollowUps] = await Promise.all([
+    prisma.activityLog.findMany({
+      where: {
+        OR: [
+          { entityType: "Company", entityId: company.id, action: "company.lifecycle_changed" },
+          ...(opportunityIds.length > 0
+            ? [
+                {
+                  entityType: "Opportunity",
+                  entityId: { in: opportunityIds },
+                  action: "opportunity.stage_changed",
+                },
+              ]
+            : []),
+          ...(quoteIds.length > 0
+            ? [
+                {
+                  entityType: "Quote",
+                  entityId: { in: quoteIds },
+                  action: "quote.status_changed",
+                },
+              ]
+            : []),
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.followUp.findMany({
+      where: { companyId: company.id, title: { startsWith: "Relancer — devis" } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { id: true, title: true, dueAt: true, createdAt: true },
+    }),
+  ]);
+  const interactions = company.interactions.map((interaction) => ({
+    id: interaction.id,
+    type: interaction.type,
+    direction: interaction.direction,
+    result: interaction.result,
+    notes: interaction.notes,
+    subject: interaction.subject,
+    occurredAt: interaction.occurredAt.toISOString(),
+    followUpDueAt: interaction.followUps[0]?.dueAt.toISOString() ?? null,
+  }));
+  const timeline = buildCompanyTimeline({
+    interactions,
+    logs: commercialLogs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      entityId: log.entityId,
+      createdAt: log.createdAt.toISOString(),
+      metadata: log.metadata,
+    })),
+    opportunities: company.opportunities.map((opportunity) => ({
+      id: opportunity.id,
+      title: opportunity.title,
+      estimatedValue: opportunity.estimatedValue.toString(),
+    })),
+    quotes: company.quotes.map((quote) => ({
+      id: quote.id,
+      reference: quote.reference,
+      amountIncTax: quote.amountIncTax.toString(),
+    })),
+    followUps: quoteFollowUps.map((followUp) => ({
+      id: followUp.id,
+      title: followUp.title,
+      dueAt: followUp.dueAt.toISOString(),
+      createdAt: followUp.createdAt.toISOString(),
+    })),
+  });
   const nextFollowUp = company.followUps[0] ?? null;
   const now = new Date();
   const journeyInput = toClientJourneyInput({
@@ -605,6 +693,8 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
     website: company.website,
     phone: company.phone,
     email: company.email,
+    instagram: company.instagram,
+    linkedin: company.linkedin,
     address: company.address,
     city: company.city,
     postalCode: company.postalCode,
@@ -625,15 +715,8 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
       email: contact.email,
       isPrimary: contact.isPrimary,
     })),
-    interactions: company.interactions.map((interaction) => ({
-      id: interaction.id,
-      type: interaction.type,
-      direction: interaction.direction,
-      result: interaction.result,
-      notes: interaction.notes,
-      subject: interaction.subject,
-      occurredAt: interaction.occurredAt.toISOString(),
-    })),
+    interactions,
+    timeline,
     nextFollowUp: nextFollowUp
       ? {
           id: nextFollowUp.id,
@@ -655,6 +738,7 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
       acceptedAt: quote.acceptedAt?.toISOString() ?? null,
       projectId: quote.projectId,
       opportunityId: quote.opportunityId,
+      opportunityTitle: quote.opportunity.title,
     })),
     quoteOpportunities: company.opportunities
       .filter((opportunity) =>
