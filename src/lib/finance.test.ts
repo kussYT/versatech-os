@@ -4,6 +4,7 @@ import { centsToMoneyString, parseMoneyToCents } from "./money";
 import {
   computeFinanceTotals,
   effectivePaymentStatus,
+  PAYMENT_STATUSES,
   persistPaymentStatus,
   quotePaymentCapacity,
 } from "./finance";
@@ -99,6 +100,59 @@ describe("computeFinanceTotals", () => {
     assert.equal(totals.collected, "150.00");
   });
 
+  it("sépare le devis signé des échéances quand aucun paiement n'existe", () => {
+    const totals = computeFinanceTotals(
+      [{ id: "q-alex", amount: "3200.00", projectId: "p-alex" }],
+      [],
+      now,
+    );
+    assert.equal(totals.signed, "3200.00");
+    assert.equal(totals.scheduled, "0.00");
+    assert.equal(totals.toCollect, "0.00");
+    assert.equal(totals.collected, "0.00");
+    assert.equal(totals.signedUncollected, "3200.00");
+  });
+
+  it("n'ajoute ni la valeur d'opportunité ni le montant du projet au signé", () => {
+    const totals = computeFinanceTotals([{ id: "q-1", amount: "3200.00" }], [], now);
+    assert.equal(totals.signed, "3200.00");
+  });
+
+  it("compte un acompte partiel une seule fois et laisse le solde non échéancé hors du à encaisser", () => {
+    const totals = computeFinanceTotals(
+      [{ id: "q-1", amount: "3200.00", projectId: "p-1" }],
+      [{ amount: "1000.00", status: "PAID", quoteId: "q-1", projectId: "p-1" }],
+      now,
+    );
+    assert.equal(totals.collected, "1000.00");
+    assert.equal(totals.scheduled, "1000.00");
+    assert.equal(totals.toCollect, "0.00");
+    assert.equal(totals.signedUncollected, "2200.00");
+  });
+
+  it("ignore un encaissement non lié au devis accepté pour le signé non encaissé", () => {
+    const totals = computeFinanceTotals(
+      [{ id: "q-1", amount: "3200.00", projectId: "p-1" }],
+      [{ amount: "500.00", status: "PAID", quoteId: "q-autre", projectId: "p-autre" }],
+      now,
+    );
+    assert.equal(totals.collected, "500.00");
+    assert.equal(totals.signedUncollected, "3200.00");
+  });
+
+  it("exclut une échéance annulée : le modèle n'a pas de remboursement distinct", () => {
+    assert.deepEqual([...PAYMENT_STATUSES], ["PENDING", "PAID", "OVERDUE", "CANCELED"]);
+    const totals = computeFinanceTotals(
+      ["3200.00"],
+      [{ amount: "3200.00", status: "CANCELED" }],
+      now,
+    );
+    assert.equal(totals.scheduled, "0.00");
+    assert.equal(totals.toCollect, "0.00");
+    assert.equal(totals.collected, "0.00");
+    assert.equal(totals.signedUncollected, "3200.00");
+  });
+
   it("reste cohérent avec l'acompte + solde du seed Maison Rivage", () => {
     const totals = computeFinanceTotals(
       ["14500.00"],
@@ -111,6 +165,9 @@ describe("computeFinanceTotals", () => {
 
     assert.equal(totals.signed, "14500.00");
     assert.equal(totals.collected, "5800.00");
+    assert.equal(totals.scheduled, "14500.00");
+    assert.equal(totals.toCollect, "8700.00");
+    assert.equal(totals.signedUncollected, "8700.00");
     assert.equal(totals.remaining, "8700.00");
     assert.equal(
       centsToMoneyString(parseMoneyToCents(totals.collected) + parseMoneyToCents(totals.remaining)),

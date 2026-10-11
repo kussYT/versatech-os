@@ -30,7 +30,7 @@ export function SidebarNav({ pathname, className, account }: SidebarNavProps) {
         </div>
         {navSections.map((section) => (
           <div key={section.id} className="mt-5">
-            <p className="px-2.5 pb-2.5 pt-1 text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">
+            <p className="px-2.5 pb-2.5 pt-1 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
               {section.label}
             </p>
             <div className="flex flex-col gap-0.5">
@@ -60,7 +60,7 @@ export function SidebarNav({ pathname, className, account }: SidebarNavProps) {
           if (active) {
             return (
               <div key={section.id} className="mt-5">
-                <p className="px-2.5 pb-2.5 pt-1 text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">
+                <p className="px-2.5 pb-2.5 pt-1 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
                   {section.label}
                 </p>
                 {items}
@@ -69,7 +69,7 @@ export function SidebarNav({ pathname, className, account }: SidebarNavProps) {
           }
           return (
             <details key={section.id} className="mt-5">
-              <summary className="cursor-pointer px-2.5 pb-2.5 pt-1 text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">
+              <summary className="cursor-pointer px-2.5 pb-2.5 pt-1 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
                 {section.label}
               </summary>
               {items}
@@ -77,7 +77,7 @@ export function SidebarNav({ pathname, className, account }: SidebarNavProps) {
           );
         })}
       </nav>
-      <div className="space-y-3 border-t border-border px-3 py-3">
+      <div className="space-y-3 border-t border-border/60 px-3 py-3">
         {account}
         <NavItem
           {...settingsItem}

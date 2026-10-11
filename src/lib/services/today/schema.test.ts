@@ -429,7 +429,10 @@ function loadedFixture(): TodayLoaded {
     finance: {
       signed: "14500.00",
       collected: "5800.00",
+      signedUncollected: "8700.00",
       remaining: "8700.00",
+      scheduled: "1600.00",
+      toCollect: "1600.00",
       pending: "1200.00",
       overdue: "400.00",
       pendingCount: 2,

@@ -121,7 +121,7 @@ export function ProjectExplorer({ projects }: ProjectExplorerProps) {
               <Link
                 key={project.id}
                 href={`/projets/${project.id}`}
-                className="foil-subtle rounded-card card-sheen border border-border bg-surface p-4"
+                className="glass-card card-sheen p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="truncate font-medium text-foreground">{project.name}</p>
@@ -138,7 +138,7 @@ export function ProjectExplorer({ projects }: ProjectExplorerProps) {
           <Card className="hidden overflow-hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[56rem] text-left text-body">
-                <thead className="border-b border-border bg-surface-high/60 text-meta tracking-[0.08em] text-muted uppercase">
+                <thead className="border-b border-border/60 bg-white/40 text-meta tracking-[0.08em] text-muted uppercase">
                   <tr>
                     <th className="px-4 py-3 font-medium">Projet</th>
                     <th className="px-4 py-3 font-medium">Client</th>
@@ -152,7 +152,7 @@ export function ProjectExplorer({ projects }: ProjectExplorerProps) {
                   {filtered.map((project) => (
                     <tr
                       key={project.id}
-                      className="relative border-b border-border/70 last:border-0 hover:bg-surface-high/40"
+                      className="relative border-b border-border/50 last:border-0 hover:bg-white/60"
                     >
                       <td className="px-4 py-3">
                         <Link

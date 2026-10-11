@@ -6,7 +6,9 @@ import type { ActionResult } from "@/lib/crm/action-result";
 import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateProjects } from "@/lib/crm/revalidate";
+import { parseDate } from "@/lib/dates";
 import { prisma } from "@/lib/db/prisma";
+import { startDateAfterDemarrer, validateExplicitStartDate } from "@/lib/projects/start";
 import {
   adoptDeclaredJourneyForProject,
   isMissingJourneySchema,
@@ -15,6 +17,7 @@ import {
 import {
   createProjectSchema,
   fieldErrorsFromZod,
+  updateProjectStartDateSchema,
   updateProjectStatusSchema,
 } from "@/lib/validations/project";
 import type { ProjectStatus } from "@/generated/prisma/client";
@@ -187,13 +190,22 @@ export async function updateProjectStatus(
       return { ok: false, message: "Cette transition n'est pas autorisée." };
     }
 
+    const now = new Date();
+    const startDate = startDateAfterDemarrer({
+      fromStatus: existing.status,
+      toStatus: input.status,
+      startDate: existing.startDate,
+      now,
+    });
+
     await prisma.$transaction(async (tx) => {
       await tx.project.update({
         where: { id: existing.id },
         data: {
           status: input.status,
+          startDate,
           completedAt:
-            input.status === "COMPLETED" ? new Date() : existing.completedAt,
+            input.status === "COMPLETED" ? now : existing.completedAt,
         },
       });
 
@@ -207,15 +219,97 @@ export async function updateProjectStatus(
             companyId: existing.companyId,
             fromStatus: existing.status,
             toStatus: input.status,
+            startDate: startDate?.toISOString() ?? null,
           },
         },
       });
     });
 
     revalidateProjects(existing.companyId, existing.id);
-    return { ok: true, data: { projectId: existing.id, companyId: existing.companyId } };
+    return {
+      ok: true,
+      message: input.status === "ACTIVE" && existing.status === "PLANNED" ? "Projet démarré." : "Projet mis à jour.",
+      data: { projectId: existing.id, companyId: existing.companyId },
+    };
   } catch (error) {
     logServerError("projects", error);
     return { ok: false, message: "Impossible de mettre à jour le projet. Réessayez." };
+  }
+}
+
+export async function updateProjectStartDate(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
+  const parsed = updateProjectStartDateSchema.safeParse({
+    projectId: readString(formData, "projectId"),
+    startDate: readString(formData, "startDate"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Date de début invalide.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+
+  const startDate = parseDate(parsed.data.startDate);
+  if (!startDate) {
+    return { ok: false, message: "Date de début invalide." };
+  }
+
+  try {
+    const existing = await prisma.project.findUnique({
+      where: { id: parsed.data.projectId },
+    });
+
+    if (!existing) {
+      return { ok: false, message: "Projet introuvable." };
+    }
+
+    const allowed = validateExplicitStartDate({
+      status: existing.status,
+      startDate,
+      now: new Date(),
+    });
+    if (!allowed.ok) {
+      return { ok: false, message: allowed.message };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id: existing.id },
+        data: { startDate },
+      });
+      await tx.activityLog.create({
+        data: {
+          actorId: actor.id,
+          entityType: "Project",
+          entityId: existing.id,
+          action: "project.start_date_changed",
+          metadata: {
+            companyId: existing.companyId,
+            from: existing.startDate?.toISOString() ?? null,
+            to: startDate.toISOString(),
+          },
+        },
+      });
+    });
+
+    revalidateProjects(existing.companyId, existing.id);
+    return {
+      ok: true,
+      message: "Date de début enregistrée.",
+      data: { projectId: existing.id, companyId: existing.companyId },
+    };
+  } catch (error) {
+    logServerError("projects", error);
+    return { ok: false, message: "Impossible d'enregistrer la date de début. Réessayez." };
   }
 }

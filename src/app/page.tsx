@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
-import { OperationsBoard } from "@/components/dashboard/operations-board";
-import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { TodayHeader } from "@/components/dashboard/today-header";
-import { TodayTourPanel } from "@/components/dashboard/today-tour-panel";
+import { CollectionsChart } from "@/components/dashboard/collections-chart";
+import { HomeActiveProjects } from "@/components/dashboard/home-active-projects";
+import { HomeCalendarCard } from "@/components/dashboard/home-calendar-card";
+import { HomeHero } from "@/components/dashboard/home-hero";
+import { HomeKpis } from "@/components/dashboard/home-kpis";
+import { HomePriorityActions } from "@/components/dashboard/home-priority-actions";
+import { HomeRecentActivity } from "@/components/dashboard/home-recent-activity";
+import { HomeRecentClients } from "@/components/dashboard/home-recent-clients";
+import { HomeTourCard } from "@/components/dashboard/home-tour-card";
 import { requireAuthenticatedUser } from "@/lib/auth/dal";
-import { loadPrincipalPrestationLabels } from "@/lib/queries/companies";
-import { companyIdsInDashboard } from "@/lib/dashboard/today-rows";
-import { loadOperationsDashboard } from "@/lib/queries/operations";
-import { TodayService } from "@/lib/services/today";
+import { formatLongDate, parisParts } from "@/lib/dates";
+import { loadDashboardHome } from "@/lib/queries/dashboard-home";
 
 export const dynamic = "force-dynamic";
 
@@ -15,34 +18,83 @@ export const metadata: Metadata = {
   title: "Aujourd'hui",
 };
 
-export default async function TodayPage() {
+function firstNameFrom(name: string) {
+  const first = name.trim().split(/\s+/).filter(Boolean)[0];
+  return first || "là";
+}
+
+function firstString(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : undefined;
+}
+
+export default async function TodayPage({
+  searchParams,
+}: PageProps<"/">) {
   const actor = await requireAuthenticatedUser();
-  const [overview, operations] = await Promise.all([
-    TodayService.getTodayOverview({ actor }),
-    loadOperationsDashboard(),
-  ]);
-  const { taskDashboard, agenda, recentActivity, tourDashboard } = TodayService.toTodayDashboardView(overview);
-  const prestations = await loadPrincipalPrestationLabels([
-    ...companyIdsInDashboard(operations),
-    ...agenda.flatMap((item) => (item.company?.id ? [item.company.id] : [])),
-  ]);
+  const params = await searchParams;
+  const now = new Date();
+  const currentYear = parisParts(now).year;
+  const requested = Number(firstString(params.annee));
+  const collectionYear =
+    Number.isInteger(requested) && requested >= 1970 && requested <= 9999
+      ? requested
+      : currentYear;
+
+  const home = await loadDashboardHome(now, collectionYear);
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5">
-      <TodayHeader />
-      <TodayTourPanel dashboard={tourDashboard} />
-      <OperationsBoard
-        dashboard={operations}
-        agenda={agenda}
-        tasks={taskDashboard.preview}
-        prestations={prestations}
+    <div className="mx-auto flex max-w-[92rem] flex-col gap-4 sm:gap-5 lg:gap-6">
+      <HomeHero
+        firstName={firstNameFrom(actor.name)}
+        summary={home.summary}
+        insight={home.insight}
+        longDate={formatLongDate(now)}
+        clock={`${String(parisParts(now).hour).padStart(2, "0")}:${String(parisParts(now).minute).padStart(2, "0")}`}
       />
-      <details className="rounded-xl border border-border px-4 py-3">
-        <summary className="cursor-pointer text-body text-foreground">Activité récente</summary>
-        <div className="mt-3">
-          <RecentActivity items={recentActivity} />
+
+      <HomeKpis
+        finance={home.finance}
+        waitingQuotes={home.waitingQuotes}
+        activeProjects={home.activeProjects}
+        urgentFollowUps={home.urgentFollowUps}
+      />
+
+      <div className="grid gap-4 xl:grid-cols-12 lg:gap-5">
+        <div className="xl:col-span-5">
+          <CollectionsChart
+            year={home.monthlyCollections.year}
+            currentYear={currentYear}
+            years={home.availableCollectionYears}
+            total={home.monthlyCollections.total}
+            points={home.monthlyCollections.points.map((point) => ({
+              month: point.month,
+              label: point.label,
+              amount: point.amount,
+              cents: point.cents.toString(),
+            }))}
+          />
         </div>
-      </details>
+        <div className="xl:col-span-4">
+          <HomeCalendarCard items={home.upcomingAgenda} now={now} />
+        </div>
+        <div className="xl:col-span-3">
+          <HomeRecentClients clients={home.recentClients} />
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-12 lg:gap-5">
+        <div className="xl:col-span-5">
+          <HomePriorityActions actions={home.priorityActions} />
+        </div>
+        <div className="xl:col-span-4">
+          <HomeActiveProjects projects={home.activeProjectsList} />
+        </div>
+        <div className="xl:col-span-3">
+          <HomeRecentActivity items={home.recentActivity} />
+        </div>
+      </div>
+
+      <HomeTourCard tour={home.tour} />
     </div>
   );
 }

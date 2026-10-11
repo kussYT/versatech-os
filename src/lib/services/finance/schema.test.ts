@@ -24,7 +24,10 @@ function sampleTotals(): FinanceTotals {
   return {
     signed: "12000.00",
     collected: "4000.00",
+    signedUncollected: "8000.00",
     remaining: "8000.00",
+    scheduled: "2000.00",
+    toCollect: "2000.00",
     pending: "1500.00",
     overdue: "500.00",
     pendingCount: 2,

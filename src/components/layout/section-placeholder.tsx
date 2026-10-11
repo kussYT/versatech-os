@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -15,7 +16,9 @@ export function SectionPlaceholder({
   return (
     <div className="space-y-6">
       <PageHeader title={title} description={description} />
-      <EmptyState title={emptyTitle} />
+      <Card className="px-5">
+        <EmptyState title={emptyTitle} />
+      </Card>
     </div>
   );
 }

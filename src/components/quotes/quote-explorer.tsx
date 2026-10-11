@@ -66,7 +66,7 @@ export function QuoteExplorer({ quotes }: QuoteExplorerProps) {
           {filtered.map((quote) => (
             <article
               key={quote.id}
-              className="rounded-xl border border-border bg-background/90 p-4"
+              className="rounded-xl border border-white/80 bg-white/65 p-4"
             >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">

@@ -85,7 +85,7 @@ function AssociateRepositoryForm({
       </Field>
 
       {!githubConfigured ? (
-        <p className="rounded-xl border border-border bg-background/60 px-3 py-2 text-meta text-muted">
+        <p className="rounded-xl border border-white/70 bg-white/50 px-3 py-2 text-meta text-muted">
           GitHub n&apos;est pas configuré. L&apos;association sera enregistrée localement, sans
           vérification ni activité live.
         </p>

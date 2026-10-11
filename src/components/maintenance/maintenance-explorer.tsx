@@ -90,13 +90,13 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
       </section>
 
       {overview.upcomingDues.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/50 shadow-[0_8px_32px_rgb(31_41_80/0.06)] backdrop-blur-sm">
           <table className="w-full min-w-[32rem] text-left">
             <caption className="px-3 py-2 text-left text-body font-medium text-foreground">
               Prochaines échéances
             </caption>
             <thead>
-              <tr className="border-b border-border text-meta text-muted">
+              <tr className="border-b border-border/60 bg-white/40 text-meta text-muted">
                 <th className="px-3 py-2 font-medium">Entreprise</th>
                 <th className="px-3 py-2 font-medium">Montant</th>
                 <th className="px-3 py-2 font-medium">Échéance</th>
@@ -104,7 +104,7 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
             </thead>
             <tbody>
               {overview.upcomingDues.map((due) => (
-                <tr key={due.id} className="border-b border-border">
+                <tr key={due.id} className="border-b border-border/60 last:border-0 hover:bg-white/60">
                   <td className="px-3 py-3 text-body text-foreground">{due.companyName}</td>
                   <td className="px-3 py-3 text-body tabular-nums text-foreground">{formatMoney(due.monthlyAmount)}</td>
                   <td className="px-3 py-3 text-meta text-muted">{formatDate(due.nextDueDate)}</td>
@@ -144,10 +144,10 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
               <EmptyState title="Aucun contrat pour ce filtre" />
             </Card>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/50 shadow-[0_8px_32px_rgb(31_41_80/0.06)] backdrop-blur-sm">
               <table className="w-full min-w-[760px] text-left">
                 <thead>
-                  <tr className="border-b border-border text-meta text-muted">
+                  <tr className="border-b border-border/60 bg-white/40 text-meta text-muted">
                     <th className="px-3 py-2 font-medium">Entreprise</th>
                     <th className="px-3 py-2 font-medium">Projet</th>
                     <th className="px-3 py-2 font-medium">Montant</th>
@@ -158,7 +158,7 @@ export function MaintenanceExplorer({ overview, associations }: MaintenanceExplo
                 </thead>
                 <tbody>
                   {filtered.map((contract) => (
-                    <tr key={contract.id} className="border-b border-border align-top">
+                    <tr key={contract.id} className="border-b border-border/60 align-top last:border-0 hover:bg-white/60">
                       <td className="px-3 py-3">
                         <Link
                           href={`/entreprises/${contract.company.id}`}
@@ -245,7 +245,7 @@ function FilterButton({
       className={
         selected
           ? "rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-meta font-medium text-primary"
-          : "rounded-full border border-border bg-background px-3 py-1.5 text-meta text-muted hover:text-foreground"
+          : "rounded-full border border-white/70 bg-white/50 px-3 py-1.5 text-meta text-muted backdrop-blur-sm hover:bg-white/75 hover:text-foreground"
       }
     >
       {children}

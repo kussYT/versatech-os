@@ -3,12 +3,12 @@ import { cn } from "@/lib/cn";
 import type { DocumentType } from "@/generated/prisma/client";
 
 const documentTypeClassName: Record<DocumentType, string> = {
-  QUOTE: "border-cyan/30 bg-cyan/10 text-cyan",
-  PROPOSAL: "border-purple/30 bg-purple/10 text-purple",
-  INVOICE: "border-orange/30 bg-orange/10 text-orange",
+  QUOTE: "border-cyan/30 bg-cyan/10 text-sky-700",
+  PROPOSAL: "border-purple/30 bg-purple/10 text-violet-700",
+  INVOICE: "border-orange/30 bg-orange/10 text-orange-700",
   CONTRACT: "border-primary/30 bg-primary/10 text-primary",
-  ASSET: "border-success/30 bg-success/10 text-success",
-  OTHER: "border-faint/40 bg-surface-high text-muted",
+  ASSET: "border-success/30 bg-success/10 text-emerald-700",
+  OTHER: "border-white/70 bg-white/60 text-muted",
 };
 
 type DocumentTypeBadgeProps = {
@@ -20,7 +20,7 @@ export function DocumentTypeBadge({ type, className }: DocumentTypeBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-badge font-semibold tracking-wide uppercase",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-badge backdrop-blur-sm font-semibold tracking-wide uppercase",
         documentTypeClassName[type],
         className,
       )}

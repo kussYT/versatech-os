@@ -342,7 +342,7 @@ export function GlobalSearch({ triggerClassName }: GlobalSearchProps) {
     <>
       <button
         type="button"
-        className={cn(triggerClassName, "min-h-12")}
+        className={cn("min-h-12", triggerClassName)}
         aria-label="Recherche globale"
         aria-haspopup="dialog"
         aria-expanded={open}

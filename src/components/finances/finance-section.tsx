@@ -35,9 +35,30 @@ export function FinanceSection({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-section text-foreground">Finances</h2>
-          <p className="mt-1 text-meta text-muted">
-            Signé {formatMoney(totals.signed)} · encaissé {formatMoney(totals.collected)} · restant{" "}
-            {formatMoney(totals.remaining)}
+          <dl className="mt-2 grid gap-1.5 text-meta sm:grid-cols-2">
+            <div className="flex justify-between gap-3 sm:block">
+              <dt className="text-muted">Devis signé</dt>
+              <dd className="font-medium tabular-nums text-foreground">{formatMoney(totals.signed)}</dd>
+            </div>
+            <div className="flex justify-between gap-3 sm:block">
+              <dt className="text-muted">Encaissé</dt>
+              <dd className="font-medium tabular-nums text-foreground">{formatMoney(totals.collected)}</dd>
+            </div>
+            <div className="flex justify-between gap-3 sm:block">
+              <dt className="text-muted">Signé non encaissé</dt>
+              <dd className="font-medium tabular-nums text-foreground">
+                {formatMoney(totals.signedUncollected)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3 sm:block">
+              <dt className="text-muted">Échéances / à encaisser</dt>
+              <dd className="font-medium tabular-nums text-foreground">
+                {formatMoney(totals.scheduled)} · {formatMoney(totals.toCollect)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-meta text-faint">
+            Les échéances suivent les paiements enregistrés. Ce ne sont pas des factures.
           </p>
         </div>
         <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>

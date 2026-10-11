@@ -25,9 +25,10 @@ type ClientJourneySectionProps = {
 };
 
 const STEP_TONE: Record<JourneyStepStatus, string> = {
-  COMPLETED: "border-success/40 bg-success/15 text-success",
-  CURRENT: "border-primary/50 bg-primary/15 text-primary shadow-[0_0_18px_rgb(76_125_255_/_0.28)]",
-  UPCOMING: "border-border bg-surface-high text-faint",
+  COMPLETED: "border-emerald-300/80 bg-emerald-50 text-emerald-700",
+  CURRENT: "border-primary/40 bg-primary/10 text-primary shadow-[0_1px_4px_rgb(0_102_214/0.12)]",
+  MISSING: "border-amber-300/80 bg-amber-50 text-amber-700",
+  UPCOMING: "border-white/70 bg-white/50 text-faint",
 };
 
 function principalLabel(journey: ClientJourney) {

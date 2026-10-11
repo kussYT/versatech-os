@@ -1,36 +1,34 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { SessionAccount } from "@/components/auth/session-account";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
-import type { SessionUser } from "@/lib/auth/types";
 
-type AppSidebarProps = {
-  user: SessionUser;
-};
-
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:fixed lg:inset-y-0 lg:z-20 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
+    <aside className="glass-panel hidden overflow-hidden rounded-[1.35rem] lg:fixed lg:inset-y-3 lg:left-3 lg:z-20 lg:flex lg:w-64 lg:flex-col">
       <Brand />
-      <SidebarNav pathname={pathname} account={<SessionAccount user={user} />} />
+      {/* Compte dans le header (UserMenu) — la maquette ne met que Paramètres en bas. */}
+      <SidebarNav pathname={pathname} />
     </aside>
   );
 }
 
 export function Brand() {
   return (
-    <div className="flex items-start gap-2.5 px-5 py-5">
-      <span className="brand-gem mt-0.5 text-[1.05rem]" aria-hidden="true">
-        ✦
+    <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+      <span
+        className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-base font-bold text-white shadow-[0_2px_8px_rgb(0_122_255/0.35)]"
+        aria-hidden="true"
+      >
+        V
       </span>
-      <div>
-        <p className="brand-wordmark text-sm font-semibold tracking-[0.2em] text-foreground">
-          VERSATECH
+      <div className="min-w-0">
+        <p className="text-[0.95rem] leading-tight font-semibold tracking-tight text-foreground">
+          VersaTech OS
         </p>
-        <p className="font-mono text-[11px] tracking-[0.32em] text-muted">OS</p>
+        <p className="text-meta leading-tight text-muted">Agence web</p>
       </div>
     </div>
   );

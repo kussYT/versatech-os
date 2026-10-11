@@ -4,18 +4,18 @@ import type { CalendarItem } from "@/lib/calendar/types";
 import { cn } from "@/lib/cn";
 
 const kindBadgeVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-badge font-semibold tracking-wide uppercase",
+  "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-badge backdrop-blur-sm font-semibold tracking-wide uppercase",
   {
     variants: {
       tone: {
-        event: "border-orange/30 bg-orange/10 text-orange",
+        event: "border-orange/30 bg-orange/10 text-orange-700",
         call: "border-primary/30 bg-primary/10 text-primary",
-        follow_up: "border-cyan/30 bg-cyan/10 text-cyan",
+        follow_up: "border-cyan/30 bg-cyan/10 text-sky-700",
         task: "border-primary/30 bg-primary/10 text-primary",
-        project: "border-warning/30 bg-warning/10 text-warning",
-        milestone: "border-purple/30 bg-purple/10 text-purple",
-        terrain: "border-cyan/40 bg-cyan/15 text-cyan",
-        admin: "border-faint/40 bg-surface-high text-faint",
+        project: "border-warning/30 bg-warning/10 text-amber-700",
+        milestone: "border-purple/30 bg-purple/10 text-violet-700",
+        terrain: "border-cyan/40 bg-cyan/15 text-sky-700",
+        admin: "border-white/70 bg-white/60 text-faint",
       },
     },
     defaultVariants: {

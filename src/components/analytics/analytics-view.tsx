@@ -136,7 +136,7 @@ export function AnalyticsView({ report }: AnalyticsViewProps) {
     },
     {
       key: "remaining",
-      label: "Restant actuel",
+      label: "Signé non encaissé",
       display: formatMoney(finance.remaining),
       value: Number(finance.remaining),
       tone: "warning" as const,
@@ -344,7 +344,7 @@ export function AnalyticsView({ report }: AnalyticsViewProps) {
         <SectionTitle
           id="analytics-finance"
           title="Finance"
-          hint="CA signé et encaissé = flux de la période. Restant actuel = définition Finance (stock). MRR = contrats ACTIVE déjà commencés."
+          hint="CA signé et encaissé = flux de la période. Signé non encaissé = stock des devis acceptés moins les paiements confirmés liés. MRR = contrats ACTIVE déjà commencés."
         />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
@@ -363,10 +363,10 @@ export function AnalyticsView({ report }: AnalyticsViewProps) {
             tone="cyan"
           />
           <KpiCard
-            label="Restant actuel"
+            label="Signé non encaissé"
             icon={Target}
             value={formatMoney(finance.remaining)}
-            hint="CA signé actuel − encaissé actuel"
+            hint="Devis acceptés actuels − encaissements liés"
             tone="orange"
           />
           <KpiCard

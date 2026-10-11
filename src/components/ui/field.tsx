@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export const controlClassName =
-  "w-full rounded-xl border border-border bg-background px-3 py-2 text-body text-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,var(--foreground)_5%,transparent)] transition-colors duration-hover placeholder:text-muted hover:border-primary/35 focus-visible:border-primary disabled:opacity-50";
+  "w-full rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-body text-foreground shadow-[0_1px_2px_rgb(31_41_80/0.04)] backdrop-blur-sm transition-colors duration-hover placeholder:text-muted hover:border-primary/35 hover:bg-white/75 focus-visible:border-primary disabled:opacity-50";
 
 type FieldProps = {
   label: string;

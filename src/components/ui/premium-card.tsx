@@ -16,7 +16,7 @@ export function PremiumCard({
   return (
     <section
       className={cn(
-        "foil-premium card-sheen rounded-card border border-border bg-surface motion-safe:transition-transform motion-safe:duration-hover motion-safe:hover:-translate-y-px",
+        "glass-card motion-safe:transition-transform motion-safe:duration-hover motion-safe:hover:-translate-y-0.5",
         className,
       )}
       onPointerMove={(event) => {
@@ -29,7 +29,6 @@ export function PremiumCard({
       }}
       {...props}
     >
-      <span className="foil-wash" aria-hidden="true" />
       {children}
     </section>
   );

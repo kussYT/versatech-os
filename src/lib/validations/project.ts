@@ -30,7 +30,13 @@ export const updateProjectStatusSchema = z.object({
   status: z.enum(PROJECT_STATUSES, { error: "Statut invalide" }),
 });
 
+export const updateProjectStartDateSchema = z.object({
+  projectId: z.string().min(1, "Projet introuvable"),
+  startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Date de début invalide"),
+});
+
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectStatusInput = z.infer<typeof updateProjectStatusSchema>;
+export type UpdateProjectStartDateInput = z.infer<typeof updateProjectStartDateSchema>;
 
 export { fieldErrorsFromZod };

@@ -149,7 +149,7 @@ function CalendarEventForm({
           checked={allDay}
           onChange={(event) => setAllDay(event.target.checked)}
           disabled={pending}
-          className="size-4 rounded border-border bg-background accent-primary"
+          className="size-4 rounded border-white/70 bg-white/70 accent-primary"
         />
         Journée entière
       </label>

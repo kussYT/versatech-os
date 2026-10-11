@@ -116,7 +116,7 @@ export function QuoteStatusActions({
               type="date"
               value={customDate}
               onChange={(event) => setCustomDate(event.target.value)}
-              className="min-h-12 rounded-xl border border-border bg-background px-3 text-body"
+              className="min-h-12 rounded-xl border border-white/70 bg-white/60 px-3 backdrop-blur-sm focus-visible:border-primary text-body"
             />
             <Button
               type="button"

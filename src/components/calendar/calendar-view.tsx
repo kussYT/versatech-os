@@ -112,7 +112,7 @@ export function CalendarView({ year, month, today, items, companies, projects }:
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(19rem,1fr)]">
-        <Card className="card-aurora p-3 sm:p-4">
+        <Card className="p-3 sm:p-4">
           <CalendarMonthGrid
             year={year}
             month={month}
@@ -152,7 +152,7 @@ export function CalendarView({ year, month, today, items, companies, projects }:
             />
           </Card>
 
-          <Card className={cn("card-aurora p-4 sm:p-5")}>
+          <Card className={cn("p-4 sm:p-5")}>
             <div className="mb-4 flex items-center gap-2">
               <CalendarDays className="size-4 text-cyan" aria-hidden="true" />
               <h3 className="text-section text-foreground">Aujourd&apos;hui</h3>

@@ -21,7 +21,7 @@ import {
 
 const ProspectMapCanvas = dynamic(
   () => import("@/components/map/prospect-map-canvas").then((mod) => mod.ProspectMapCanvas),
-  { ssr: false, loading: () => <div className="h-[min(70vh,40rem)] rounded-xl bg-surface-high" /> },
+  { ssr: false, loading: () => <div className="h-[min(70vh,40rem)] rounded-xl bg-white/50" /> },
 );
 
 type CarteViewProps = {
@@ -44,7 +44,7 @@ export function CarteView({ companies, todayVisitIds, geocoderConfigured }: Cart
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <Card className="overflow-hidden p-0">
-        <div className="flex flex-wrap gap-2 border-b border-border p-3">
+        <div className="flex flex-wrap gap-2 border-b border-border/60 p-3">
           {MAP_FILTERS.map((value) => (
             <Button
               key={value}
@@ -56,7 +56,7 @@ export function CarteView({ companies, todayVisitIds, geocoderConfigured }: Cart
             </Button>
           ))}
         </div>
-        <div className="grid gap-3 border-b border-border p-3 sm:grid-cols-2">
+        <div className="grid gap-3 border-b border-border/60 p-3 sm:grid-cols-2">
           <Field label="Recherche" htmlFor="map-search">
             <input
               id="map-search"
@@ -91,7 +91,7 @@ export function CarteView({ companies, todayVisitIds, geocoderConfigured }: Cart
         ) : (
           <ul className="mt-4 space-y-3">
             {incomplete.slice(0, 40).map((company) => (
-              <li key={company.id} className="rounded-xl border border-border bg-background/50 p-3">
+              <li key={company.id} className="rounded-xl border border-white/70 bg-white/50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link href={`/entreprises/${company.id}`} className="text-body font-medium text-foreground">
                     {company.name}

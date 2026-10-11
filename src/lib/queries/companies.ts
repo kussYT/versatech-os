@@ -918,11 +918,17 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
     finance: computeFinanceTotals(
       company.quotes
         .filter((quote) => quote.status === "ACCEPTED")
-        .map((quote) => quote.amountIncTax.toString()),
+        .map((quote) => ({
+          id: quote.id,
+          amount: quote.amountIncTax.toString(),
+          projectId: quote.projectId,
+        })),
       company.payments.map((payment) => ({
         amount: payment.amount.toString(),
         status: payment.status,
         dueAt: payment.dueAt,
+        quoteId: payment.quoteId,
+        projectId: payment.projectId,
       })),
     ),
     documents,

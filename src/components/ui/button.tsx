@@ -16,6 +16,7 @@ export function Button({
   className,
   variant,
   size,
+  shape,
   type = "button",
   children,
   onPointerMove,
@@ -27,7 +28,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={cn(buttonVariants({ variant, size }), className)}
+      className={cn(buttonVariants({ variant, size, shape }), className)}
       onPointerMove={
         isPrimary
           ? (event) => {

@@ -237,7 +237,7 @@ export function PipelineBoard({ board }: PipelineBoardProps) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Entreprise ou titre"
-            className="mt-1 min-h-12 w-full rounded-xl border border-border bg-background px-3 text-body text-foreground"
+            className="mt-1 min-h-12 w-full rounded-xl border border-white/70 bg-white/60 px-3 text-body text-foreground backdrop-blur-sm placeholder:text-muted hover:bg-white/75 focus-visible:border-primary"
           />
         </label>
       </div>
@@ -370,7 +370,7 @@ function StageConfirmation({
   onCancel: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4" role="dialog" aria-label="Confirmer l'étape">
+    <div className="glass-card p-4" role="dialog" aria-label="Confirmer l'étape">
       <p className="text-body text-foreground">
         {companyName} — passer en {stageLabel} ?
       </p>
@@ -380,7 +380,7 @@ function StageConfirmation({
           <input
             value={lostReason}
             onChange={(event) => onReason(event.target.value)}
-            className="mt-1 min-h-12 w-full rounded-xl border border-border bg-background px-3 text-body"
+            className="mt-1 min-h-12 w-full rounded-xl border border-white/70 bg-white/60 px-3 text-body backdrop-blur-sm focus-visible:border-primary"
           />
         </label>
       ) : (
@@ -422,7 +422,7 @@ function KanbanColumn({
     <section
       ref={setNodeRef}
       aria-labelledby={`pipeline-${stage}`}
-      className={`flex w-[85vw] max-w-[17.5rem] shrink-0 snap-start flex-col rounded-xl border bg-background/90 p-3 sm:w-[17.5rem] ${isOver ? "border-primary" : "border-border"}`}
+      className={`flex w-[85vw] max-w-[17.5rem] shrink-0 snap-start flex-col rounded-2xl border bg-white/35 p-3 shadow-[0_8px_32px_rgb(31_41_80/0.06)] backdrop-blur-xl transition-colors sm:w-[17.5rem] ${isOver ? "border-primary/60 bg-white/55" : "border-white/70"}`}
     >
       <h2 id={`pipeline-${stage}`} className="text-body font-medium text-foreground">
         {OPPORTUNITY_STAGE_LABELS[stage]}

@@ -27,7 +27,7 @@ export function KanbanCard({ opportunity, locked, onOpen, onStage }: KanbanCardP
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
-      className={`rounded-lg border border-border bg-background/90 p-3 ${isDragging ? "opacity-60" : ""}`}
+      className={`rounded-xl border border-white/80 bg-white/70 p-3 shadow-[0_4px_16px_rgb(31_41_80/0.07)] backdrop-blur-md transition-shadow hover:shadow-[0_8px_24px_rgb(31_41_80/0.1)] ${isDragging ? "opacity-60" : ""}`}
     >
       <button
         type="button"
@@ -47,7 +47,7 @@ export function KanbanCard({ opportunity, locked, onOpen, onStage }: KanbanCardP
       <div className="mt-3 flex flex-col gap-2">
         <button
           type="button"
-          className="min-h-12 rounded-lg border border-border px-3 text-left text-meta text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          className="min-h-12 rounded-lg border border-white/70 bg-white/50 px-3 text-left text-meta text-foreground hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           aria-label={`Déplacer ${opportunity.company.name}`}
           disabled={locked}
           {...listeners}
@@ -58,7 +58,7 @@ export function KanbanCard({ opportunity, locked, onOpen, onStage }: KanbanCardP
         <label className="block text-meta text-muted">
           Étape
           <select
-            className="mt-1 min-h-12 w-full rounded-lg border border-border bg-background px-3 text-body text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            className="mt-1 min-h-12 w-full rounded-lg border border-white/70 bg-white/60 px-3 text-body text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             value={opportunity.stage}
             disabled={locked}
             aria-label={`Changer l'étape de ${opportunity.title}`}
@@ -79,7 +79,7 @@ export function KanbanCard({ opportunity, locked, onOpen, onStage }: KanbanCardP
 
 export function KanbanCardPreview({ opportunity }: { opportunity: PipelineOpportunityCard }) {
   return (
-    <div className="w-[16rem] rounded-lg border border-primary/40 bg-surface p-3 shadow-lg">
+    <div className="w-[16rem] rounded-xl border border-primary/30 bg-white/85 p-3 shadow-[0_12px_32px_rgb(31_41_80/0.16)] backdrop-blur-md">
       <p className="text-body font-medium text-foreground">{opportunity.company.name}</p>
       <p className="mt-1 text-meta text-muted">{opportunity.title}</p>
     </div>

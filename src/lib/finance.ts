@@ -15,16 +15,37 @@ const ENGAGED_PAYMENT_STATUSES = new Set<PaymentStatusValue>(["PENDING", "PAID",
 export const CREATE_PAYMENT_STATUSES = ["PENDING", "PAID"] as const;
 export type CreatePaymentStatus = (typeof CREATE_PAYMENT_STATUSES)[number];
 
+export type FinanceQuoteInput = {
+  amount: string;
+  /** Présent : seuls les paiements liés à ce devis ou à son projet réduisent le signé non encaissé. */
+  id?: string;
+  projectId?: string | null;
+};
+
 export type FinancePaymentLine = {
   amount: string;
   status: PaymentStatusValue;
   dueAt?: Date | string | null;
+  quoteId?: string | null;
+  projectId?: string | null;
 };
 
 export type FinanceTotals = {
+  /** Somme des devis acceptés. Ni opportunité, ni montant de projet. */
   signed: string;
+  /** Paiements confirmés (PAID), chacun une fois. */
   collected: string;
+  /**
+   * Signé diminué des encaissements associés aux devis acceptés.
+   * Ce n'est pas la somme des échéances impayées.
+   */
+  signedUncollected: string;
+  /** Alias historique de `signedUncollected`. */
   remaining: string;
+  /** Échéances non annulées (PAID + PENDING + OVERDUE). Ce n'est pas une facture. */
+  scheduled: string;
+  /** Échéances encore dues : PENDING + OVERDUE. */
+  toCollect: string;
   pending: string;
   overdue: string;
   pendingCount: number;
@@ -66,13 +87,36 @@ export function persistPaymentStatus(
   return requested;
 }
 
+function asQuoteInput(quote: string | FinanceQuoteInput): FinanceQuoteInput {
+  return typeof quote === "string" ? { amount: quote } : quote;
+}
+
+function paymentIsAssociated(payment: FinancePaymentLine, quotes: readonly FinanceQuoteInput[]) {
+  const identified = quotes.some((quote) => quote.id);
+  if (!identified) {
+    return true;
+  }
+
+  if (payment.quoteId && quotes.some((quote) => quote.id === payment.quoteId)) {
+    return true;
+  }
+
+  if (payment.projectId && quotes.some((quote) => quote.projectId && quote.projectId === payment.projectId)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function computeFinanceTotals(
-  acceptedQuoteAmounts: string[],
+  acceptedQuotes: readonly (string | FinanceQuoteInput)[],
   payments: FinancePaymentLine[],
   now = new Date(),
 ): FinanceTotals {
-  const signedCents = sumMoneyToCents(acceptedQuoteAmounts);
+  const quotes = acceptedQuotes.map(asQuoteInput);
+  const signedCents = sumMoneyToCents(quotes.map((quote) => quote.amount));
   let collectedCents = BigInt(0);
+  let associatedCollectedCents = BigInt(0);
   let pendingCents = BigInt(0);
   let overdueCents = BigInt(0);
   let pendingCount = 0;
@@ -85,6 +129,9 @@ export function computeFinanceTotals(
 
     if (effective === "PAID") {
       collectedCents += cents;
+      if (paymentIsAssociated(payment, quotes)) {
+        associatedCollectedCents += cents;
+      }
       paidCount += 1;
       continue;
     }
@@ -101,10 +148,16 @@ export function computeFinanceTotals(
     }
   }
 
+  const signedUncollectedCents = clampNonNegativeCents(signedCents - associatedCollectedCents);
+  const toCollectCents = pendingCents + overdueCents;
+
   return {
     signed: centsToMoneyString(signedCents),
     collected: centsToMoneyString(collectedCents),
-    remaining: centsToMoneyString(clampNonNegativeCents(signedCents - collectedCents)),
+    signedUncollected: centsToMoneyString(signedUncollectedCents),
+    remaining: centsToMoneyString(signedUncollectedCents),
+    scheduled: centsToMoneyString(collectedCents + toCollectCents),
+    toCollect: centsToMoneyString(toCollectCents),
     pending: centsToMoneyString(pendingCents),
     overdue: centsToMoneyString(overdueCents),
     pendingCount,

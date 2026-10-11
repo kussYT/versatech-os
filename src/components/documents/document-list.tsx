@@ -40,7 +40,7 @@ export function DocumentList({
         {documents.map((document) => (
           <li
             key={document.id}
-            className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
+            className="flex flex-col gap-3 rounded-xl border border-white/70 bg-white/50 px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">

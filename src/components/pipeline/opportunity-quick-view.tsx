@@ -163,7 +163,7 @@ export function OpportunityQuickView({
             value={customDate}
             onChange={(event) => setCustomDate(event.target.value)}
             aria-label="Date de relance"
-            className="min-h-12 flex-1 rounded-xl border border-border bg-background px-3 text-body"
+            className="min-h-12 flex-1 rounded-xl border border-white/70 bg-white/60 px-3 backdrop-blur-sm focus-visible:border-primary text-body"
           />
           <Button variant="secondary" className="min-h-12" disabled={pending || !customDate} onClick={() => schedule("custom")}>
             Cette date
@@ -172,7 +172,7 @@ export function OpportunityQuickView({
         <label className="block text-meta text-muted">
           Changer l’étape
           <select
-            className="mt-1 min-h-12 w-full rounded-xl border border-border bg-background px-3 text-body"
+            className="mt-1 min-h-12 w-full rounded-xl border border-white/70 bg-white/60 px-3 backdrop-blur-sm focus-visible:border-primary text-body"
             value={currentStage}
             aria-label={`Étape de ${described.title}`}
             onChange={(event) => onStage(event.target.value as OpportunityStage)}

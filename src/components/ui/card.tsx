@@ -6,7 +6,7 @@ type CardProps = HTMLAttributes<HTMLElement>;
 export function Card({ className, ...props }: CardProps) {
   return (
     <section
-      className={cn("rounded-card card-sheen border border-border bg-surface", className)}
+      className={cn("glass-card card-sheen", className)}
       {...props}
     />
   );

@@ -106,45 +106,64 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
         onFollowUp={() => setFollowUpOpen(true)}
         onOpportunity={() => setOpportunityOpen(true)}
       />
-      <PageHeader
-        meta="Fiche entreprise"
-        title={company.name}
-        description={[
-          isClient ? "Client" : "Prospect",
-          COMPANY_LIFECYCLE_LABELS[company.lifecycleStatus],
-          contactName,
-          company.principalPrestation?.label ?? null,
-          company.nextFollowUp?.title ?? null,
-          location || null,
-        ].filter(Boolean).join(" · ") || undefined}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setQuickOpen(true)}>
-              <Plus className="size-4" aria-hidden="true" />
-              Interaction
-            </Button>
-            <Button variant="secondary" onClick={() => setFollowUpOpen(true)}>
-              <RotateCcw className="size-4" aria-hidden="true" />
-              Relance
-            </Button>
-            <Button variant="ghost" onClick={() => setEditOpen(true)}>
-              Modifier
-            </Button>
-            {company.phone ? (
-              <a href={`tel:${company.phone}`} className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-body text-foreground">
-                <Phone className="size-4" aria-hidden="true" />
-                Appeler
-              </a>
-            ) : null}
-            {company.email ? (
-              <a href={`mailto:${company.email}`} className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-body text-foreground">
-                <Mail className="size-4" aria-hidden="true" />
-                E-mail
-              </a>
-            ) : null}
-          </div>
-        }
-      />
+      <Card className="p-4 sm:p-5">
+        <PageHeader
+          meta="Fiche entreprise"
+          title={company.name}
+          description={[
+            isClient ? "Client" : "Prospect",
+            COMPANY_LIFECYCLE_LABELS[company.lifecycleStatus],
+            contactName,
+            company.principalPrestation?.label ?? null,
+            location || null,
+          ].filter(Boolean).join(" · ") || undefined}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setQuickOpen(true)}>
+                <Plus className="size-4" aria-hidden="true" />
+                Interaction
+              </Button>
+              <Button variant="secondary" onClick={() => setFollowUpOpen(true)}>
+                <RotateCcw className="size-4" aria-hidden="true" />
+                Relance
+              </Button>
+              <Button variant="ghost" onClick={() => setEditOpen(true)}>
+                Modifier
+              </Button>
+              {company.phone ? (
+                <a
+                  href={`tel:${company.phone}`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/70 bg-white/45 px-4 text-body text-foreground transition-colors hover:bg-white/70"
+                >
+                  <Phone className="size-4" aria-hidden="true" />
+                  Appeler
+                </a>
+              ) : null}
+              {company.email ? (
+                <a
+                  href={`mailto:${company.email}`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/70 bg-white/45 px-4 text-body text-foreground transition-colors hover:bg-white/70"
+                >
+                  <Mail className="size-4" aria-hidden="true" />
+                  E-mail
+                </a>
+              ) : null}
+            </div>
+          }
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <LifecycleBadge status={company.lifecycleStatus} />
+          <PriorityBadge
+            priority={company.priority.toLowerCase() as "low" | "normal" | "medium" | "high" | "urgent"}
+            label={PRIORITY_LABELS[company.priority]}
+          />
+          {company.nextFollowUp ? (
+            <span className="rounded-full border border-white/70 bg-white/50 px-3 py-1 text-meta text-muted">
+              Relance · {formatDateTime(company.nextFollowUp.dueAt)}
+            </span>
+          ) : null}
+        </div>
+      </Card>
 
       {quickMessage ? (
         <p className="text-meta text-muted" role="status">
@@ -164,25 +183,26 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
         />
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <LifecycleBadge status={company.lifecycleStatus} />
-        <PriorityBadge
-          priority={company.priority.toLowerCase() as "low" | "normal" | "medium" | "high" | "urgent"}
-          label={PRIORITY_LABELS[company.priority]}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Fiche entreprise">
+      <div
+        className="flex flex-wrap gap-1.5 rounded-[1.25rem] border border-white/70 bg-white/40 p-1.5 backdrop-blur-sm"
+        role="tablist"
+        aria-label="Fiche entreprise"
+      >
         {FICHE_TABS.map((item) => (
-          <Button
+          <button
             key={item.id}
-            variant={tab === item.id ? "primary" : "secondary"}
+            type="button"
             aria-selected={tab === item.id}
             role="tab"
             onClick={() => setTab(item.id)}
+            className={
+              tab === item.id
+                ? "rounded-full bg-white/85 px-3.5 py-2 text-meta font-medium text-foreground shadow-[0_1px_3px_rgb(31_41_80/0.08)]"
+                : "rounded-full px-3.5 py-2 text-meta text-muted transition-colors hover:bg-white/50 hover:text-foreground"
+            }
           >
             {item.label}
-          </Button>
+          </button>
         ))}
       </div>
 
@@ -233,8 +253,10 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
           Dernière activité le {formatDateTime(company.timeline[0].at)}
         </p>
       ) : null}
-      <details className="rounded-xl border border-border px-4 py-3">
-        <summary className="cursor-pointer text-body text-foreground">Fiche et brief commercial</summary>
+      <details className="glass-card rounded-[1.25rem] px-4 py-3.5">
+        <summary className="cursor-pointer text-body font-medium text-foreground">
+          Fiche et brief commercial
+        </summary>
         <div className="mt-4 space-y-4">
           <CompanyInfo company={company} />
           <CommercialBriefSection
@@ -272,7 +294,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
               item.kind === "interaction" ? (
                 <li
                   key={item.interaction.id}
-                  className="rounded-xl border border-border bg-background/60 px-4 py-3"
+                  className="rounded-xl border border-white/70 bg-white/50 px-4 py-3"
                 >
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 text-muted" aria-hidden="true">
@@ -312,7 +334,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
                   </div>
                 </li>
               ) : item.kind === "quote" ? (
-                <li key={item.id} className="rounded-xl border border-border bg-background/60 px-4 py-3">
+                <li key={item.id} className="rounded-xl border border-white/70 bg-white/50 px-4 py-3">
                   <p className="text-body font-medium text-foreground">
                     {item.toStatus === "SENT"
                       ? "Devis envoyé"
@@ -327,7 +349,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
                   <p className="mt-1 font-mono text-meta text-faint">{formatDateTime(item.at)}</p>
                 </li>
               ) : item.kind === "followUp" ? (
-                <li key={item.id} className="rounded-xl border border-border bg-background/60 px-4 py-3">
+                <li key={item.id} className="rounded-xl border border-white/70 bg-white/50 px-4 py-3">
                   <p className="text-body font-medium text-foreground">Relance prévue</p>
                   <p className="mt-1 text-meta text-muted">
                     {item.title} · {formatDate(item.dueAt)}
@@ -336,7 +358,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
               ) : (
                 <li
                   key={item.id}
-                  className="rounded-xl border border-border bg-background/60 px-4 py-3"
+                  className="rounded-xl border border-white/70 bg-white/50 px-4 py-3"
                 >
                   <p className="text-body font-medium text-foreground">
                     {item.kind === "stage"
@@ -429,7 +451,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
                 <li key={project.id}>
                   <Link
                     href={`/projets/${project.id}`}
-                    className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-xl border border-white/70 bg-white/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -481,7 +503,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
             {company.quotes.map((quote) => (
               <li
                 key={quote.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/70 bg-white/50 px-4 py-3"
               >
                 <div>
                   <p className="font-mono text-body text-foreground">{quote.reference}</p>

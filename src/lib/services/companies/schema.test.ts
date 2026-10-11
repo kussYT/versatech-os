@@ -31,7 +31,10 @@ const actor = {
 const emptyFinance = {
   signed: ZERO_MONEY,
   collected: ZERO_MONEY,
+  signedUncollected: ZERO_MONEY,
   remaining: ZERO_MONEY,
+  scheduled: ZERO_MONEY,
+  toCollect: ZERO_MONEY,
   pending: ZERO_MONEY,
   overdue: ZERO_MONEY,
   pendingCount: 0,

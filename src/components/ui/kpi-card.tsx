@@ -22,7 +22,6 @@ export function KpiCard({
   value = "—",
   hint = "Aucune donnée disponible",
   premium = false,
-  tone,
   className,
 }: KpiCardProps) {
   const body = (
@@ -45,17 +44,9 @@ export function KpiCard({
     </>
   );
 
-  const toneClass = tone ? `foil-tone-${tone}` : undefined;
-
   if (premium) {
-    return (
-      <PremiumCard className={cn("p-4", toneClass, className)}>{body}</PremiumCard>
-    );
+    return <PremiumCard className={cn("p-4", className)}>{body}</PremiumCard>;
   }
 
-  return (
-    <InteractiveCard className={cn("foil-subtle p-4", toneClass, className)}>
-      {body}
-    </InteractiveCard>
-  );
+  return <InteractiveCard className={cn("p-4", className)}>{body}</InteractiveCard>;
 }

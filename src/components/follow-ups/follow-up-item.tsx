@@ -29,7 +29,7 @@ export function FollowUpItem({ followUp, bucket }: FollowUpItemProps) {
   return (
     <article
       className={cn(
-        "rounded-xl border border-border bg-background/90 p-4",
+        "rounded-xl border border-white/80 bg-white/65 p-4",
         bucket === "overdue" && "border-danger/40",
         bucket === "today" && "border-primary/40",
         bucket === "completed" && "opacity-70",

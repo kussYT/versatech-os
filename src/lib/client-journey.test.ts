@@ -388,13 +388,44 @@ describe("buildClientJourney — projet", () => {
     assert.equal(step.source, "ACTIVE");
   });
 
-  it("WAITING_CLIENT et REVIEW comptent comme développement commencé", () => {
-    assert.equal(
+  it("un projet ACTIVE sans date de début n'est pas du développement", () => {
+    const step = statusOf(
+      { ...empty(), projects: [project({ id: "p-main", status: "ACTIVE", startDate: null })] },
+      "DEVELOPPEMENT",
+    );
+    assert.notEqual(step.status, "COMPLETED");
+    assert.equal(step.date, null);
+    assert.match(step.context ?? "", /début non renseigné/);
+  });
+
+  it("une date de début future ne marque pas le développement comme commencé", () => {
+    const startDate = fromParisDateTime(2026, 10, 1, 0, 0, 0, 0);
+    const step = statusOf(
+      { ...empty(), projects: [project({ id: "p-main", status: "ACTIVE", startDate })] },
+      "DEVELOPPEMENT",
+    );
+    assert.notEqual(step.status, "COMPLETED");
+    assert.equal(step.date, startDate.toISOString());
+  });
+
+  it("WAITING_CLIENT et REVIEW exigent une date de début réelle", () => {
+    const startDate = fromParisDateTime(2026, 8, 2, 0, 0, 0, 0);
+    assert.notEqual(
       statusOf({ ...empty(), projects: [project({ id: "p-wait", status: "WAITING_CLIENT" })] }, "DEVELOPPEMENT").status,
       "COMPLETED",
     );
     assert.equal(
-      statusOf({ ...empty(), projects: [project({ id: "p-review", status: "REVIEW" })] }, "DEVELOPPEMENT").status,
+      statusOf(
+        { ...empty(), projects: [project({ id: "p-wait", status: "WAITING_CLIENT", startDate })] },
+        "DEVELOPPEMENT",
+      ).status,
+      "COMPLETED",
+    );
+    assert.equal(
+      statusOf(
+        { ...empty(), projects: [project({ id: "p-review", status: "REVIEW", startDate })] },
+        "DEVELOPPEMENT",
+      ).status,
       "COMPLETED",
     );
   });
@@ -493,8 +524,8 @@ describe("buildClientJourney — maintenance Europe/Paris", () => {
   });
 });
 
-describe("buildClientJourney — ordre CURRENT malgré une étape tardive COMPLETED", () => {
-  it("ne fabrique pas un Contact manquant si un devis existe déjà", () => {
+describe("buildClientJourney — étape courante après le dernier fait", () => {
+  it("laisse Contact visible mais ne le remet pas en cours si un devis existe", () => {
     const journey = buildClientJourney(
       {
         ...empty(),
@@ -502,9 +533,32 @@ describe("buildClientJourney — ordre CURRENT malgré une étape tardive COMPLE
       },
       { now: NOW },
     );
-    assert.equal(journey.steps.find((step) => step.key === "CONTACT")?.status, "CURRENT");
+    assert.equal(journey.steps.find((step) => step.key === "CONTACT")?.status, "MISSING");
+    assert.equal(journey.steps.find((step) => step.key === "RDV")?.status, "MISSING");
     assert.equal(journey.steps.find((step) => step.key === "DEVIS")?.status, "COMPLETED");
-    assert.equal(journey.steps.find((step) => step.key === "RDV")?.status, "UPCOMING");
+    assert.equal(journey.steps.find((step) => step.key === "SIGNATURE")?.status, "CURRENT");
+  });
+
+  it("ne coche pas Développement sur un projet Actif sans date, même si le devis est accepté", () => {
+    const journey = buildClientJourney(
+      {
+        ...empty(),
+        quotes: [
+          quote({
+            id: "q-main",
+            status: "ACCEPTED",
+            acceptedAt: fromParisDateTime(2026, 8, 4, 0, 0, 0, 0),
+            sentAt: fromParisDateTime(2026, 8, 2, 0, 0, 0, 0),
+          }),
+        ],
+        projects: [project({ id: "p-main", status: "ACTIVE", startDate: null })],
+      },
+      { now: NOW },
+    );
+    assert.equal(journey.steps.find((step) => step.key === "SIGNATURE")?.status, "COMPLETED");
+    assert.equal(journey.steps.find((step) => step.key === "ACOMPTE")?.status, "CURRENT");
+    assert.equal(journey.steps.find((step) => step.key === "DEVELOPPEMENT")?.status, "UPCOMING");
+    assert.equal(journey.steps.find((step) => step.key === "CONTACT")?.status, "MISSING");
   });
 });
 

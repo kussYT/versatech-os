@@ -15,7 +15,7 @@ export function MobileTabBar({ onOpenNav }: MobileTabBarProps) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-sidebar/95 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:hidden"
+      className="glass-panel fixed inset-x-2 bottom-2 z-30 rounded-2xl px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] lg:hidden"
       aria-label="Navigation mobile"
     >
       <div className="grid grid-cols-5">
@@ -31,7 +31,7 @@ export function MobileTabBar({ onOpenNav }: MobileTabBarProps) {
           type="button"
           onClick={onOpenNav}
           className={cn(
-            "flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[11px] font-medium text-muted transition-colors duration-hover hover:text-foreground",
+            "flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium text-muted transition-colors duration-hover hover:text-foreground",
           )}
           aria-label="Plus de sections"
         >

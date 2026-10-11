@@ -123,20 +123,26 @@ export async function loadFinanceSnapshot(scope: FinanceScope = {}, now = new Da
   const [quotes, payments] = await Promise.all([
     prisma.quote.findMany({
       where: quoteWhere(scope),
-      select: { amountIncTax: true },
+      select: { id: true, amountIncTax: true, projectId: true },
     }),
     prisma.payment.findMany({
       where: paymentWhere(scope),
-      select: { amount: true, status: true, dueAt: true },
+      select: { amount: true, status: true, dueAt: true, quoteId: true, projectId: true },
     }),
   ]);
 
   return computeFinanceTotals(
-    quotes.map((quote) => quote.amountIncTax.toString()),
+    quotes.map((quote) => ({
+      id: quote.id,
+      amount: quote.amountIncTax.toString(),
+      projectId: quote.projectId,
+    })),
     payments.map((payment) => ({
       amount: payment.amount.toString(),
       status: payment.status,
       dueAt: payment.dueAt,
+      quoteId: payment.quoteId,
+      projectId: payment.projectId,
     })),
     now,
   );

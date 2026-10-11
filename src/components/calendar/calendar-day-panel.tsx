@@ -39,7 +39,7 @@ export function CalendarDayPanel({
           <li key={entry.id}>
             <article
               className={cn(
-                "rounded-xl border border-border bg-background/90 p-3",
+                "rounded-xl border border-white/80 bg-white/65 p-3",
                 "motion-safe:transition-[border-color] motion-safe:duration-hover",
                 selected && "border-primary/50",
                 entry.overdue && "border-danger/40",
@@ -65,7 +65,7 @@ export function CalendarDayPanel({
               </button>
 
               {selected ? (
-                <div className="mt-3 space-y-2 border-t border-border pt-3">
+                <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
                   <p className="text-meta text-muted">
                     {formatDateTime(entry.startsAt)}
                     {entry.allDay ? "" : ` · ${formatDayTitle(dateKey)}`}

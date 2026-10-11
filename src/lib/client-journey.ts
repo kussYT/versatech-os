@@ -12,8 +12,10 @@
  * Devis, paiements, projet et maintenance sont scopés au contexte principal :
  * on ne fusionne pas plusieurs devis / projets en une seule timeline.
  *
- * CURRENT = première étape non COMPLETED dans l'ordre métier, même si une étape
- * plus tardive est déjà COMPLETED (données historiques imparfaites conservées).
+ * CURRENT = première étape incomplète située après le fait le plus avancé.
+ * Une étape antérieure manquante reste visible (MISSING) et ne redevient pas
+ * l'étape courante. Développement n'est attesté que par une date de début
+ * réelle, pas par la seule création ou le statut Actif du projet.
  */
 
 import type {
@@ -29,6 +31,7 @@ import type {
 import { isOpenOpportunityStage, PROJECT_STATUS_LABELS, QUOTE_STATUS_LABELS } from "@/lib/crm/constants";
 import { hasMaintenanceStarted } from "@/lib/maintenance/mrr";
 import { isActiveMaintenanceStatus } from "@/lib/maintenance/status";
+import { parisDateKey } from "@/lib/dates";
 import { parseMoneyToCents } from "@/lib/money";
 import { selectPrincipalProject, type PrincipalProjectSource } from "@/lib/projects/principal";
 import { isTerrainVisit } from "@/lib/prospection/visit";
@@ -46,7 +49,7 @@ export const JOURNEY_STEP_KEYS = [
 ] as const;
 
 export type JourneyStepKey = (typeof JOURNEY_STEP_KEYS)[number];
-export type JourneyStepStatus = "COMPLETED" | "CURRENT" | "UPCOMING";
+export type JourneyStepStatus = "COMPLETED" | "CURRENT" | "MISSING" | "UPCOMING";
 
 export const JOURNEY_STEP_LABELS: Record<JourneyStepKey, string> = {
   CONTACT: "Contact",
@@ -169,7 +172,7 @@ export type ClientJourneyStep = {
 };
 
 export type ClientJourneyPrincipal = {
-  project: { id: string; name: string; status: ProjectStatus } | null;
+  project: { id: string; name: string; status: ProjectStatus; startDate: string | null } | null;
   quote: { id: string; reference: string; status: QuoteStatus } | null;
   opportunity: { id: string; title: string } | null;
   reason: string;
@@ -487,17 +490,36 @@ function acompteEvidence(
   };
 }
 
-function developpementEvidence(project: ClientJourneyProject | null): Evidence {
-  if (!project || !STARTED_PROJECT_STATUSES.has(project.status)) {
+function developpementEvidence(project: ClientJourneyProject | null, now: Date): Evidence {
+  if (!project) {
     return emptyEvidence();
+  }
+
+  const start = toDate(project.startDate);
+  const context = `${project.name} · ${PROJECT_STATUS_LABELS[project.status]}`;
+  const link = `/projets/${project.id}`;
+  const started =
+    start !== null &&
+    project.status !== "PLANNED" &&
+    STARTED_PROJECT_STATUSES.has(project.status) &&
+    parisDateKey(start) <= parisDateKey(now);
+
+  if (!started) {
+    return {
+      completed: false,
+      date: start,
+      source: project.status,
+      link,
+      context: start ? context : `${context} · début non renseigné`,
+    };
   }
 
   return {
     completed: true,
-    date: toDate(project.startDate),
+    date: start,
     source: project.status,
-    link: `/projets/${project.id}`,
-    context: `${project.name} · ${PROJECT_STATUS_LABELS[project.status]}`,
+    link,
+    context,
   };
 }
 
@@ -603,18 +625,27 @@ export function buildClientJourney(
     DEVIS: devisEvidence(selected.quote),
     SIGNATURE: signatureEvidence(selected.quote),
     ACOMPTE: acompteEvidence(input.payments, selected.quote, selected.project),
-    DEVELOPPEMENT: developpementEvidence(selected.project),
+    DEVELOPPEMENT: developpementEvidence(selected.project, now),
     MISE_EN_LIGNE: miseEnLigneEvidence(selected.project),
     SOLDE: soldeEvidence(input.payments, selected.quote, selected.project),
     MAINTENANCE: maintenanceEvidence(input.contracts, selected.project, now),
   };
 
+  let furthestCompleted = -1;
+  JOURNEY_STEP_KEYS.forEach((key, index) => {
+    if (evidences[key].completed) {
+      furthestCompleted = index;
+    }
+  });
+
   let currentAssigned = false;
-  const steps: ClientJourneyStep[] = JOURNEY_STEP_KEYS.map((key) => {
+  const steps: ClientJourneyStep[] = JOURNEY_STEP_KEYS.map((key, index) => {
     const evidence = evidences[key];
     let status: JourneyStepStatus;
     if (evidence.completed) {
       status = "COMPLETED";
+    } else if (index < furthestCompleted) {
+      status = "MISSING";
     } else if (!currentAssigned) {
       status = "CURRENT";
       currentAssigned = true;
@@ -638,7 +669,12 @@ export function buildClientJourney(
     complete: steps.every((step) => step.status === "COMPLETED"),
     principal: {
       project: selected.project
-        ? { id: selected.project.id, name: selected.project.name, status: selected.project.status }
+        ? {
+            id: selected.project.id,
+            name: selected.project.name,
+            status: selected.project.status,
+            startDate: toIso(toDate(selected.project.startDate)),
+          }
         : null,
       quote: selected.quote
         ? {

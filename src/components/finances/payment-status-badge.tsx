@@ -3,10 +3,10 @@ import { cn } from "@/lib/cn";
 import type { PaymentStatus } from "@/generated/prisma/client";
 
 const paymentStatusClassName: Record<PaymentStatus, string> = {
-  PENDING: "border-cyan/30 bg-cyan/10 text-cyan",
-  PAID: "border-success/30 bg-success/10 text-success",
-  OVERDUE: "border-danger/30 bg-danger/10 text-danger",
-  CANCELED: "border-faint/40 bg-surface-high text-faint",
+  PENDING: "border-cyan/30 bg-cyan/10 text-sky-700",
+  PAID: "border-success/30 bg-success/10 text-emerald-700",
+  OVERDUE: "border-danger/30 bg-danger/10 text-red-600",
+  CANCELED: "border-white/70 bg-white/60 text-faint",
 };
 
 type PaymentStatusBadgeProps = {
@@ -18,7 +18,7 @@ export function PaymentStatusBadge({ status, className }: PaymentStatusBadgeProp
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-badge font-semibold tracking-wide uppercase",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-badge backdrop-blur-sm font-semibold tracking-wide uppercase",
         paymentStatusClassName[status],
         className,
       )}

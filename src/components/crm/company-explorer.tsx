@@ -56,6 +56,12 @@ function companyKind(company: CompanyListItem) {
   return company.lifecycleStatus === "CLIENT" ? "Client" : "Prospect";
 }
 
+const pillClass =
+  "rounded-full border border-white/70 bg-white/50 px-3.5 py-1.5 text-meta text-muted transition-colors duration-hover hover:border-primary/30 hover:bg-white/75 hover:text-foreground focus-visible:border-primary";
+
+const pillActiveClass =
+  "rounded-full border border-primary/35 bg-primary/10 px-3.5 py-1.5 text-meta font-medium text-primary shadow-[0_1px_2px_rgb(31_41_80/0.06)]";
+
 export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -136,33 +142,45 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
-          <label className="relative block">
-            <span className="sr-only">Rechercher</span>
-            <Search
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-              aria-hidden="true"
-            />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Entreprise, secteur, ville, contact"
-              className={cn(controlClassName, "pl-9")}
-            />
-          </label>
-          <FilterSelect
-            label="Statut"
-            value={status}
-            onChange={setStatus}
-            options={statuses.map((value) => ({
-              value,
-              label: COMPANY_LIFECYCLE_LABELS[value as CompanyLifecycle],
-            }))}
+      <Card className="p-4 sm:p-5">
+        <label className="relative block">
+          <span className="sr-only">Rechercher</span>
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
           />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Entreprise, secteur, ville, contact"
+            className={cn(controlClassName, "h-11 pl-10")}
+          />
+        </label>
+
+        <div className="mt-3.5 flex flex-wrap gap-2" role="group" aria-label="Statut">
+          <button
+            type="button"
+            className={status === "all" ? pillActiveClass : pillClass}
+            onClick={() => setStatus("all")}
+          >
+            Tous
+          </button>
+          {statuses.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={status === value ? pillActiveClass : pillClass}
+              onClick={() => setStatus(value)}
+            >
+              {COMPANY_LIFECYCLE_LABELS[value as CompanyLifecycle]}
+            </button>
+          ))}
         </div>
-        <details className="mt-3">
-          <summary className="cursor-pointer text-meta text-muted">Plus de filtres</summary>
+
+        <details className="mt-3.5">
+          <summary className="cursor-pointer text-meta text-muted transition-colors hover:text-foreground">
+            Plus de filtres
+          </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <FilterSelect
               label="Secteur"
@@ -198,12 +216,16 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
         </Card>
       ) : (
         <>
+          <p className="text-meta text-faint">
+            {filtered.length} entreprise{filtered.length > 1 ? "s" : ""}
+          </p>
+
           <div className="grid gap-3 md:hidden">
             {filtered.map((company) => (
               <Link
                 key={company.id}
                 href={`/entreprises/${company.id}`}
-                className="foil-subtle rounded-card card-sheen border border-border bg-surface p-4"
+                className="glass-card block rounded-[1.25rem] p-4 transition-colors duration-hover hover:bg-white/70"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -223,7 +245,12 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
                   </div>
                   <div>
                     <dt className="text-faint">Relance</dt>
-                    <dd className="text-foreground">
+                    <dd
+                      className={cn(
+                        "text-foreground",
+                        followUpStatus(company) === "En retard" && "font-medium text-danger",
+                      )}
+                    >
                       {nextActionDate(company)} · {followUpStatus(company)}
                     </dd>
                   </div>
@@ -235,24 +262,24 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
           <Card className="hidden overflow-hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[52rem] text-left text-body">
-                <thead className="border-b border-border bg-surface-high/60 text-meta tracking-[0.08em] text-muted uppercase">
+                <thead className="border-b border-white/60 bg-white/45 text-meta tracking-[0.06em] text-muted uppercase">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Entreprise</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 font-medium">Étape</th>
-                    <th className="px-4 py-3 font-medium">Prestation</th>
-                    <th className="px-4 py-3 font-medium">Prochaine action</th>
-                    <th className="px-4 py-3 font-medium">Date relance</th>
-                    <th className="px-4 py-3 font-medium">Statut</th>
+                    <th className="px-4 py-3.5 font-medium">Entreprise</th>
+                    <th className="px-4 py-3.5 font-medium">Type</th>
+                    <th className="px-4 py-3.5 font-medium">Étape</th>
+                    <th className="px-4 py-3.5 font-medium">Prestation</th>
+                    <th className="px-4 py-3.5 font-medium">Prochaine action</th>
+                    <th className="px-4 py-3.5 font-medium">Date relance</th>
+                    <th className="px-4 py-3.5 font-medium">Statut</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((company) => (
                     <tr
                       key={company.id}
-                      className="relative border-b border-border/70 last:border-0 hover:bg-surface-high/40"
+                      className="relative border-b border-white/50 last:border-0 hover:bg-white/40"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <Link
                           href={`/entreprises/${company.id}`}
                           className="font-medium text-foreground after:absolute after:inset-0"
@@ -260,14 +287,21 @@ export function CompanyExplorer({ companies, variant }: CompanyExplorerProps) {
                           {company.name}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-muted">{companyKind(company)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5 text-muted">{companyKind(company)}</td>
+                      <td className="px-4 py-3.5">
                         <LifecycleBadge status={company.lifecycleStatus} />
                       </td>
-                      <td className="px-4 py-3 text-muted">{company.prestation ?? "—"}</td>
-                      <td className="px-4 py-3 text-muted">{nextActionLabel(company)}</td>
-                      <td className="px-4 py-3 text-muted">{nextActionDate(company)}</td>
-                      <td className="px-4 py-3 text-muted">{followUpStatus(company)}</td>
+                      <td className="px-4 py-3.5 text-muted">{company.prestation ?? "—"}</td>
+                      <td className="px-4 py-3.5 text-muted">{nextActionLabel(company)}</td>
+                      <td className="px-4 py-3.5 text-muted">{nextActionDate(company)}</td>
+                      <td
+                        className={cn(
+                          "px-4 py-3.5 text-muted",
+                          followUpStatus(company) === "En retard" && "font-medium text-danger",
+                        )}
+                      >
+                        {followUpStatus(company)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -92,7 +92,7 @@ function GithubOverviewCard({ item }: { item: GitHubOverviewItem }) {
         </p>
       ) : null}
 
-      <div className="mt-4 border-t border-border pt-4">
+      <div className="mt-4 border-t border-border/60 pt-4">
         <h3 className="text-meta font-medium tracking-[0.08em] text-muted uppercase">
           Derniers commits
         </h3>
@@ -109,7 +109,7 @@ function GithubOverviewCard({ item }: { item: GitHubOverviewItem }) {
             {item.commits.slice(0, 5).map((commit) => (
               <li
                 key={commit.sha}
-                className="flex flex-col gap-1 rounded-xl border border-border bg-background/60 px-4 py-3 sm:flex-row sm:items-baseline sm:justify-between"
+                className="flex flex-col gap-1 rounded-xl border border-white/70 bg-white/50 px-4 py-3 sm:flex-row sm:items-baseline sm:justify-between"
               >
                 <div className="min-w-0">
                   <a
@@ -139,9 +139,9 @@ function GithubOverviewCard({ item }: { item: GitHubOverviewItem }) {
 
 function LiveLabel({ live }: { live: GitHubOverviewItem["live"] }) {
   const styles = {
-    ok: "border-success/30 bg-success/10 text-success",
-    unconfigured: "border-faint/40 bg-surface-high text-muted",
-    error: "border-danger/30 bg-danger/10 text-danger",
+    ok: "border-success/30 bg-success/10 text-emerald-700",
+    unconfigured: "border-white/70 bg-white/60 text-muted",
+    error: "border-danger/30 bg-danger/10 text-red-600",
   } as const;
   const labels = {
     ok: "Live",

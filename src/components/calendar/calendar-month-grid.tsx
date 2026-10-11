@@ -79,9 +79,9 @@ export function CalendarMonthGrid({
                 aria-current={isToday ? "date" : undefined}
                 aria-label={`${formatDayTitle(key)}${dayItems.length > 0 ? ` · ${dayItems.length} élément${dayItems.length > 1 ? "s" : ""}` : ""}`}
                 className={cn(
-                  "flex min-h-16 w-full flex-col gap-1 rounded-lg border border-transparent bg-background/40 p-1.5 text-left sm:min-h-24",
+                  "flex min-h-16 w-full flex-col gap-1 rounded-xl border border-white/60 bg-white/40 p-1.5 text-left sm:min-h-24",
                   "motion-safe:transition-[border-color,background-color] motion-safe:duration-hover",
-                  "hover:border-primary/35 hover:bg-surface-high/80",
+                  "hover:border-primary/35 hover:bg-white/70",
                   !inMonth && "opacity-45",
                   isToday && "border-cyan/40",
                   isSelected && "border-primary/60 bg-primary/10",

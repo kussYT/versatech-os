@@ -331,11 +331,17 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
     finance: computeFinanceTotals(
       project.quotes
         .filter((quote) => quote.status === "ACCEPTED")
-        .map((quote) => quote.amountIncTax.toString()),
+        .map((quote) => ({
+          id: quote.id,
+          amount: quote.amountIncTax.toString(),
+          projectId: project.id,
+        })),
       project.payments.map((payment) => ({
         amount: payment.amount.toString(),
         status: payment.status,
         dueAt: payment.dueAt,
+        quoteId: payment.quote?.id ?? null,
+        projectId: payment.project?.id ?? project.id,
       })),
     ),
     documents,

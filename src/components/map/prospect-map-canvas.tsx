@@ -110,7 +110,7 @@ export function ProspectMapCanvas({ companies }: ProspectMapCanvasProps) {
     };
   }, [companies]);
 
-  return <div ref={containerRef} className="h-[min(70vh,40rem)] w-full rounded-xl bg-surface-high" />;
+  return <div ref={containerRef} className="h-[min(70vh,40rem)] w-full rounded-xl bg-white/50" />;
 }
 
 function escapeHtml(value: string) {

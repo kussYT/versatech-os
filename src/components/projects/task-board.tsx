@@ -83,7 +83,7 @@ function TaskRow({ task }: { task: TaskListItem }) {
   const href = task.project ? `/projets/${task.project.id}` : "/projets";
 
   return (
-    <li className="rounded-xl border border-border bg-background/60 px-4 py-3">
+    <li className="rounded-xl border border-white/70 bg-white/50 px-4 py-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

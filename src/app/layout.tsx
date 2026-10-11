@@ -5,6 +5,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { requireAuthenticatedUser } from "@/lib/auth/dal";
 import { isPublicPath } from "@/lib/auth/paths";
 import { getSessionUser } from "@/lib/auth/session";
+import {
+  loadNotificationItems,
+  type DashboardNotificationItem,
+} from "@/lib/queries/dashboard-home";
 import { PATHNAME_HEADER } from "@/lib/security/headers";
 import "./globals.css";
 
@@ -33,13 +37,25 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     ? await getSessionUser()
     : await requireAuthenticatedUser();
 
+  let notificationItems: DashboardNotificationItem[] = [];
+  if (user && !isPublicPath(pathname)) {
+    try {
+      notificationItems = await loadNotificationItems();
+    } catch (error) {
+      // Les notifications du header ne doivent jamais bloquer l'application.
+      console.error("loadNotificationItems failed", error);
+    }
+  }
+
   return (
     <html
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans">
-        <AppShell user={user}>{children}</AppShell>
+        <AppShell user={user} notificationItems={notificationItems}>
+          {children}
+        </AppShell>
       </body>
     </html>
   );

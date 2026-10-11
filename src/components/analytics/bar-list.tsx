@@ -40,7 +40,7 @@ export function BarList({ items, emptyLabel }: BarListProps) {
               <span className="text-meta text-muted">{item.label}</span>
               <span className="text-meta tabular-nums text-foreground">{item.display}</span>
             </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-background">
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.06]">
               <div
                 className={cn("h-full rounded-full", toneClass[item.tone ?? "primary"])}
                 style={{ width: `${width}%` }}

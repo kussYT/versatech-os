@@ -10,6 +10,7 @@ import { DocumentSection } from "@/components/documents/document-section";
 import { FinanceSection } from "@/components/finances/finance-section";
 import { ProjectGithubSection } from "@/components/projects/project-github-section";
 import { ProjectStatusActions } from "@/components/projects/project-status-actions";
+import { ProjectStartDateForm } from "@/components/projects/project-start-date-form";
 import { ProjectProgress } from "@/components/projects/project-progress";
 import {
   MilestoneStatusBadge,
@@ -90,16 +91,20 @@ export function ProjectHub({ project, github, paymentOptions }: ProjectHubProps)
           </InfoItem>
           <InfoItem label="Tâches ouvertes">{openTasks}</InfoItem>
           <InfoItem label="Début">
-            {project.startDate ? formatDate(project.startDate) : "—"}
+            {project.startDate ? formatDate(project.startDate) : "Non renseigné"}
+            <ProjectStartDateForm projectId={project.id} startDate={project.startDate} />
           </InfoItem>
           <InfoItem label="Montant">
             {project.amount ? formatMoney(project.amount) : "—"}
           </InfoItem>
-          <InfoItem label="CA signé">{formatMoney(project.finance.signed)}</InfoItem>
+          <InfoItem label="Signé">{formatMoney(project.finance.signed)}</InfoItem>
+          <InfoItem label="Échéances">{formatMoney(project.finance.scheduled)}</InfoItem>
+          <InfoItem label="À encaisser">{formatMoney(project.finance.toCollect)}</InfoItem>
           <InfoItem label="Encaissé">{formatMoney(project.finance.collected)}</InfoItem>
+          <InfoItem label="Signé non encaissé">{formatMoney(project.finance.signedUncollected)}</InfoItem>
         </dl>
         {project.description ? (
-          <p className="mt-4 whitespace-pre-wrap border-t border-border pt-4 text-body text-muted">
+          <p className="mt-4 whitespace-pre-wrap border-t border-border/60 pt-4 text-body text-muted">
             {project.description}
           </p>
         ) : null}
@@ -157,7 +162,7 @@ export function ProjectHub({ project, github, paymentOptions }: ProjectHubProps)
             {project.milestones.map((milestone) => (
               <li
                 key={milestone.id}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl border border-white/70 bg-white/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -209,7 +214,7 @@ export function ProjectHub({ project, github, paymentOptions }: ProjectHubProps)
             {project.activity.map((item) => (
               <li
                 key={item.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-border bg-background/60 px-4 py-3"
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-white/70 bg-white/50 px-4 py-3"
               >
                 <p className="text-body text-foreground">
                   {ACTIVITY_LABELS[item.action] ?? item.action}
@@ -257,7 +262,7 @@ function TaskGroup({
         {tasks.map((task) => (
           <li
             key={task.id}
-            className="rounded-xl border border-border bg-background/60 px-4 py-3"
+            className="rounded-xl border border-white/70 bg-white/50 px-4 py-3"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
