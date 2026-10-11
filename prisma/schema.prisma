@@ -61,6 +61,7 @@ enum ProjectStatus {
   REVIEW
   COMPLETED
   ARCHIVED
+  ABANDONED
 }
 
 enum QuoteStatus {
@@ -70,6 +71,7 @@ enum QuoteStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+  ABANDONED
 }
 
 enum PaymentStatus {
@@ -350,6 +352,8 @@ model Quote {
   status         QuoteStatus @default(DRAFT)
   sentAt         DateTime?
   acceptedAt     DateTime?
+  abandonedAt    DateTime?
+  abandonReason  String?
   externalUrl    String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -370,6 +374,8 @@ model Project {
   startDate      DateTime?
   dueDate        DateTime?
   completedAt    DateTime?
+  abandonedAt    DateTime?
+  abandonReason  String?
   amount         Decimal?      @db.Decimal(12, 2)
   progress       Int           @default(0)
   createdAt      DateTime      @default(now())

@@ -106,6 +106,7 @@ export const QUOTE_STATUSES = [
   "ACCEPTED",
   "REJECTED",
   "EXPIRED",
+  "ABANDONED",
 ] as const satisfies readonly QuoteStatus[];
 
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
@@ -115,6 +116,7 @@ export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   ACCEPTED: "Accepté",
   REJECTED: "Refusé",
   EXPIRED: "Expiré",
+  ABANDONED: "Abandonné",
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -131,6 +133,7 @@ export const PROJECT_STATUSES = [
   "REVIEW",
   "COMPLETED",
   "ARCHIVED",
+  "ABANDONED",
 ] as const satisfies readonly ProjectStatus[];
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -140,6 +143,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   REVIEW: "Recette",
   COMPLETED: "Terminé",
   ARCHIVED: "Archivé",
+  ABANDONED: "Abandonné",
 };
 
 export const TASK_STATUSES = [

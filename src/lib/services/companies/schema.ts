@@ -75,6 +75,7 @@ export const PROJECT_STATUSES = [
   "REVIEW",
   "COMPLETED",
   "ARCHIVED",
+  "ABANDONED",
 ] as const;
 
 export const PRINCIPAL_PROJECT_SOURCES = [

@@ -18,6 +18,8 @@ const ALLOWED_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   ACCEPTED: [],
   REJECTED: [],
   EXPIRED: [],
+  /** Via `abandonAcceptedQuote` uniquement (motif + confirmation). */
+  ABANDONED: [],
 };
 
 export class QuoteWorkflowAbort extends Error {

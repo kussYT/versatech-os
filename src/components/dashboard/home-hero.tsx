@@ -46,7 +46,7 @@ export function HomeHero({ firstName, summary, insight, longDate, clock }: HomeH
         <div className="flex items-start justify-between gap-4">
           <div className="max-w-xl text-white">
             <p className="text-body font-medium text-white/90">
-              Bonjour {firstName} 👋
+              Bonjour {firstName}
             </p>
             <h1 className="mt-2 max-w-[18ch] text-[1.7rem] font-semibold tracking-[-0.03em] text-white sm:text-[2rem] lg:text-[2.15rem]">
               Concentrons-nous sur l&apos;essentiel aujourd&apos;hui.
@@ -76,7 +76,7 @@ export function HomeHero({ firstName, summary, insight, longDate, clock }: HomeH
             <p className="leading-relaxed">
               « Des idées claires pour des projets qui avancent. »
             </p>
-            <p className="mt-1.5 font-medium text-primary">✨ VersaTech</p>
+            <p className="mt-1.5 font-medium text-primary">VersaTech</p>
           </aside>
         </div>
       </div>

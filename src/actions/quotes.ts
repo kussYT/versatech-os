@@ -10,6 +10,15 @@ import { parisParts } from "@/lib/dates";
 import { revalidateFollowUps, revalidateQuotes } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
 import { applyOpportunityStageChange, type OpportunityStageTx } from "@/lib/services/opportunities/stage";
+import { getAuthSecret } from "@/lib/auth/config";
+import {
+  SENSITIVE_CONFIRMATION_TTL_MS,
+  signSensitiveIntent,
+} from "@/lib/crm/sensitive-confirmation";
+import {
+  abandonAcceptedQuote,
+  ABANDON_QUOTE_CONFIRMATION_MESSAGE,
+} from "@/lib/services/quotes/abandon";
 import {
   QuoteWorkflowAbort,
   scheduleQuoteFollowUp,
@@ -18,6 +27,7 @@ import {
 } from "@/lib/services/quotes/status";
 import { toActionResult } from "@/lib/services/_shared/result";
 import {
+  abandonAcceptedQuoteSchema,
   createQuoteSchema,
   fieldErrorsFromZod,
   updateQuoteStatusSchema,
@@ -188,6 +198,71 @@ export async function updateQuoteStatus(
   } catch (error) {
     logServerError("quotes", error);
     return { ok: false, message: "Impossible de mettre à jour le devis. Réessayez." };
+  }
+}
+
+export async function abandonQuote(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return auth.result;
+  }
+  const { actor } = auth;
+  const parsed = abandonAcceptedQuoteSchema.safeParse({
+    quoteId: readString(formData, "quoteId"),
+    reason: readString(formData, "reason"),
+    confirmationToken: readString(formData, "confirmationToken").trim() || null,
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Motif d'abandon requis (10 caractères minimum).",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+
+  try {
+    const secret = getAuthSecret();
+    const result = await abandonAcceptedQuote(parsed.data, actor, { secret });
+    if (!result.ok && result.code === "CONFIRMATION_REQUIRED") {
+      const issuedToken = signSensitiveIntent(
+        {
+          kind: "quote-abandon",
+          actorId: actor.id,
+          quoteId: parsed.data.quoteId,
+          reason: parsed.data.reason.trim(),
+          exp: Date.now() + SENSITIVE_CONFIRMATION_TTL_MS,
+        },
+        secret,
+      );
+      return {
+        ok: false,
+        message: result.message || ABANDON_QUOTE_CONFIRMATION_MESSAGE,
+        data: {
+          confirmationToken: issuedToken,
+          quoteId: parsed.data.quoteId,
+        },
+      };
+    }
+    if (!result.ok) {
+      return toActionResult(result);
+    }
+    revalidateQuotes(result.data.companyId);
+    return {
+      ok: true,
+      message:
+        "Devis clôturé sans encaissement. Il sort du prévisionnel actif ; l'historique et les encaissements restent.",
+      data: {
+        quoteId: result.data.quoteId,
+        companyId: result.data.companyId,
+        projectId: result.data.projectId ?? undefined,
+      },
+    };
+  } catch (error) {
+    logServerError("quotes", error);
+    return { ok: false, message: "Impossible de clôturer le devis. Réessayez." };
   }
 }
 

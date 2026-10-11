@@ -43,7 +43,15 @@ export type CompanyTimelineItem =
       at: string;
       reference: string;
       amount: string | null;
-      toStatus: "SENT" | "ACCEPTED" | "REJECTED";
+      toStatus: "SENT" | "ACCEPTED" | "REJECTED" | "ABANDONED";
+      reason?: string | null;
+    }
+  | {
+      kind: "projectAbandoned";
+      id: string;
+      at: string;
+      projectId: string;
+      reason: string | null;
     }
   | {
       kind: "followUp";
@@ -115,6 +123,34 @@ export function buildCompanyTimeline(input: {
         reference: metaString(log.metadata, "reference") ?? quote?.reference ?? "Devis",
         amount: metaString(log.metadata, "amountIncTax") ?? quote?.amountIncTax ?? null,
         toStatus,
+      });
+      continue;
+    }
+
+    if (log.action === "quote.abandoned") {
+      const quote = quotes.get(log.entityId);
+      items.push({
+        kind: "quote",
+        id: log.id,
+        at: log.createdAt,
+        reference: metaString(log.metadata, "reference") ?? quote?.reference ?? "Devis",
+        amount: metaString(log.metadata, "amountIncTax") ?? quote?.amountIncTax ?? null,
+        toStatus: "ABANDONED",
+        reason: metaString(log.metadata, "reason"),
+      });
+      continue;
+    }
+
+    if (
+      log.action === "project.status_changed" &&
+      metaString(log.metadata, "toStatus") === "ABANDONED"
+    ) {
+      items.push({
+        kind: "projectAbandoned",
+        id: log.id,
+        at: log.createdAt,
+        projectId: log.entityId,
+        reason: metaString(log.metadata, "reason"),
       });
       continue;
     }

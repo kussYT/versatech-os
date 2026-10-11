@@ -20,7 +20,18 @@ export const updateQuoteStatusSchema = z.object({
   status: z.enum(QUOTE_STATUSES, { error: "Statut invalide" }),
 });
 
+export const abandonAcceptedQuoteSchema = z.object({
+  quoteId: z.string().min(1, "Devis introuvable"),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "Indiquez un motif d'au moins 10 caractères")
+    .max(500, "Motif trop long"),
+  confirmationToken: z.string().trim().optional().nullable(),
+});
+
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type UpdateQuoteStatusInput = z.infer<typeof updateQuoteStatusSchema>;
+export type AbandonAcceptedQuoteInput = z.infer<typeof abandonAcceptedQuoteSchema>;
 
 export { fieldErrorsFromZod };

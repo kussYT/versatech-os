@@ -17,7 +17,26 @@ type CompanyLifecycleConfirmation = {
   lifecycle: "CLIENT" | "LOST";
 };
 
-export type SensitiveConfirmation = OpportunityStageConfirmation | CompanyLifecycleConfirmation;
+type QuoteAbandonConfirmation = {
+  kind: "quote-abandon";
+  actorId: string;
+  quoteId: string;
+  reason: string;
+};
+
+type JourneyStepConfirmation = {
+  kind: "journey-step";
+  actorId: string;
+  contextKey: string;
+  fromStep: string | null;
+  toStep: string;
+};
+
+export type SensitiveConfirmation =
+  | OpportunityStageConfirmation
+  | CompanyLifecycleConfirmation
+  | QuoteAbandonConfirmation
+  | JourneyStepConfirmation;
 
 export type SensitiveIntent = SensitiveConfirmation & { exp: number };
 
@@ -74,6 +93,19 @@ export function verifySensitiveIntent(
         parsed.kind === "company-lifecycle" &&
         parsed.companyId === expected.companyId &&
         parsed.lifecycle === expected.lifecycle
+      );
+    case "quote-abandon":
+      return (
+        parsed.kind === "quote-abandon" &&
+        parsed.quoteId === expected.quoteId &&
+        parsed.reason === expected.reason
+      );
+    case "journey-step":
+      return (
+        parsed.kind === "journey-step" &&
+        parsed.contextKey === expected.contextKey &&
+        parsed.fromStep === expected.fromStep &&
+        parsed.toStep === expected.toStep
       );
     default:
       return false;

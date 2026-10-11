@@ -13,6 +13,7 @@ const projectStatusClassName: Record<ProjectStatus, string> = {
   REVIEW: "border-cyan/30 bg-cyan/10 text-sky-700",
   COMPLETED: "border-success/30 bg-success/10 text-emerald-700",
   ARCHIVED: "border-white/70 bg-white/60 text-muted",
+  ABANDONED: "border-faint/40 bg-white/50 text-faint",
 };
 
 const taskStatusClassName: Record<TaskStatus, string> = {

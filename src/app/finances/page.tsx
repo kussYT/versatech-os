@@ -27,7 +27,7 @@ export default async function FinancesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Finances"
-        description="Pilotage du CA signé (devis acceptés), des encaissements et des échéances. Pas de comptabilité."
+        description="Pilotage du prévisionnel actif (devis acceptés, hors abandonnés), des encaissements et des échéances. Pas de comptabilité."
         actions={
           <CreatePaymentButton options={options}>
             <Plus className="size-4" aria-hidden="true" />

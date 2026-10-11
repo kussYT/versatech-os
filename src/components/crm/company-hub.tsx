@@ -26,6 +26,7 @@ import { ProjectProgress } from "@/components/projects/project-progress";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
 import { DocumentSection } from "@/components/documents/document-section";
 import { CreateQuoteDialog } from "@/components/quotes/create-quote-dialog";
+import { AbandonQuoteForm } from "@/components/quotes/abandon-quote-form";
 import { QuoteStatusActions } from "@/components/quotes/quote-status-actions";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import { FinanceSection } from "@/components/finances/finance-section";
@@ -340,12 +341,25 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
                       ? "Devis envoyé"
                       : item.toStatus === "ACCEPTED"
                         ? "Devis accepté"
-                        : "Devis refusé"}
+                        : item.toStatus === "ABANDONED"
+                          ? "Devis clôturé sans encaissement"
+                          : "Devis refusé"}
                   </p>
                   <p className="mt-1 text-meta text-muted">
                     {item.reference}
                     {item.amount && Number(item.amount) > 0 ? ` · ${formatMoney(item.amount)}` : ""}
                   </p>
+                  {item.reason ? (
+                    <p className="mt-1 text-meta text-muted">Motif · {item.reason}</p>
+                  ) : null}
+                  <p className="mt-1 font-mono text-meta text-faint">{formatDateTime(item.at)}</p>
+                </li>
+              ) : item.kind === "projectAbandoned" ? (
+                <li key={item.id} className="rounded-xl border border-white/70 bg-white/50 px-4 py-3">
+                  <p className="text-body font-medium text-foreground">Projet abandonné</p>
+                  {item.reason ? (
+                    <p className="mt-1 text-meta text-muted">Motif · {item.reason}</p>
+                  ) : null}
                   <p className="mt-1 font-mono text-meta text-faint">{formatDateTime(item.at)}</p>
                 </li>
               ) : item.kind === "followUp" ? (
@@ -514,7 +528,7 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
                     {quote.acceptedAt ? ` · Accepté ${formatDate(quote.acceptedAt)}` : ""}
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:items-end">
                   <QuoteStatusBadge status={quote.status} />
                   <QuoteStatusActions
                     quoteId={quote.id}
@@ -537,6 +551,16 @@ export function CompanyHub({ company, paymentOptions, journeyBoard }: CompanyHub
                         : undefined
                     }
                   />
+                  {quote.status === "ACCEPTED" ? (
+                    <AbandonQuoteForm
+                      quoteId={quote.id}
+                      reference={quote.reference}
+                      amountLabel={formatMoney(quote.amountIncTax)}
+                    />
+                  ) : null}
+                  {quote.status === "ABANDONED" && quote.abandonReason ? (
+                    <p className="text-meta text-faint">Motif · {quote.abandonReason}</p>
+                  ) : null}
                 </div>
               </li>
             ))}

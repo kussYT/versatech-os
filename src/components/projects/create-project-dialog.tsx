@@ -100,7 +100,9 @@ function CreateProjectForm({
           defaultValue="PLANNED"
           className={controlClassName}
         >
-          {PROJECT_STATUSES.filter((status) => status !== "ARCHIVED").map((status) => (
+          {PROJECT_STATUSES.filter(
+            (status) => status !== "ARCHIVED" && status !== "ABANDONED",
+          ).map((status) => (
             <option key={status} value={status}>
               {PROJECT_STATUS_LABELS[status]}
             </option>

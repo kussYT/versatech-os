@@ -3,7 +3,12 @@ import "server-only";
 import { requireAuthenticatedUser } from "@/lib/auth/dal";
 
 import type { PaymentStatus, QuoteStatus } from "@/generated/prisma/client";
-import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
+import {
+  computeFinanceTotals,
+  effectivePaymentStatus,
+  neutralizeOpenPaymentsOnAbandonedQuotes,
+  type FinanceTotals,
+} from "@/lib/finance";
 import { centsToMoneyString, parseMoneyToCents } from "@/lib/money";
 import { prisma } from "@/lib/db/prisma";
 
@@ -120,10 +125,18 @@ function paymentWhere(scope: FinanceScope) {
 
 /** Caller must authenticate. READ aggregates via computeFinanceTotals (money strings). */
 export async function loadFinanceSnapshot(scope: FinanceScope = {}, now = new Date()) {
-  const [quotes, payments] = await Promise.all([
+  const [quotes, abandonedQuotes, payments] = await Promise.all([
     prisma.quote.findMany({
       where: quoteWhere(scope),
       select: { id: true, amountIncTax: true, projectId: true },
+    }),
+    prisma.quote.findMany({
+      where: {
+        status: "ABANDONED",
+        ...(scope.companyId ? { companyId: scope.companyId } : {}),
+        ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      },
+      select: { id: true },
     }),
     prisma.payment.findMany({
       where: paymentWhere(scope),
@@ -131,12 +144,8 @@ export async function loadFinanceSnapshot(scope: FinanceScope = {}, now = new Da
     }),
   ]);
 
-  return computeFinanceTotals(
-    quotes.map((quote) => ({
-      id: quote.id,
-      amount: quote.amountIncTax.toString(),
-      projectId: quote.projectId,
-    })),
+  const abandonedQuoteIds = new Set(abandonedQuotes.map((quote) => quote.id));
+  const paymentLines = neutralizeOpenPaymentsOnAbandonedQuotes(
     payments.map((payment) => ({
       amount: payment.amount.toString(),
       status: payment.status,
@@ -144,6 +153,17 @@ export async function loadFinanceSnapshot(scope: FinanceScope = {}, now = new Da
       quoteId: payment.quoteId,
       projectId: payment.projectId,
     })),
+    abandonedQuoteIds,
+    now,
+  );
+
+  return computeFinanceTotals(
+    quotes.map((quote) => ({
+      id: quote.id,
+      amount: quote.amountIncTax.toString(),
+      projectId: quote.projectId,
+    })),
+    paymentLines,
     now,
   );
 }

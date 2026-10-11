@@ -14,6 +14,7 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   "opportunity.stage_changed": "Stage d'opportunité modifié",
   "quote.created": "Devis créé",
   "quote.status_changed": "Statut de devis modifié",
+  "quote.abandoned": "Devis clôturé sans encaissement",
   "project.created": "Projet créé",
   "project.status_changed": "Statut de projet modifié",
   "project.start_date_changed": "Date de début du projet enregistrée",

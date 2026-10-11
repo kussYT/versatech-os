@@ -138,12 +138,13 @@ export async function createProject(
 }
 
 const ALLOWED_PROJECT_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
-  PLANNED: ["ACTIVE"],
-  ACTIVE: ["WAITING_CLIENT", "REVIEW", "COMPLETED"],
-  WAITING_CLIENT: ["ACTIVE", "REVIEW"],
-  REVIEW: ["ACTIVE", "COMPLETED"],
+  PLANNED: ["ACTIVE", "ABANDONED"],
+  ACTIVE: ["WAITING_CLIENT", "REVIEW", "COMPLETED", "ABANDONED"],
+  WAITING_CLIENT: ["ACTIVE", "REVIEW", "ABANDONED"],
+  REVIEW: ["ACTIVE", "COMPLETED", "ABANDONED"],
   COMPLETED: ["ARCHIVED"],
   ARCHIVED: [],
+  ABANDONED: [],
 };
 
 export async function updateProjectStatus(
@@ -206,6 +207,8 @@ export async function updateProjectStatus(
           startDate,
           completedAt:
             input.status === "COMPLETED" ? now : existing.completedAt,
+          abandonedAt:
+            input.status === "ABANDONED" ? now : existing.abandonedAt,
         },
       });
 

@@ -28,6 +28,7 @@ async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
       }),
       prisma.quote.findMany({
         select: {
+          id: true,
           sentAt: true,
           acceptedAt: true,
           updatedAt: true,
@@ -39,7 +40,7 @@ async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
         select: { status: true, completedAt: true },
       }),
       prisma.payment.findMany({
-        select: { amount: true, status: true, paidAt: true },
+        select: { amount: true, status: true, paidAt: true, quoteId: true },
       }),
       prisma.maintenanceContract.findMany({
         select: { monthlyAmount: true, status: true, startDate: true, endDate: true },
@@ -58,6 +59,7 @@ async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
       lostAt: opportunity.lostAt,
     })),
     quotes: quotes.map((quote) => ({
+      id: quote.id,
       sentAt: quote.sentAt,
       acceptedAt: quote.acceptedAt,
       updatedAt: quote.updatedAt,
@@ -69,6 +71,7 @@ async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
       amount: payment.amount.toString(),
       status: payment.status,
       paidAt: payment.paidAt,
+      quoteId: payment.quoteId,
     })),
     contracts: contracts.map((contract) => ({
       monthlyAmount: contract.monthlyAmount.toString(),

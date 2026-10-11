@@ -67,7 +67,7 @@ export function HomeKpis({
     {
       label: "Signé non encaissé",
       value: formatMoney(finance.signedUncollected),
-      hint: `Signé ${formatMoney(finance.signed)} · hors échéances`,
+      hint: `Prévisionnel actif ${formatMoney(finance.signed)} · hors abandonnés`,
       href: "/finances",
       linkLabel: "Voir le détail",
       icon: Wallet,

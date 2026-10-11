@@ -91,4 +91,32 @@ describe("buildCompanyTimeline", () => {
       ["followUp", "quote"],
     );
   });
+
+  test("montre une clôture sans encaissement avec motif", () => {
+    const items = buildCompanyTimeline({
+      interactions: [],
+      opportunities: [],
+      quotes: [{ id: "q_1", reference: "DEV-2026-001", amountIncTax: "3200.00" }],
+      logs: [
+        {
+          id: "log_abandon",
+          action: "quote.abandoned",
+          entityId: "q_1",
+          createdAt: "2026-10-11T14:33:00.000Z",
+          metadata: {
+            reference: "DEV-2026-001",
+            amountIncTax: "3200.00",
+            reason: "Projet abandonné, aucun encaissement prévu.",
+          },
+        },
+      ],
+    });
+    assert.equal(items.length, 1);
+    const item = items[0];
+    assert.equal(item?.kind, "quote");
+    if (item?.kind === "quote") {
+      assert.equal(item.toStatus, "ABANDONED");
+      assert.equal(item.reason, "Projet abandonné, aucun encaissement prévu.");
+    }
+  });
 });

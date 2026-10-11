@@ -37,7 +37,7 @@ export function FinanceSection({
           <h2 className="text-section text-foreground">Finances</h2>
           <dl className="mt-2 grid gap-1.5 text-meta sm:grid-cols-2">
             <div className="flex justify-between gap-3 sm:block">
-              <dt className="text-muted">Devis signé</dt>
+              <dt className="text-muted">Devis signés actifs</dt>
               <dd className="font-medium tabular-nums text-foreground">{formatMoney(totals.signed)}</dd>
             </div>
             <div className="flex justify-between gap-3 sm:block">

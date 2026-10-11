@@ -21,7 +21,10 @@ import {
   type AnalyticsPeriod,
   type InstantRange,
 } from "@/lib/dates";
-import { computeFinanceTotals } from "@/lib/finance";
+import {
+  computeFinanceTotals,
+  neutralizeOpenPaymentsOnAbandonedQuotes,
+} from "@/lib/finance";
 import { computeMrr } from "@/lib/maintenance/mrr";
 import { averageMoney, sumMoney, weightedMoney } from "@/lib/money";
 import { isTerrainVisit } from "@/lib/prospection/visit";
@@ -62,6 +65,7 @@ export type AnalyticsOpportunityRow = {
 };
 
 export type AnalyticsQuoteRow = {
+  id?: string;
   sentAt: Date | null;
   acceptedAt: Date | null;
   updatedAt: Date;
@@ -78,6 +82,7 @@ export type AnalyticsPaymentRow = {
   amount: string;
   status: PaymentStatus;
   paidAt: Date | null;
+  quoteId?: string | null;
 };
 
 export type AnalyticsContractRow = {
@@ -230,14 +235,26 @@ export function computeAnalytics(
       .map((payment) => payment.amount),
   );
 
+  const abandonedQuoteIds = new Set(
+    snapshot.quotes
+      .filter((quote) => quote.status === "ABANDONED" && quote.id)
+      .map((quote) => quote.id as string),
+  );
+  const activePayments = neutralizeOpenPaymentsOnAbandonedQuotes(
+    snapshot.payments.map((payment) => ({
+      amount: payment.amount,
+      status: payment.status,
+      quoteId: payment.quoteId ?? null,
+    })),
+    abandonedQuoteIds,
+    now,
+  );
+
   const stock = computeFinanceTotals(
     snapshot.quotes
       .filter((quote) => quote.status === "ACCEPTED")
       .map((quote) => quote.amountIncTax),
-    snapshot.payments.map((payment) => ({
-      amount: payment.amount,
-      status: payment.status,
-    })),
+    activePayments,
     now,
   );
 
@@ -284,7 +301,7 @@ export function computeAnalytics(
       collected: collectedPeriod,
       remaining: stock.remaining,
       expectedPayments: sumMoney(
-        snapshot.payments
+        activePayments
           .filter((payment) => payment.status === "PENDING" || payment.status === "OVERDUE")
           .map((payment) => payment.amount),
       ),

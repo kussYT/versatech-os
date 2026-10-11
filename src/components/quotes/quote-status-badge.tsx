@@ -9,6 +9,7 @@ const quoteStatusClassName: Record<QuoteStatus, string> = {
   ACCEPTED: "border-success/30 bg-success/10 text-emerald-700",
   REJECTED: "border-danger/30 bg-danger/10 text-red-600",
   EXPIRED: "border-warning/30 bg-warning/10 text-amber-700",
+  ABANDONED: "border-faint/40 bg-white/50 text-faint",
 };
 
 type QuoteStatusBadgeProps = {

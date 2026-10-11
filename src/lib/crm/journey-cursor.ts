@@ -248,3 +248,33 @@ export function visibleJourneyCursor(
   });
   return cursors.find((cursor) => cursor.contextKey === predecessor) ?? null;
 }
+
+export function declaredJourneyStepIndex(step: DeclaredJourneyStep) {
+  return DECLARED_JOURNEY_STEPS.indexOf(step);
+}
+
+/**
+ * Un retour avant le dernier fait attesté est autorisé, mais crée une incohérence
+ * apparente : l'étape déclarée et les faits divergent. Confirmation UI requise.
+ */
+export function assessDeclaredStepChange(input: {
+  target: DeclaredJourneyStep;
+  currentDeclared: DeclaredJourneyStep | null;
+  factsFurthestCompleted: DeclaredJourneyStep | null;
+}) {
+  const targetIndex = declaredJourneyStepIndex(input.target);
+  const factsIndex = input.factsFurthestCompleted
+    ? declaredJourneyStepIndex(input.factsFurthestCompleted)
+    : -1;
+  const inconsistent = factsIndex >= 0 && targetIndex < factsIndex;
+  const completedFactsAfter =
+    inconsistent && input.factsFurthestCompleted
+      ? DECLARED_JOURNEY_STEPS.slice(targetIndex + 1, factsIndex + 1)
+      : [];
+
+  return {
+    unchanged: input.currentDeclared === input.target,
+    inconsistent,
+    completedFactsAfter,
+  };
+}

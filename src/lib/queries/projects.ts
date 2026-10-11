@@ -10,7 +10,12 @@ import type {
   TaskStatus,
 } from "@/generated/prisma/client";
 import { OPEN_TASK_STATUSES, projectProgress } from "@/lib/crm/constants";
-import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
+import {
+  computeFinanceTotals,
+  effectivePaymentStatus,
+  neutralizeOpenPaymentsOnAbandonedQuotes,
+  type FinanceTotals,
+} from "@/lib/finance";
 import { prisma } from "@/lib/db/prisma";
 import {
   listDocumentsForProject,
@@ -336,13 +341,20 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
           amount: quote.amountIncTax.toString(),
           projectId: project.id,
         })),
-      project.payments.map((payment) => ({
-        amount: payment.amount.toString(),
-        status: payment.status,
-        dueAt: payment.dueAt,
-        quoteId: payment.quote?.id ?? null,
-        projectId: payment.project?.id ?? project.id,
-      })),
+      neutralizeOpenPaymentsOnAbandonedQuotes(
+        project.payments.map((payment) => ({
+          amount: payment.amount.toString(),
+          status: payment.status,
+          dueAt: payment.dueAt,
+          quoteId: payment.quote?.id ?? null,
+          projectId: payment.project?.id ?? project.id,
+        })),
+        new Set(
+          project.quotes
+            .filter((quote) => quote.status === "ABANDONED")
+            .map((quote) => quote.id),
+        ),
+      ),
     ),
     documents,
   };

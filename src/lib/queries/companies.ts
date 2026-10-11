@@ -25,7 +25,12 @@ import { listJourneyContexts } from "@/lib/crm/journey-cursor";
 import { selectPrincipalPrestation } from "@/lib/crm/principal-prestation";
 import { allowedManualLifecycles, type CompanyLifecycleFacts } from "@/lib/crm/lifecycle";
 import { endOfToday } from "@/lib/crm/form-data";
-import { computeFinanceTotals, effectivePaymentStatus, type FinanceTotals } from "@/lib/finance";
+import {
+  computeFinanceTotals,
+  effectivePaymentStatus,
+  neutralizeOpenPaymentsOnAbandonedQuotes,
+  type FinanceTotals,
+} from "@/lib/finance";
 import { prisma } from "@/lib/db/prisma";
 import {
   listDocumentsForCompany,
@@ -172,6 +177,8 @@ export type CompanyDetail = {
     createdAt: string;
     sentAt: string | null;
     acceptedAt: string | null;
+    abandonedAt: string | null;
+    abandonReason: string | null;
     projectId: string | null;
     opportunityId: string;
     opportunityTitle: string;
@@ -611,6 +618,8 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
           createdAt: true,
           sentAt: true,
           acceptedAt: true,
+          abandonedAt: true,
+          abandonReason: true,
           projectId: true,
           opportunityId: true,
           opportunity: { select: { title: true } },
@@ -660,7 +669,16 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
                 {
                   entityType: "Quote",
                   entityId: { in: quoteIds },
-                  action: "quote.status_changed",
+                  action: { in: ["quote.status_changed", "quote.abandoned"] },
+                },
+              ]
+            : []),
+          ...(company.projects.length > 0
+            ? [
+                {
+                  entityType: "Project",
+                  entityId: { in: company.projects.map((project) => project.id) },
+                  action: "project.status_changed",
                 },
               ]
             : []),
@@ -862,6 +880,8 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
       createdAt: quote.createdAt.toISOString(),
       sentAt: quote.sentAt?.toISOString() ?? null,
       acceptedAt: quote.acceptedAt?.toISOString() ?? null,
+      abandonedAt: quote.abandonedAt?.toISOString() ?? null,
+      abandonReason: quote.abandonReason,
       projectId: quote.projectId,
       opportunityId: quote.opportunityId,
       opportunityTitle: quote.opportunity.title,
@@ -923,13 +943,20 @@ export async function loadCompanyDetail(id: string): Promise<CompanyDetail | nul
           amount: quote.amountIncTax.toString(),
           projectId: quote.projectId,
         })),
-      company.payments.map((payment) => ({
-        amount: payment.amount.toString(),
-        status: payment.status,
-        dueAt: payment.dueAt,
-        quoteId: payment.quoteId,
-        projectId: payment.projectId,
-      })),
+      neutralizeOpenPaymentsOnAbandonedQuotes(
+        company.payments.map((payment) => ({
+          amount: payment.amount.toString(),
+          status: payment.status,
+          dueAt: payment.dueAt,
+          quoteId: payment.quoteId,
+          projectId: payment.projectId,
+        })),
+        new Set(
+          company.quotes
+            .filter((quote) => quote.status === "ABANDONED")
+            .map((quote) => quote.id),
+        ),
+      ),
     ),
     documents,
     maintenanceContracts,

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { AbandonQuoteForm } from "@/components/quotes/abandon-quote-form";
 import { QuoteStatusActions } from "@/components/quotes/quote-status-actions";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import { Card } from "@/components/ui/card";
@@ -92,7 +93,16 @@ export function QuoteExplorer({ quotes }: QuoteExplorerProps) {
                     {formatDateTime(quote.relevantAt)}
                   </p>
                 </div>
-                <QuoteStatusActions quoteId={quote.id} status={quote.status} />
+                <div className="flex w-full max-w-sm flex-col items-stretch gap-2 lg:items-end">
+                  <QuoteStatusActions quoteId={quote.id} status={quote.status} />
+                  {quote.status === "ACCEPTED" ? (
+                    <AbandonQuoteForm
+                      quoteId={quote.id}
+                      reference={quote.reference}
+                      amountLabel={formatMoney(quote.amountIncTax)}
+                    />
+                  ) : null}
+                </div>
               </div>
             </article>
           ))}

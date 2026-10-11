@@ -4,6 +4,7 @@ import { centsToMoneyString, parseMoneyToCents } from "./money";
 import {
   computeFinanceTotals,
   effectivePaymentStatus,
+  neutralizeOpenPaymentsOnAbandonedQuotes,
   PAYMENT_STATUSES,
   persistPaymentStatus,
   quotePaymentCapacity,
@@ -173,6 +174,33 @@ describe("computeFinanceTotals", () => {
       centsToMoneyString(parseMoneyToCents(totals.collected) + parseMoneyToCents(totals.remaining)),
       totals.signed,
     );
+  });
+});
+
+describe("neutralizeOpenPaymentsOnAbandonedQuotes", () => {
+  const now = PARIS_NOON("2026-10-11");
+
+  it("neutralise PENDING/OVERDUE d'un devis abandonné sans toucher aux PAID", () => {
+    const lines = neutralizeOpenPaymentsOnAbandonedQuotes(
+      [
+        { amount: "1000.00", status: "PAID", quoteId: "q-ab" },
+        { amount: "500.00", status: "PENDING", quoteId: "q-ab", dueAt: PARIS_NOON("2026-11-01") },
+        { amount: "300.00", status: "OVERDUE", quoteId: "q-ab", dueAt: PARIS_NOON("2026-09-01") },
+        { amount: "200.00", status: "PENDING", quoteId: "q-ok", dueAt: PARIS_NOON("2026-11-01") },
+      ],
+      new Set(["q-ab"]),
+      now,
+    );
+
+    assert.equal(lines[0]?.status, "PAID");
+    assert.equal(lines[1]?.status, "CANCELED");
+    assert.equal(lines[2]?.status, "CANCELED");
+    assert.equal(lines[3]?.status, "PENDING");
+
+    const totals = computeFinanceTotals([{ id: "q-ok", amount: "200.00" }], lines, now);
+    assert.equal(totals.collected, "1000.00");
+    assert.equal(totals.toCollect, "200.00");
+    assert.equal(totals.overdue, "0.00");
   });
 });
 

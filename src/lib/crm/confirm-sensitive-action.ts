@@ -18,6 +18,10 @@ export const SENSITIVE_ACTION_CONFIRMS = {
   projectCompleted:
     "Marquer ce projet comme terminé ? Cela clôt le développement et compte comme mise en ligne.",
   projectArchived: "Archiver ce projet ? Il sortira des projets actifs.",
+  quoteAbandoned:
+    "Clôturer ce devis accepté sans encaissement ? Il sortira du prévisionnel actif. Les paiements déjà encaissés restent. Les échéances ouvertes seront annulées.",
+  journeyStepBackward:
+    "Revenir à une étape antérieure alors que des faits plus avancés existent ? L'étape déclarée sera mise à jour ; devis, paiements et projets restent inchangés.",
   unlinkGithub: (repo: string) =>
     `Retirer l'association GitHub « ${repo} » de ce projet ? Le dépôt ne sera plus lié dans VersaTech OS.`,
   removeTourCompany: (companyName: string) =>

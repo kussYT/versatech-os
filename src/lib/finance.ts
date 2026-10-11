@@ -31,7 +31,7 @@ export type FinancePaymentLine = {
 };
 
 export type FinanceTotals = {
-  /** Somme des devis acceptés. Ni opportunité, ni montant de projet. */
+  /** Somme des devis ACCEPTED actifs (prévisionnel). Les ABANDONED sont exclus par les callers. */
   signed: string;
   /** Paiements confirmés (PAID), chacun une fois. */
   collected: string;
@@ -106,6 +106,32 @@ function paymentIsAssociated(payment: FinancePaymentLine, quotes: readonly Finan
   }
 
   return false;
+}
+
+/**
+ * Défense en profondeur : une échéance PENDING/OVERDUE rattachée à un devis ABANDONED
+ * ne doit jamais alimenter « à encaisser » / « en retard ». Les PAID restent comptés.
+ * L'abandon annule déjà ces échéances en base ; ce filtre couvre les écarts résiduels.
+ */
+export function neutralizeOpenPaymentsOnAbandonedQuotes(
+  payments: readonly FinancePaymentLine[],
+  abandonedQuoteIds: ReadonlySet<string>,
+  now = new Date(),
+): FinancePaymentLine[] {
+  if (abandonedQuoteIds.size === 0) {
+    return [...payments];
+  }
+
+  return payments.map((payment) => {
+    if (!payment.quoteId || !abandonedQuoteIds.has(payment.quoteId)) {
+      return payment;
+    }
+    const effective = effectivePaymentStatus(payment.status, payment.dueAt ?? null, now);
+    if (effective === "PENDING" || effective === "OVERDUE") {
+      return { ...payment, status: "CANCELED" };
+    }
+    return payment;
+  });
 }
 
 export function computeFinanceTotals(

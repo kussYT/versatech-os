@@ -12,7 +12,7 @@ export function FinanceKpis({ totals }: FinanceKpisProps) {
     {
       label: "CA signé",
       icon: Euro,
-      hint: "Devis acceptés, sans les opportunités ni les projets",
+      hint: "Devis acceptés actifs — hors abandonnés",
       value: formatMoney(totals.signed),
       premium: true,
       tone: "gold" as const,
@@ -42,7 +42,7 @@ export function FinanceKpis({ totals }: FinanceKpisProps) {
     {
       label: "Signé non encaissé",
       icon: Wallet,
-      hint: "Devis acceptés diminués des encaissements liés",
+      hint: "Prévisionnel actif : acceptés actifs − encaissements liés",
       value: formatMoney(totals.signedUncollected),
       tone: "blue" as const,
     },
