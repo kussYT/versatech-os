@@ -3,7 +3,7 @@ import { CalendarKindBadge } from "@/components/calendar/calendar-kind-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDayTitle, formatTime } from "@/lib/calendar/dates";
-import { calendarItemLabel } from "@/lib/calendar/labels";
+import { calendarItemLabel, googlePushStatusLabel } from "@/lib/calendar/labels";
 import type { CalendarItem } from "@/lib/calendar/types";
 import { formatDateTime } from "@/lib/crm/form-data";
 import { cn } from "@/lib/cn";
@@ -35,6 +35,7 @@ export function CalendarDayPanel({
     <ul className="space-y-2">
       {items.map((entry) => {
         const selected = selectedId === entry.id;
+        const pushStatus = googlePushStatusLabel(entry);
         return (
           <li key={entry.id}>
             <article
@@ -84,6 +85,22 @@ export function CalendarDayPanel({
                       {entry.visitStatus === "visited" ? "Visitée" : "À visiter"}
                     </p>
                   ) : null}
+                  {entry.externalProvider === "google" && entry.syncStatus === "imported" ? (
+                    <p className="text-meta text-sky-800">
+                      Importé depuis Google Calendar (lecture seule ici).
+                    </p>
+                  ) : null}
+                  {pushStatus ? (
+                    <p
+                      className={
+                        entry.syncStatus?.startsWith("error:")
+                          ? "text-meta text-danger"
+                          : "text-meta text-muted"
+                      }
+                    >
+                      {pushStatus}
+                    </p>
+                  ) : null}
                   {entry.project ? (
                     <Link
                       href={`/projets/${entry.project.id}`}
@@ -94,9 +111,30 @@ export function CalendarDayPanel({
                   ) : null}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {entry.href ? (
-                      <Link href={entry.href} className={buttonVariants({ variant: "secondary", size: "sm" })}>
-                        Ouvrir
-                      </Link>
+                      entry.href.startsWith("http") ? (
+                        <a
+                          href={entry.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={buttonVariants({ variant: "secondary", size: "sm" })}
+                        >
+                          Ouvrir dans Google
+                        </a>
+                      ) : (
+                        <Link href={entry.href} className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                          Ouvrir
+                        </Link>
+                      )
+                    ) : null}
+                    {entry.htmlLink && !entry.href?.startsWith("http") ? (
+                      <a
+                        href={entry.htmlLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={buttonVariants({ variant: "secondary", size: "sm" })}
+                      >
+                        Voir dans Google
+                      </a>
                     ) : null}
                     {entry.secondaryHref ? (
                       <Link

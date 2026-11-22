@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { useDismissibleMenu } from "@/components/layout/use-dismissible-menu";
 import type { SessionUser } from "@/lib/auth/types";
@@ -45,6 +46,17 @@ export function UserMenu({ user, className }: UserMenuProps) {
             <p className="truncate font-mono text-[11px] text-muted">{user.email}</p>
           </div>
           <div className="border-t border-border/60 pt-1">
+            <Link
+              href="/parametres"
+              className="flex min-h-11 items-center rounded-xl px-3 text-body text-muted transition-colors duration-hover hover:bg-black/[0.04] hover:text-foreground"
+              onClick={() => {
+                if (open) {
+                  toggle();
+                }
+              }}
+            >
+              Paramètres
+            </Link>
             <LogoutButton />
           </div>
         </div>

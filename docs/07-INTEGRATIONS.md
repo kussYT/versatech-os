@@ -16,15 +16,28 @@ Lecture V1 :
 Sécurité : token serveur uniquement, permissions minimales, jamais dans le navigateur.
 Variable : GITHUB_TOKEN (optionnelle). Sans token, l'association locale reste possible ; l'activité live est masquée.
 
-CALENDRIER
-Source de vérité : CalendarEvent interne.
-Puis synchronisation Google Calendar éventuelle.
-V1 sync souhaitée :
-- créer/mettre à jour les RDV VersaTech dans calendrier externe ;
-- conserver externalId ;
-- gérer erreurs et conflits ;
-- afficher lastSyncedAt.
-Ne pas supprimer silencieusement un événement métier si le fournisseur externe échoue.
+CALENDRIER / GOOGLE CALENDAR (V2.3 — figé)
+Direction : Google Calendar → VersaTech OS en lecture, avec push optionnel des rendez-vous CRM (CalendarEvent type MEETING uniquement) vers Google.
+Décisions validées :
+- Google est la source de vérité pour les événements **importés**.
+- Les rendez-vous CRM restent pilotés depuis VersaTech OS.
+- Uniquement les CalendarEvent de type rendez-vous/réunion sont poussés (pas de relances, tâches, visites terrain).
+- Aucun doublon lors des synchronisations (`externalProvider` + `externalId` uniques).
+- Aucune suppression automatique dans Google sans confirmation explicite.
+- Les événements Google importés sont clairement identifiables dans le planning.
+- Le push vers Google est optionnel (paramètre de connexion, désactivé par défaut).
+- V2.3.1 : si le push est activé, chaque création/modification d’un RDV CRM (`CalendarEvent` type MEETING) déclenche un push ciblé automatique (idempotent via `externalId`). Le rattrapage manuel reste disponible. Échec Google ≠ échec CRM.
+- Fuseau : Europe/Paris par défaut ; respecter les fuseaux des événements Google.
+- Connexion / déconnexion depuis Paramètres.
+- Tokens OAuth chiffrés côté serveur uniquement.
+- Première connexion : aucun écriture dans Google (pas de push tant que non activé ; pas de mutation des événements Google existants).
+
+Variables serveur (jamais exposées au navigateur) :
+- GOOGLE_CLIENT_ID
+- GOOGLE_CLIENT_SECRET
+- GOOGLE_REDIRECT_URI (ex. http://localhost:3000/api/integrations/google/oauth/callback)
+
+Scopes minimaux : `openid`, `email`, `https://www.googleapis.com/auth/calendar.events` (events du calendrier sélectionné).
 
 GOOGLE DRIVE / STOCKAGE
 V1 : Document peut contenir une URL externe.
@@ -44,9 +57,7 @@ V1 : référence, montant, statut, lien externe saisi manuellement.
 Intégration API seulement si disponible, stable et utile.
 
 IA
-VersaTech AI (ADR-014) : tools contrôlés → services métier → Prisma. Inférence par défaut : Ollama auto-hébergé sur la même machine (`http://127.0.0.1:11434`, modèle `qwen3:1.7b`). Pas de clé API. Le navigateur ne parle qu'à `/api/ai/chat`. Ne pas publier Ollama (pas de reverse-proxy Caddy sur :11434). OpenAI / Anthropic / Google restent optionnels et explicites, sans fallback payant automatique.
-Recherche web : un seul adapter SearXNG (SSRF, budget serveur). Pas de `fetch` arbitraire dans l'agent.
-L'IA ne doit pas modifier silencieusement les données critiques (WRITE avec confirmation serveur ; CRITICAL interdit).
+VersaTech AI (ADR-014) est **retirée en V2.3**. Pas de surface `/api/ai`, pas de panel, pas d'Ollama câblé. Ne pas réintroduire sans phase explicite. La table `AiActionConsumption` peut rester en base pour l'historique des migrations.
 
 WEB / PROSPECTION
 Éventuelle intégration future pour enrichir un prospect : site, présence web, informations publiques. Toute donnée doit afficher sa provenance et sa date de récupération si automatisée.

@@ -30,4 +30,20 @@ describe("company dialogs keep typed values", () => {
     assert.match(editDialog, /value=\{form\.description\}/);
     assert.match(editDialog, /value=\{form\.contactEmail\}/);
   });
+
+  test("create dialog keeps express UX: name first, extras collapsed, duplicate search", () => {
+    assert.match(createDialog, /Seul le nom est obligatoire/);
+    assert.match(createDialog, /Plus d&apos;informations|Plus d'informations/);
+    assert.match(createDialog, /searchProspectDuplicates/);
+    assert.match(createDialog, /Créer quand même/);
+    assert.match(createDialog, /Ouvrir cette entreprise/);
+    // Optional fields must live under the collapsed section, not above it.
+    const moreMarker = createDialog.indexOf("prospect-more-info");
+    const instagramField = createDialog.indexOf('id="prospect-instagram"');
+    const sourceField = createDialog.indexOf('id="prospect-source"');
+    assert.ok(moreMarker > 0);
+    assert.ok(instagramField > moreMarker);
+    assert.ok(sourceField > moreMarker);
+  });
 });
+

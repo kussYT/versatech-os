@@ -3,7 +3,6 @@
  *
  * Consommé par `TodayService.getTodayOverview` (même composition que
  * `src/app/page.tsx`). Pas de Prisma, pas de `href`, pas de secrets.
- * Champs : `docs/VERSATECH-AI-TOOLS-V1.md` §3.1 + projection dashboard Agent B.
  *
  * Money = strings canoniques `centsToMoneyString` (ex. `"1234.56"`).
  * Instants = ISO 8601 (`Date.toISOString()`). Jour civil = `YYYY-MM-DD` Paris.
@@ -17,8 +16,6 @@ import { tryParseMoneyToCents, ZERO_MONEY } from "@/lib/money";
 
 /**
  * Plafonds des listes — dashboard `page.tsx` + mapper `map-overview.ts`.
- * (tools V1 citait 8/8/8/20 pour un tool isolé ; l'overview compose les
- * mêmes `take` que l'UI.)
  */
 export const TODAY_OVERVIEW_LIMITS = {
   /** `listCompaniesToCall(5)` / `TODAY_CALLS_LIMIT` */
@@ -31,8 +28,7 @@ export const TODAY_OVERVIEW_LIMITS = {
   recentActivity: 8,
   /**
    * Journée Paris fusionnée (events + relances + tâches + jalons + TourStops).
-   * L'UI n'avait pas de `take` ; 100 borne le payload sans clipper une tournée
-   * (plafond stops 50) plus le reste de l'agenda. Tools V1 isolé citait 20.
+   * 100 borne le payload sans clipper une tournée (plafond stops 50).
    */
   agenda: 100,
   /** `getTourDashboard().nextNames` / `nextStops` */

@@ -30,6 +30,10 @@ export type CalendarItem = {
   project: CalendarLink | null;
   editable: boolean;
   overdue: boolean;
+  /** Présent si l'événement vient de Google Calendar (import ou push lié). */
+  externalProvider?: string | null;
+  syncStatus?: string | null;
+  htmlLink?: string | null;
   visitOrder?: number | null;
   visitStatus?: "pending" | "visited" | null;
   secondaryHref?: string | null;

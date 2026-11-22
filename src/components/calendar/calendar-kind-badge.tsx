@@ -16,6 +16,7 @@ const kindBadgeVariants = cva(
         milestone: "border-purple/30 bg-purple/10 text-violet-700",
         terrain: "border-cyan/40 bg-cyan/15 text-sky-700",
         admin: "border-white/70 bg-white/60 text-faint",
+        google: "border-sky-400/40 bg-sky-100/80 text-sky-800",
       },
     },
     defaultVariants: {
@@ -25,6 +26,9 @@ const kindBadgeVariants = cva(
 );
 
 function toneFor(item: CalendarItem): NonNullable<VariantProps<typeof kindBadgeVariants>["tone"]> {
+  if (item.externalProvider === "google" && item.syncStatus === "imported") {
+    return "google";
+  }
   if (item.kind === "follow_up") {
     return "follow_up";
   }

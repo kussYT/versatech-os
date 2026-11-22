@@ -38,6 +38,9 @@ function item(input: {
   project: LinkRef;
   editable: boolean;
   overdue: boolean;
+  externalProvider?: string | null;
+  syncStatus?: string | null;
+  htmlLink?: string | null;
   visitOrder?: number | null;
   visitStatus?: "pending" | "visited" | null;
   secondaryHref?: string | null;
@@ -56,6 +59,9 @@ function item(input: {
     project: input.project,
     editable: input.editable,
     overdue: input.overdue,
+    externalProvider: input.externalProvider ?? null,
+    syncStatus: input.syncStatus ?? null,
+    htmlLink: input.htmlLink ?? null,
     visitOrder: input.visitOrder ?? null,
     visitStatus: input.visitStatus ?? null,
     secondaryHref: input.secondaryHref ?? null,
@@ -96,6 +102,7 @@ export async function loadCalendarItems(
       where: {
         startsAt: { lte: rangeEnd },
         endsAt: { gte: rangeStart },
+        NOT: { syncStatus: "remote_deleted" },
       },
       select: {
         id: true,
@@ -106,6 +113,9 @@ export async function loadCalendarItems(
         allDay: true,
         companyId: true,
         projectId: true,
+        externalProvider: true,
+        syncStatus: true,
+        htmlLink: true,
         company: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
       },
@@ -177,8 +187,10 @@ export async function loadCalendarItems(
   ]);
 
   return mergeCalendarItems([
-    events.map((event) =>
-      item({
+    events.map((event) => {
+      const googleImported =
+        event.externalProvider === "google" && event.syncStatus === "imported";
+      return item({
         kind: "event",
         entityId: event.id,
         title: event.title,
@@ -190,13 +202,17 @@ export async function loadCalendarItems(
           ? `/entreprises/${event.company.id}`
           : event.project
             ? `/projets/${event.project.id}`
-            : null,
+            : event.htmlLink,
+
         company: event.company,
         project: event.project,
-        editable: true,
+        editable: !googleImported,
         overdue: false,
-      }),
-    ),
+        externalProvider: event.externalProvider,
+        syncStatus: event.syncStatus,
+        htmlLink: event.htmlLink,
+      });
+    }),
     followUps.map((followUp) =>
       item({
         kind: "follow_up",

@@ -23,6 +23,7 @@ Statut : accepté.
 ADR-005 — CALENDRIER INTERNE SOURCE DE VÉRITÉ
 Décision : CalendarEvent interne ; fournisseurs externes synchronisés.
 Raison : ne pas rendre le métier dépendant de Google.
+Précision V2.3 : Google est SoT pour les événements **importés** ; les RDV CRM (MEETING) restent pilotés dans VersaTech OS, avec push Google optionnel.
 Statut : accepté.
 
 ADR-006 — GITHUB READ-ONLY FIRST
@@ -93,7 +94,7 @@ Conséquences :
 - pas d'API Mastra catch-all ; future `/api/ai/chat` authentifiée ; `/api/ai` hors `isPublicPath()` ;
 - ne pas lancer `mastra init` / squelette `src/mastra/` / LibSQL en production ;
 - inférence par défaut : Ollama local (loopback `/v1` via `OpenAICompatibleConfig` Mastra), sans clé API, sans fallback payant automatique.
-Statut : accepté.
+Statut : accepté (architecture figée) — **surface produit retirée en V2.3** (pas de `/api/ai`, panel, ni Ollama câblé). Ne pas réintroduire sans phase explicite.
 
 AJOUT D'ADR
 Créer un ADR lorsqu'une décision est coûteuse à inverser : auth, hébergement, stockage, architecture d'intégration, permissions, etc.

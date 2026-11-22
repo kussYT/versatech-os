@@ -7,6 +7,7 @@ import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateCalendar } from "@/lib/crm/revalidate";
 import { prisma } from "@/lib/db/prisma";
+import { maybeAutoPushCalendarEvent } from "@/lib/integrations/google/sync";
 import {
   createCalendarEventSchema,
   fieldErrorsFromZod,
@@ -113,6 +114,11 @@ export async function createCalendarEvent(
     });
 
     revalidateCalendar(links.companyId ?? undefined, links.projectId ?? undefined);
+
+    // CRM truth first; Google is best-effort (notifications phone / desktop).
+    await maybeAutoPushCalendarEvent(actor.id, created.id);
+    revalidateCalendar(links.companyId ?? undefined, links.projectId ?? undefined);
+
     return {
       ok: true,
       data: {
@@ -166,6 +172,17 @@ export async function updateCalendarEvent(
       return { ok: false, message: "Événement introuvable." };
     }
 
+    if (
+      existing.externalProvider === "google" &&
+      existing.syncStatus === "imported"
+    ) {
+      return {
+        ok: false,
+        message:
+          "Cet événement est importé depuis Google (source de vérité). Modifiez-le dans Google Calendar, puis resynchronisez.",
+      };
+    }
+
     const links = await resolveLinks(input.companyId, input.projectId);
     if ("error" in links) {
       return { ok: false, message: links.error };
@@ -201,6 +218,10 @@ export async function updateCalendarEvent(
     });
 
     revalidateCalendar(links.companyId ?? undefined, links.projectId ?? undefined);
+
+    await maybeAutoPushCalendarEvent(actor.id, existing.id);
+    revalidateCalendar(links.companyId ?? undefined, links.projectId ?? undefined);
+
     return {
       ok: true,
       data: {
