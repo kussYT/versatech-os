@@ -3,6 +3,12 @@
 import type { CompanyLifecycle } from "@/generated/prisma/client";
 import { logServerError } from "@/lib/observability/log-error";
 import { COMPANY_LIFECYCLE_LABELS } from "@/lib/crm/constants";
+import {
+  PROSPECT_DUPLICATE_LIMIT,
+  PROSPECT_DUPLICATE_MIN_LENGTH,
+  type ProspectDuplicateHit,
+} from "@/lib/crm/prospect-duplicates";
+import { isSearchableQuery, normalizeSearchQuery } from "@/lib/crm/search";
 
 import type { ActionResult } from "@/lib/crm/action-result";
 import { getAuthSecret } from "@/lib/auth/config";
@@ -10,6 +16,7 @@ import { requireActor } from "@/lib/crm/actor";
 import { readString } from "@/lib/crm/form-data";
 import { revalidateCrm } from "@/lib/crm/revalidate";
 import { toActionResult } from "@/lib/services/_shared/result";
+import { searchCompanies } from "@/lib/services/companies/service";
 import * as CompanyWriteService from "@/lib/services/companies/write";
 import {
   createCompanySchema,
@@ -17,6 +24,54 @@ import {
   updateCompanyFieldActionSchema,
   updateCompanySchema,
 } from "@/lib/validations/company";
+
+export type ProspectDuplicateSearchResult =
+  | { ok: true; query: string; items: ProspectDuplicateHit[] }
+  | { ok: false; query: string; items: []; message?: string };
+
+/**
+ * Anti-doublon à la création de prospect — lecture seule, limité.
+ * Ne fusionne jamais ; l'UI propose Ouvrir / Créer quand même.
+ */
+export async function searchProspectDuplicates(
+  rawQuery: string,
+): Promise<ProspectDuplicateSearchResult> {
+  const query = normalizeSearchQuery(rawQuery);
+  if (!isSearchableQuery(query) || query.length < PROSPECT_DUPLICATE_MIN_LENGTH) {
+    return { ok: true, query, items: [] };
+  }
+
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return { ok: false, query, items: [], message: "Session requise." };
+  }
+
+  try {
+    const result = await searchCompanies({
+      actor: auth.actor,
+      query,
+      limit: PROSPECT_DUPLICATE_LIMIT,
+    });
+    return {
+      ok: true,
+      query: result.query,
+      items: result.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        city: item.city,
+        lifecycleStatus: item.lifecycleStatus,
+      })),
+    };
+  } catch (error) {
+    logServerError("companies.prospect_duplicates", error);
+    return {
+      ok: false,
+      query,
+      items: [],
+      message: "Recherche indisponible.",
+    };
+  }
+}
 
 function userFacingDbError() {
   return "Impossible d'enregistrer l'entreprise. Réessayez.";

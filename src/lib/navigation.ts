@@ -41,6 +41,8 @@ export type NavIconName =
 export type NavItemConfig = {
   href: NavHref;
   label: string;
+  /** Libellé court pour la tab bar mobile (évite la troncature). */
+  shortLabel?: string;
   icon: NavIconName;
 };
 
@@ -110,10 +112,10 @@ export const settingsItem: NavItemConfig = {
 };
 
 export const mobileTabItems: NavItemConfig[] = [
-  todayItem,
-  { href: "/entreprises", label: "Entreprises", icon: "companies" },
-  { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
-  { href: "/projets", label: "Projets", icon: "projects" },
+  { ...todayItem, shortLabel: "Accueil" },
+  { href: "/entreprises", label: "Entreprises", shortLabel: "Fiches", icon: "companies" },
+  { href: "/pipeline", label: "Pipeline", shortLabel: "Pipeline", icon: "pipeline" },
+  { href: "/calendrier", label: "Calendrier", shortLabel: "Agenda", icon: "calendar" },
 ];
 
 export function isNavActive(pathname: string, href: NavHref) {
